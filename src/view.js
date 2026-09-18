@@ -393,6 +393,7 @@ export class View {
   }
   diagnostics() {
     return {
+      weapon: this.localWeapon,
       muzzle: this.localModel?.userData.muzzle
         ?.getWorldPosition(new THREE.Vector3())
         .toArray(),

@@ -66,6 +66,7 @@ const make = async (name, viewport = { width: 1440, height: 900 }) => {
     }),
   );
   const page = await context.newPage();
+  page.setDefaultTimeout(30000);
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("http://127.0.0.1:5173/?qa=1");
   await page
@@ -281,7 +282,7 @@ try {
       gid,
       { timeout: 10000 },
     );
-    await host.evaluate(
+    const targetSetup = await host.evaluate(
       (id) =>
         window.__yolkTest.fixture((s) => {
           const guest = s.players.get(id),
@@ -290,6 +291,7 @@ try {
             x: guest.x - Math.sin(guest.yaw) * 5,
             y: guest.y,
             z: guest.z - Math.cos(guest.yaw) * 5,
+            vy: 0,
             health: 100,
             shieldUntil: 0,
             team: 1 - guest.team,
@@ -300,19 +302,52 @@ try {
               p.health = 0;
               p.respawnAt = s.time + 60;
             }
+          s.projectiles = [];
+          return { time: s.time, eventId: s.eventId, x: target.x, z: target.z };
         }),
       gid,
     );
+    await guest.waitForFunction((setup) => {
+      const state = window.__yolkTest.read().state;
+      const target = state.players.find((p) => p.id === "host");
+      return (
+        state.time > setup.time &&
+        target.health === 100 &&
+        Math.hypot(target.x - setup.x, target.z - setup.z) < 0.1
+      );
+    }, targetSetup);
     await guest.mouse.click(720, 450);
     await host.waitForFunction(
-      () =>
-        window.__yolkTest.read().state.players.find((p) => p.id === "host")
-          .health < 99,
+      ({ id, after }) => {
+        const state = window.__yolkTest.read().state;
+        return (
+          state.players.find((p) => p.id === "host").health < 99 &&
+          state.events.some(
+            (e) =>
+              e.id > after &&
+              e.type === "hit" &&
+              e.player === id &&
+              e.target === "host",
+          )
+        );
+      },
+      { id: gid, after: targetSetup.eventId },
     );
     await guest.waitForFunction(
-      () =>
-        window.__yolkTest.read().state.players.find((p) => p.id === "host")
-          .health < 99,
+      ({ id, after }) => {
+        const state = window.__yolkTest.read().state;
+        return (
+          state.players.find((p) => p.id === "host").health < 99 &&
+          state.events.some(
+            (e) =>
+              e.id > after &&
+              e.type === "hit" &&
+              e.player === id &&
+              e.target === "host",
+          )
+        );
+      },
+      { id: gid, after: targetSetup.eventId },
     );
     pass(
       "Guest projectile hits are simulated by the host and replicated to both clients",

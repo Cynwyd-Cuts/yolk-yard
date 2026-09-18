@@ -84,7 +84,7 @@ try {
     "duet",
     "pip",
   ]) {
-    await page.evaluate(
+    const spawnedAt = await page.evaluate(
       (id) =>
         window.__yolkTest.fixture((s) => {
           const p = s.players.get("host");
@@ -99,9 +99,15 @@ try {
             pitch: 0,
             slot: id === "pip" ? 1 : 0,
           });
-          s.emit("spawn", { player: "host" });
+          return s.time;
         }),
       id,
+    );
+    // Let the normal spawn event reset the input before selecting the fixture
+    // pose or sidearm, otherwise a later reset can replace the captured model.
+    await page.waitForFunction(
+      (time) => window.__yolkTest.read().state.time > time + 0.05,
+      spawnedAt,
     );
     await page.evaluate(
       (id) =>
@@ -118,7 +124,8 @@ try {
     if (id === "pip") await page.keyboard.press("Digit2");
     await page.waitForFunction(
       (id) =>
-        document.querySelector("#gun-name").textContent.toLowerCase() === id,
+        document.querySelector("#gun-name").textContent.toLowerCase() === id &&
+        window.__yolkTest.read().presentation.weapon === id,
       id,
     );
     await page.waitForTimeout(220);
@@ -132,6 +139,10 @@ try {
       );
     else await page.waitForTimeout(280);
     await page.screenshot({ path: `${out}/sight-${id}.png` });
+    assert.equal(
+      (await page.evaluate(() => window.__yolkTest.read())).presentation.weapon,
+      id,
+    );
     if (id === "needle" || id === "duet") {
       assert.equal(await page.locator("#scope").isVisible(), true);
       assert.equal(
@@ -143,6 +154,9 @@ try {
   }
   pass(
     "All eight weapon models and sights render, including both magnified optic lenses",
+  );
+  await page.waitForFunction(
+    () => window.__yolkTest.read().scope.aimBlend < 0.02,
   );
   await page.mouse.move(720, 450);
   await page.mouse.down();

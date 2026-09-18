@@ -129,12 +129,14 @@ function vents(g, z, count, width = 0.25, spacing = 0.07) {
     for (const x of [-width / 2, width / 2])
       box(g, x, 0.018, z - i * spacing, 0.008, 0.065, 0.028, black, 0.003);
 }
-function optic(g, kind) {
+function optic(g, kind, frontZ = -0.7) {
   const sightY = 0.285;
   if (kind === "iron") {
+    box(g, 0, 0.109, 0.15, 0.18, 0.035, 0.09, dark, 0.007);
     for (const x of [-0.066, 0.066])
       box(g, x, 0.17, 0.15, 0.032, 0.12, 0.045, steel, 0.006, true);
-    box(g, 0, 0.185, -0.52, 0.022, 0.13, 0.04, cream, 0.005);
+    box(g, 0, 0.1, frontZ, 0.14, 0.1, 0.09, steel, 0.009, true);
+    box(g, 0, 0.185, frontZ, 0.022, 0.07, 0.04, cream, 0.005);
     g.userData.sightY = 0.22;
     return;
   }
@@ -224,7 +226,7 @@ export function makeBlaster(id) {
     ring(g, 0, 0.015, -0.435, 0.05, 0.012, c);
     for (let i = 0; i < 5; i++)
       box(g, 0.101, 0.04, 0.07 + i * 0.025, 0.009, 0.085, 0.009, dark, 0.002);
-    optic(g, "iron");
+    optic(g, "iron", -0.24);
   } else if (id === "scatter") {
     box(g, 0, 0, 0.08, 0.3, 0.23, 0.46, c);
     grip(g, 0.17);
@@ -389,18 +391,19 @@ export function makeBlaster(id) {
     optic(g, "reflex");
   }
   // Small construction details break up broad surfaces while keeping readable silhouettes.
+  const detailX =
+    {
+      pip: 0.099,
+      scatter: 0.154,
+      needle: 0.12,
+      zipper: 0.135,
+      thumper: 0.213,
+      anchor: 0.174,
+      duet: 0.145,
+      sprinter: 0.135,
+    }[id] || 0.135;
   for (const x of [-1, 1]) {
-    box(
-      g,
-      x * (id === "anchor" ? 0.178 : 0.138),
-      0.03,
-      0.11,
-      0.012,
-      0.032,
-      0.09,
-      cream,
-      0.004,
-    );
+    box(g, x * detailX, 0.03, 0.11, 0.012, 0.032, 0.09, cream, 0.004);
     for (const z of [0.04, 0.2]) {
       const bolt = part(
         g,
@@ -409,7 +412,7 @@ export function makeBlaster(id) {
           () => new THREE.CylinderGeometry(0.014, 0.014, 0.008, 8),
         ),
         color(steel, true),
-        [x * (id === "anchor" ? 0.177 : 0.137), -0.06, z],
+        [x * (detailX - 0.001), -0.06, z],
       );
       bolt.rotation.z = Math.PI / 2;
     }
