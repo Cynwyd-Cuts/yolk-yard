@@ -145,3 +145,66 @@ export function sanitizeInput(i = {}) {
     slot: i.slot === 1 ? 1 : 0,
   };
 }
+
+export const VIEWMODEL = { scale: 0.68, x: 0.32, y: -0.31, z: -0.48 };
+export function muzzleOrigin(p, w) {
+  const f = direction(p.yaw, p.pitch),
+    right = { x: Math.cos(p.yaw), y: 0, z: -Math.sin(p.yaw) };
+  const up = {
+    x: Math.sin(p.yaw) * Math.sin(p.pitch),
+    y: Math.cos(p.pitch),
+    z: Math.cos(p.yaw) * Math.sin(p.pitch),
+  };
+  const side = p.aim ? 0 : VIEWMODEL.x,
+    height = p.aim ? -w.sightY * VIEWMODEL.scale : VIEWMODEL.y,
+    forward = -VIEWMODEL.z + w.muzzle * VIEWMODEL.scale;
+  return {
+    x: p.x + right.x * side + up.x * height + f.x * forward,
+    y: p.y + EYE + up.y * height + f.y * forward,
+    z: p.z + right.z * side + up.z * height + f.z * forward,
+  };
+}
+// Swept segment collision supplies the actual surface normal for impact and bounce effects.
+export function worldHit(map, o, d, max = 200, radius = 0) {
+  let result = null,
+    best = max;
+  for (const source of map.boxes) {
+    const b = radius
+      ? {
+          ...source,
+          w: source.w + radius * 2,
+          d: source.d + radius * 2,
+          y: source.y - radius,
+          h: source.h + radius * 2,
+        }
+      : source;
+    const t = rayBox(o, d, b, best);
+    if (!Number.isFinite(t) || t > best) continue;
+    const hit = { x: o.x + d.x * t, y: o.y + d.y * t, z: o.z + d.z * t };
+    const faces = [
+      ["x", b.x - b.w / 2, -1],
+      ["x", b.x + b.w / 2, 1],
+      ["y", b.y, -1],
+      ["y", b.y + b.h, 1],
+      ["z", b.z - b.d / 2, -1],
+      ["z", b.z + b.d / 2, 1],
+    ];
+    faces.sort(
+      (a, b) => Math.abs(hit[a[0]] - a[1]) - Math.abs(hit[b[0]] - b[1]),
+    );
+    const normal = { x: 0, y: 0, z: 0 };
+    normal[faces[0][0]] = faces[0][2];
+    best = t;
+    result = { distance: t, point: hit, normal };
+  }
+  if (d.y < 0) {
+    const t = (radius - o.y) / d.y;
+    if (t >= 0 && t <= best)
+      result = {
+        distance: t,
+        point: { x: o.x + d.x * t, y: radius, z: o.z + d.z * t },
+        normal: { x: 0, y: 1, z: 0 },
+      };
+  }
+  return result;
+}

@@ -1,6 +1,17 @@
-import { WEAPONS, weapon, gun, mode, safeProfile, clamp, rng } from "./data.js";
+import {
+  VERSION,
+  WEAPONS,
+  weapon,
+  gun,
+  mode,
+  safeProfile,
+  clamp,
+  rng,
+} from "./data.js";
 import { getMap, navigation, surfaceAt } from "./maps.js";
 import {
+  muzzleOrigin,
+  worldHit,
   movePlayer,
   sanitizeInput,
   direction,
@@ -315,6 +326,47 @@ export class Simulation {
     p.burstLeft = 0;
     this.emit("reload", { player: p.id });
   }
+  shotPath(p, w, directionOverride = null) {
+    const eye = { x: p.x, y: p.y + EYE, z: p.z },
+      aim = directionOverride || direction(p.yaw, p.pitch);
+    let distance = wallDistance(this.map, eye, aim, w.range);
+    for (const target of this.players.values())
+      if (
+        target !== p &&
+        target.health > 0 &&
+        (!mode(this.options.mode).teams || target.team !== p.team)
+      )
+        distance = Math.min(distance, rayEgg(eye, aim, target));
+    const target = {
+      x: eye.x + aim.x * distance,
+      y: eye.y + aim.y * distance,
+      z: eye.z + aim.z * distance,
+    };
+    const origin = muzzleOrigin(p, w),
+      offset = {
+        x: origin.x - eye.x,
+        y: origin.y - eye.y,
+        z: origin.z - eye.z,
+      },
+      length = Math.hypot(offset.x, offset.y, offset.z);
+    const blocked = worldHit(
+      this.map,
+      eye,
+      { x: offset.x / length, y: offset.y / length, z: offset.z / length },
+      length,
+    );
+    const delta = {
+        x: target.x - origin.x,
+        y: target.y - origin.y,
+        z: target.z - origin.z,
+      },
+      len = Math.hypot(delta.x, delta.y, delta.z) || 1;
+    return {
+      origin,
+      d: { x: delta.x / len, y: delta.y / len, z: delta.z / len },
+      blocked,
+    };
+  }
   fire(p, burst = false) {
     const w = gun(p);
     if (p.ammo[p.slot] <= 0 || p.reloadEnd) return;
@@ -324,103 +376,184 @@ export class Simulation {
       this.launch(p, false);
       return;
     }
-    const origin = { x: p.x, y: p.y + EYE, z: p.z },
-      ends = [];
+    const shots = [];
+    let origin = muzzleOrigin(p, w),
+      blocked = false;
     for (let i = 0; i < w.pellets; i++) {
-      const spread = w.spread * (p.aim ? 0.4 : 1) * (p.grounded ? 1 : 1.7),
-        d = direction(
-          p.yaw + (this.random() - 0.5) * spread * 2,
-          p.pitch + (this.random() - 0.5) * spread * 2,
-        );
-      let distance = wallDistance(this.map, origin, d, w.range),
-        victim = null;
-      for (const target of this.players.values()) {
-        if (
-          target === p ||
-          target.health <= 0 ||
-          (mode(this.options.mode).teams && target.team === p.team)
-        )
-          continue;
-        const hit = rayEgg(origin, d, target);
-        if (hit < distance) {
-          distance = hit;
-          victim = target;
-        }
+      const spread = w.spread * (p.aim ? 0.4 : 1) * (p.grounded ? 1 : 1.7);
+      // Uniform disk dispersion gives a consistent circular pattern.
+      const radius = Math.sqrt(this.random()) * spread,
+        angle = this.random() * Math.PI * 2;
+      const aim = direction(
+        p.yaw + Math.cos(angle) * radius,
+        p.pitch + Math.sin(angle) * radius,
+      );
+      const path = this.shotPath(p, w, aim);
+      origin = path.origin;
+      if (path.blocked) {
+        blocked = true;
+        if (i === 0)
+          this.emit("impact", {
+            ...path.blocked.point,
+            normal: path.blocked.normal,
+            weapon: w.id,
+          });
+        continue;
       }
-      const end = {
-        x: origin.x + d.x * distance,
-        y: origin.y + d.y * distance,
-        z: origin.z + d.z * distance,
+      const b = {
+        id: ++this.projectileId,
+        owner: p.id,
+        weapon: w.id,
+        kind: "bolt",
+        ...origin,
+        vx: path.d.x * w.boltSpeed,
+        vy: path.d.y * w.boltSpeed,
+        vz: path.d.z * w.boltSpeed,
+        gravity: w.gravity,
+        damage: w.damage,
+        born: this.time,
+        fuse: w.range / w.boltSpeed,
+        travelled: 0,
+        popper: false,
       };
-      ends.push(end);
-      if (victim) {
-        let damage =
-          w.damage *
-          (w.id === "scatter" ? Math.max(0.3, 1 - distance / 50) : 1);
-        const precision = end.y > victim.y + 1.36;
-        if (precision) damage *= 1.3;
-        this.damage(victim, p, damage, w.name, precision);
-      }
+      this.projectiles.push(b);
+      shots.push({ id: b.id, vx: b.vx, vy: b.vy, vz: b.vz });
     }
-    this.emit("shot", { player: p.id, weapon: w.id, origin, ends });
+    this.emit("shot", { player: p.id, weapon: w.id, origin, shots, blocked });
   }
   launch(p, popper) {
-    const d = direction(p.yaw, p.pitch),
-      speed = popper ? 15 : 24;
+    const w = gun(p),
+      path = this.shotPath(p, w),
+      d = popper ? direction(p.yaw, p.pitch) : path.d;
+    const origin = popper
+      ? { x: p.x, y: p.y + EYE - 0.15, z: p.z }
+      : path.origin;
+    if (!popper && path.blocked) {
+      this.emit("impact", {
+        ...path.blocked.point,
+        normal: path.blocked.normal,
+        weapon: w.id,
+      });
+      this.emit("launch", {
+        player: p.id,
+        popper,
+        weapon: w.id,
+        origin,
+        blocked: true,
+      });
+      return;
+    }
+    const speed = popper ? 15 : w.boltSpeed;
     this.projectiles.push({
       id: ++this.projectileId,
       owner: p.id,
-      x: p.x,
-      y: p.y + EYE,
-      z: p.z,
+      weapon: popper ? "popper" : w.id,
+      kind: "shell",
+      ...origin,
       vx: d.x * speed,
-      vy: d.y * speed + (popper ? 4 : 1),
+      vy: d.y * speed + (popper ? 4 : 0),
       vz: d.z * speed,
+      gravity: popper ? 13 : w.gravity,
       born: this.time,
-      fuse: popper ? 2 : 3,
+      fuse: popper ? 2.0 : 3.6,
       popper,
       bounces: 0,
+      resting: false,
     });
-    this.emit("launch", { player: p.id, popper });
+    this.emit("launch", { player: p.id, popper, weapon: w.id, origin });
   }
   updateProjectiles(dt) {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const b = this.projectiles[i];
-      b.vy -= (b.popper ? 13 : 3) * dt;
-      let delta = { x: b.vx * dt, y: b.vy * dt, z: b.vz * dt },
-        len = Math.hypot(delta.x, delta.y, delta.z),
-        d = { x: delta.x / len, y: delta.y / len, z: delta.z / len };
-      let hit = wallDistance(this.map, b, d, len + 0.14) <= len + 0.13;
-      if (!hit && !b.popper)
-        for (const p of this.players.values())
-          if (
-            p.id !== b.owner &&
-            p.health > 0 &&
-            rayEgg(b, d, p) <= len + 0.2
-          ) {
-            hit = true;
-            break;
-          }
-      if (hit && b.popper && b.bounces < 3) {
-        b.bounces++;
-        if (b.y < 0.4) {
-          b.y = 0.3;
-          b.vy = Math.abs(b.vy) * 0.55;
-          b.vx *= 0.75;
-          b.vz *= 0.75;
-        } else {
-          b.vx *= -0.55;
-          b.vz *= -0.55;
-          b.vy = Math.max(b.vy, 2);
-        }
-      } else if (hit || this.time - b.born >= b.fuse) {
-        this.explode(b);
+      if (this.time - b.born >= b.fuse) {
+        if (b.kind !== "bolt") this.explode(b);
         this.projectiles.splice(i, 1);
         continue;
-      } else {
-        b.x += delta.x;
-        b.y += delta.y;
-        b.z += delta.z;
+      }
+      if (b.resting) continue;
+      const dy = b.vy * dt - 0.5 * b.gravity * dt * dt;
+      b.vy -= b.gravity * dt;
+      const delta = { x: b.vx * dt, y: dy, z: b.vz * dt },
+        length = Math.hypot(delta.x, delta.y, delta.z);
+      if (length < 1e-8) continue;
+      const d = {
+        x: delta.x / length,
+        y: delta.y / length,
+        z: delta.z / length,
+      };
+      const hit = worldHit(
+        this.map,
+        b,
+        d,
+        length,
+        b.kind === "bolt" ? 0 : 0.14,
+      );
+      let distance = hit?.distance ?? length,
+        victim = null;
+      const attacker = this.players.get(b.owner);
+      if (!b.popper)
+        for (const p of this.players.values()) {
+          if (
+            p.id === b.owner ||
+            p.health <= 0 ||
+            (attacker &&
+              mode(this.options.mode).teams &&
+              p.team === attacker.team)
+          )
+            continue;
+          const t = rayEgg(b, d, p);
+          if (t < distance) {
+            distance = t;
+            victim = p;
+          }
+        }
+      b.x += d.x * distance;
+      b.y += d.y * distance;
+      b.z += d.z * distance;
+      b.travelled = (b.travelled || 0) + distance;
+      if (victim || hit) {
+        if (b.kind === "bolt") {
+          if (victim) {
+            const precision = b.y > victim.y + 1.36,
+              w = weapon(b.weapon),
+              falloff =
+                w.id === "scatter" ? Math.max(0.28, 1 - b.travelled / 42) : 1;
+            this.damage(
+              victim,
+              attacker,
+              b.damage * falloff * (precision ? 1.3 : 1),
+              w.name,
+              precision,
+            );
+          }
+          this.emit("impact", {
+            x: b.x,
+            y: b.y,
+            z: b.z,
+            normal: victim ? { x: -d.x, y: -d.y, z: -d.z } : hit.normal,
+            weapon: b.weapon,
+            tag: !!victim,
+          });
+          this.projectiles.splice(i, 1);
+        } else if (b.popper) {
+          const n = hit.normal,
+            dot = b.vx * n.x + b.vy * n.y + b.vz * n.z;
+          b.vx = (b.vx - 1.58 * dot * n.x) * 0.82;
+          b.vy = (b.vy - 1.58 * dot * n.y) * 0.82;
+          b.vz = (b.vz - 1.58 * dot * n.z) * 0.82;
+          b.x += n.x * 0.012;
+          b.y += n.y * 0.012;
+          b.z += n.z * 0.012;
+          b.bounces++;
+          if (n.y > 0.5 && Math.hypot(b.vx, b.vy, b.vz) < 1.5) {
+            b.resting = true;
+            b.vx = b.vy = b.vz = 0;
+          }
+          this.emit("bounce", { x: b.x, y: b.y, z: b.z, normal: n });
+        } else {
+          this.explode(b);
+          this.projectiles.splice(i, 1);
+        }
       }
     }
   }
@@ -440,7 +573,11 @@ export class Simulation {
       const to = { x: p.x - b.x, y: p.y + 0.85 - b.y, z: p.z - b.z },
         distance = Math.hypot(to.x, to.y, to.z);
       if (distance > radius) continue;
-      const d = { x: to.x / distance, y: to.y / distance, z: to.z / distance };
+      const d = {
+        x: to.x / (distance || 1),
+        y: to.y / (distance || 1),
+        z: to.z / (distance || 1),
+      };
       if (wallDistance(this.map, b, d, distance) < distance - 0.2) continue;
       this.damage(
         p,
@@ -639,7 +776,7 @@ export class Simulation {
     }
     while (
       p.botPath?.length &&
-      Math.hypot(p.botPath[0].x - p.x, p.botPath[0].z - p.z) < 1
+      Math.hypot(p.botPath[0].x - p.x, p.botPath[0].z - p.z) < 0.55
     )
       p.botPath.shift();
     let waypoint = p.botPath?.[0] || goal,
@@ -725,7 +862,7 @@ export class Simulation {
       "aim",
     ];
     return {
-      version: 1,
+      version: VERSION,
       time: this.time,
       round: this.round,
       phase: this.phase,
@@ -745,6 +882,12 @@ export class Simulation {
         y: b.y,
         z: b.z,
         popper: b.popper,
+        kind: b.kind,
+        weapon: b.weapon,
+        owner: b.owner,
+        vx: b.vx,
+        vy: b.vy,
+        vz: b.vz,
       })),
       pickups: this.pickups.map((p) => ({ ...p })),
       flags: this.flags.map((f) => ({ ...f })),

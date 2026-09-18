@@ -4,163 +4,312 @@ const box = (x, z, w, d, h, color = "sand", y = 0, kind = "wall") => ({
   w,
   d,
   h,
-  y,
   color,
+  y,
   kind,
 });
 const perimeter = (size) => [
-  box(-size - 1, 0, 2, size * 2 + 4, 5, "navy"),
-  box(size + 1, 0, 2, size * 2 + 4, 5, "navy"),
-  box(0, -size - 1, size * 2, 2, 5, "navy"),
-  box(0, size + 1, size * 2, 2, 5, "navy"),
+  box(-size - 1, 0, 2, size * 2 + 4, 5, "navy", 0, "boundary"),
+  box(size + 1, 0, 2, size * 2 + 4, 5, "navy", 0, "boundary"),
+  box(0, -size - 1, size * 2, 2, 5, "navy", 0, "boundary"),
+  box(0, size + 1, size * 2, 2, 5, "navy", 0, "boundary"),
 ];
-const steps = (x, z, axis, sign = 1) =>
-  [0, 1, 2, 3, 4].map((i) =>
+const stairs = (x, z, axis, sign = 1, count = 8, width = 4) =>
+  Array.from({ length: count }, (_, i) =>
     box(
-      x + (axis === "x" ? i * 0.9 * sign : 0),
-      z + (axis === "z" ? i * 0.9 * sign : 0),
-      axis === "x" ? 0.95 : 3,
-      axis === "z" ? 0.95 : 3,
+      x + (axis === "x" ? i * 1.5 * sign : 0),
+      z + (axis === "z" ? i * 1.5 * sign : 0),
+      axis === "x" ? 1.52 : width,
+      axis === "z" ? 1.52 : width,
       (i + 1) * 0.4,
       "stone",
+      0,
+      "step",
     ),
   );
-const commonSpawns = (size) => [
-  [-size + 4, -size + 4],
-  [size - 4, size - 4],
-  [-size + 4, size - 4],
-  [size - 4, -size + 4],
-  [-size + 4, 0],
-  [size - 4, 0],
-  [0, -size + 4],
-  [0, size - 4],
+const spawns = (size) => [
+  [-size + 5, -size + 5],
+  [size - 5, size - 5],
+  [-size + 5, size - 5],
+  [size - 5, -size + 5],
+  [-size + 5, 0],
+  [size - 5, 0],
+  [0, -size + 5],
+  [0, size - 5],
+];
+const crate = (x, z, w = 2.8, d = 2.8, h = 2) =>
+  box(x, z, w, d, h, "crate", 0, "crate");
+const planter = (x, z, w, d) => box(x, z, w, d, 1.05, "stone", 0, "planter");
+const facade = (x, z, w, d, h, color = "terracotta") =>
+  box(x, z, w, d, h, color, 0, "facade");
+const arch = (x, z, axis = "x", width = 8, top = 5.5) => [
+  box(
+    x + (axis === "x" ? -width / 2 : 0),
+    z + (axis === "z" ? -width / 2 : 0),
+    axis === "x" ? 1.4 : 2,
+    axis === "z" ? 1.4 : 2,
+    top,
+    "stone",
+    0,
+    "column",
+  ),
+  box(
+    x + (axis === "x" ? width / 2 : 0),
+    z + (axis === "z" ? width / 2 : 0),
+    axis === "x" ? 1.4 : 2,
+    axis === "z" ? 1.4 : 2,
+    top,
+    "stone",
+    0,
+    "column",
+  ),
+  box(
+    x,
+    z,
+    axis === "x" ? width + 1.4 : 2,
+    axis === "z" ? width + 1.4 : 2,
+    1,
+    "stone",
+    top - 1,
+    "arch",
+  ),
 ];
 export const MAPS = [
   {
     id: "yard",
     name: "The Yard",
-    tag: "SUNLIT • OPEN LANES",
+    tag: "GLASSHOUSE GARDENS • 80 × 80",
     description:
-      "A bright training yard. Wide flanks, a raised center, and plenty of cover.",
-    size: 26,
-    sky: 0x8ed4e7,
-    ground: 0xdfd4b1,
-    accent: 0xf5b431,
-    boxes: [
-      ...perimeter(26),
-      box(0, 0, 8, 8, 2, "stone"),
-      ...steps(-8, 0, "x"),
-      ...steps(8, 0, "x", -1),
-      box(-12, -10, 7, 3, 3.6, "blue", 0, "container"),
-      box(12, 10, 7, 3, 3.6, "coral", 0, "container"),
-      box(12, -12, 3, 8, 3.6, "blue", 0, "container"),
-      box(-12, 12, 3, 8, 3.6, "coral", 0, "container"),
-      box(-4, -17, 3, 3, 2, "crate"),
-      box(5, 17, 3, 3, 2, "crate"),
-      box(-19, -6, 3, 4, 2, "crate"),
-      box(19, 6, 3, 4, 2, "crate"),
-      box(6, -7, 2, 2, 1.2, "gold"),
-      box(-6, 7, 2, 2, 1.2, "gold"),
-      box(-21, -16, 2, 2, 5, "stone"),
-      box(21, 16, 2, 2, 5, "stone"),
-    ],
-    spawns: commonSpawns(26),
+      "Garden lanes, a glasshouse, and raised observation decks around a sunken-looking central plaza.",
+    size: 40,
+    sky: 0xb4e0e6,
+    ground: 0xc5ceac,
+    accent: 0xe6bc54,
+    theme: "garden",
+    zone: [0, 0, 0],
     bases: [
-      [-21, 0],
-      [21, 0],
+      [-34, 0],
+      [34, 0],
     ],
-    zone: [0, 0, 2],
+    spawns: spawns(40),
+    lanes: [
+      [-26, 0, 9, 72, "path"],
+      [26, 0, 9, 72, "path"],
+      [0, 0, 68, 9, "path"],
+      [0, -25, 52, 7, "path"],
+      [0, 25, 52, 7, "path"],
+      [0, 0, 18, 18, "plaza"],
+    ],
+    boxes: [
+      ...perimeter(40),
+      // Four asymmetric garden corners, with cross routes around the central plaza.
+      planter(-10, -7, 10, 2.5),
+      planter(11, 8, 10, 2.5),
+      planter(-7, 13, 2.5, 8),
+      planter(7, -13, 2.5, 8),
+      box(-17, -14, 10, 10, 3.2, "stone", 0, "terrace"),
+      ...stairs(-17, -30, "z", 1, 8),
+      box(17, 14, 10, 10, 3.2, "stone", 0, "terrace"),
+      ...stairs(17, 30, "z", -1, 8),
+      box(-17, 15, 10, 12, 1.1, "sand", 0, "glasshouse"),
+      box(-21.5, 15, 0.25, 12, 3.4, "stone", 1.1, "glass"),
+      box(-12.5, 15, 0.25, 12, 3.4, "stone", 1.1, "glass"),
+      box(-17, 21, 10, 0.25, 3.4, "stone", 1.1, "glass"), // Open front of the greenhouse, climbable ledge.
+      ...stairs(-17, 5, "z", 1, 3, 5),
+      box(17, -15, 10, 11, 1.2, "sand", 0, "pavilion"),
+      ...stairs(17, -6, "z", -1, 3, 5),
+      ...arch(0, -26, "x", 10, 5.8),
+      ...arch(0, 26, "x", 10, 5.8),
+      planter(-31, -17, 4, 7),
+      planter(31, 17, 4, 7),
+      planter(-31, 17, 4, 7),
+      planter(31, -17, 4, 7),
+      crate(-6, -32),
+      crate(7, 32),
+      crate(-32, -7, 3, 3, 1.4),
+      crate(32, 7, 3, 3, 1.4),
+      box(-4, 2, 2, 4, 1.3, "stone", 0, "sculpture"),
+      box(4, -2, 2, 4, 1.3, "stone", 0, "sculpture"),
+    ],
+    props: [
+      [-17, -14, "pergola"],
+      [17, 14, "pergola"],
+      [-17, 15, "glasshouse"],
+      [17, -15, "pergola"],
+      [0, -38, "sign", "GLASSHOUSE / 01"],
+    ],
     pickups: [
-      [-17, 17, "health"],
-      [17, -17, "health"],
-      [0, -19, "ammo"],
-      [0, 19, "ammo"],
-      [0, 0, "popper"],
+      [-29, -25, "health"],
+      [29, 25, "health"],
+      [-29, 25, "ammo"],
+      [29, -25, "ammo"],
+      [-17, -14, "ammo"],
+      [17, 14, "ammo"],
+      [0, -17, "popper"],
+      [0, 17, "health"],
     ],
   },
   {
     id: "depot",
     name: "Cargo Club",
-    tag: "INDUSTRIAL • CLOSE QUARTERS",
+    tag: "FREIGHT HARBOR • 84 × 84",
     description:
-      "Colorful freight stacks split this depot into quick, winding routes.",
-    size: 24,
-    sky: 0xa6d8ea,
-    ground: 0xb5c3bd,
-    accent: 0x63d3d0,
-    boxes: [
-      ...perimeter(24),
-      box(-8, -8, 10, 4, 4, "coral", 0, "container"),
-      box(8, 8, 10, 4, 4, "blue", 0, "container"),
-      box(-8, 8, 4, 10, 4, "blue", 0, "container"),
-      box(8, -8, 4, 10, 4, "coral", 0, "container"),
-      box(0, 0, 4, 4, 1.2, "gold"),
-      box(-17, -15, 3, 3, 2, "crate"),
-      box(17, 15, 3, 3, 2, "crate"),
-      box(16, -18, 5, 3, 3, "stone"),
-      box(-16, 18, 5, 3, 3, "stone"),
-      box(0, -18, 7, 3, 2, "stone"),
-      ...steps(-6, -18, "x"),
-      box(0, 18, 7, 3, 2, "stone"),
-      ...steps(6, 18, "x", -1),
-    ],
-    spawns: commonSpawns(24),
+      "A working harbor with stacked freight, a central overpass, loading decks, and wide dockside flanks.",
+    size: 42,
+    sky: 0xa3c7db,
+    ground: 0x7f989f,
+    accent: 0xedb146,
+    theme: "harbor",
+    zone: [0, 0, 0],
     bases: [
-      [-20, 0],
-      [20, 0],
+      [-36, 0],
+      [36, 0],
     ],
-    zone: [0, 0, 1.2],
+    spawns: spawns(42),
+    lanes: [
+      [0, 0, 72, 12, "asphalt"],
+      [-28, 0, 9, 76, "asphalt"],
+      [28, 0, 9, 76, "asphalt"],
+      [0, -28, 64, 8, "asphalt"],
+      [0, 28, 64, 8, "asphalt"],
+    ],
+    boxes: [
+      ...perimeter(42),
+      box(-14, -13, 14, 5, 4, "blue", 0, "container"),
+      box(14, 13, 14, 5, 4, "coral", 0, "container"),
+      box(-14, 14, 5, 14, 4, "coral", 0, "container"),
+      box(14, -14, 5, 14, 4, "blue", 0, "container"),
+      box(-14, -13, 9, 5, 3.4, "cream", 4, "container"),
+      box(14, 13, 9, 5, 3.4, "gold", 4, "container"),
+      // The high bridge leaves a full-height route underneath.
+      box(0, 0, 26, 5, 0.45, "steel", 3.15, "bridge"),
+      box(-10, 0, 1.2, 5, 3.15, "navy"),
+      box(10, 0, 1.2, 5, 3.15, "navy"),
+      box(-17, 0, 8, 5, 3.2, "stone", 0, "deck"),
+      box(17, 0, 8, 5, 3.2, "stone", 0, "deck"),
+      ...stairs(-32.25, 0, "x", 1, 8),
+      ...stairs(32.25, 0, "x", -1, 8),
+      box(-9, -30, 10, 4, 2, "stone", 0, "deck"),
+      ...stairs(-18, -30, "x", 1, 5),
+      box(9, 30, 10, 4, 2, "stone", 0, "deck"),
+      ...stairs(18, 30, "x", -1, 5),
+      box(-32, -18, 4, 9, 3.4, "gold", 0, "container"),
+      box(32, 18, 4, 9, 3.4, "blue", 0, "container"),
+      box(-32, 18, 4, 9, 3.4, "blue", 0, "container"),
+      box(32, -18, 4, 9, 3.4, "coral", 0, "container"),
+      crate(-5, -19),
+      crate(5, 19),
+      crate(-25, 29),
+      crate(25, -29),
+      crate(-6, 8, 3, 3, 1.2),
+      crate(6, -8, 3, 3, 1.2),
+      box(0, -35, 6, 3, 2, "steel", 0, "generator"),
+      box(0, 35, 6, 3, 2, "steel", 0, "generator"),
+    ],
+    props: [
+      [-47, -20, "crane"],
+      [47, 20, "crane"],
+      [-20, -46, "ship"],
+      [20, 46, "ship"],
+      [0, -40, "sign", "CARGO CLUB / DOCK 02"],
+    ],
     pickups: [
-      [-17, -5, "health"],
-      [17, 5, "health"],
-      [-8, 17, "ammo"],
-      [8, -17, "ammo"],
-      [0, 0, "popper"],
+      [-36, -28, "health"],
+      [36, 28, "health"],
+      [-36, 28, "ammo"],
+      [36, -28, "ammo"],
+      [-17, 0, "ammo"],
+      [17, 0, "ammo"],
+      [0, -20, "popper"],
+      [0, 20, "health"],
     ],
   },
   {
     id: "courtyard",
     name: "Sunset Social",
-    tag: "COURTYARD • VERTICAL",
+    tag: "TERRACED TOWN • 88 × 88",
     description:
-      "Warm stone, narrow arches, and two climbable lookout terraces.",
-    size: 28,
-    sky: 0xf1c49b,
-    ground: 0xe1b996,
-    accent: 0xed9770,
-    boxes: [
-      ...perimeter(28),
-      box(-9, 0, 4, 16, 3.8, "terracotta"),
-      box(9, 0, 4, 16, 3.8, "terracotta"),
-      box(0, -13, 14, 3, 2, "stone"),
-      box(0, 13, 14, 3, 2, "stone"),
-      ...steps(-10, -13, "x"),
-      ...steps(10, 13, "x", -1),
-      box(-18, -15, 4, 4, 2, "crate"),
-      box(18, 15, 4, 4, 2, "crate"),
-      box(-18, 15, 4, 4, 2, "crate"),
-      box(18, -15, 4, 4, 2, "crate"),
-      box(-21, 0, 3, 6, 3.4, "terracotta"),
-      box(21, 0, 3, 6, 3.4, "terracotta"),
-      box(0, 0, 3, 3, 1.1, "gold"),
-      box(-5, -21, 2, 2, 5, "stone"),
-      box(5, 21, 2, 2, 5, "stone"),
-    ],
-    spawns: commonSpawns(28),
+      "Arcaded streets, climbable rooftops, market awnings, and a bell tower overlooking a warm stone plaza.",
+    size: 44,
+    sky: 0xf0c5a5,
+    ground: 0xd8ba98,
+    accent: 0xed9470,
+    theme: "town",
+    zone: [0, 0, 0],
     bases: [
-      [-24, -8],
-      [24, 8],
+      [-38, -3],
+      [38, 3],
     ],
-    zone: [0, 0, 1.1],
+    spawns: spawns(44),
+    lanes: [
+      [0, 0, 76, 12, "plaza"],
+      [0, 0, 14, 76, "plaza"],
+      [-30, 0, 7, 76, "path"],
+      [30, 0, 7, 76, "path"],
+      [0, -30, 64, 7, "path"],
+      [0, 30, 64, 7, "path"],
+    ],
+    boxes: [
+      ...perimeter(44),
+      facade(-17, -15, 12, 12, 3.2),
+      facade(17, 15, 12, 12, 3.2, "blue"),
+      ...stairs(-17, -32.25, "z", 1, 8),
+      ...stairs(17, 32.25, "z", -1, 8),
+      facade(17, -18, 11, 14, 6.7, "cream"),
+      facade(-17, 18, 11, 14, 6.7),
+      ...arch(0, -16, "x", 8, 5.4),
+      ...arch(0, 16, "x", 8, 5.4),
+      ...arch(-30, 0, "z", 8, 5.8),
+      ...arch(30, 0, "z", 8, 5.8),
+      // Rooftop links cross the narrow side alleys without sealing the streets.
+      box(-17, -5, 8, 6, 0.35, "stone", 3.2, "bridge"),
+      box(17, 5, 8, 6, 0.35, "stone", 3.2, "bridge"),
+      box(-17, -2, 1.1, 1.1, 3.2, "stone", 0, "column"),
+      box(17, 2, 1.1, 1.1, 3.2, "stone", 0, "column"),
+      box(-5, 0, 2, 7, 1.05, "stone", 0, "planter"),
+      box(5, 0, 2, 7, 1.05, "stone", 0, "planter"),
+      facade(-34, -20, 6, 10, 4.8, "blue"),
+      facade(34, 20, 6, 10, 4.8),
+      planter(-33, 23, 5, 6),
+      planter(33, -23, 5, 6),
+      crate(-8, 30),
+      crate(8, -30),
+      box(0, -36, 5, 4, 1.25, "stone", 0, "fountain"),
+      box(0, 36, 5, 4, 1.25, "stone", 0, "fountain"),
+    ],
+    props: [
+      [-17, -15, "awning"],
+      [17, 15, "awning"],
+      [17, -18, "bell"],
+      [-17, 18, "roof"],
+      [-8, -8, "lamp"],
+      [8, 8, "lamp"],
+      [0, -42, "sign", "SUNSET SOCIAL / OLD TOWN"],
+    ],
     pickups: [
-      [-17, 0, "health"],
-      [17, 0, "health"],
-      [0, -22, "ammo"],
-      [0, 22, "ammo"],
-      [0, 0, "popper"],
+      [-27, -26, "health"],
+      [27, 26, "health"],
+      [-27, 26, "ammo"],
+      [27, -26, "ammo"],
+      [-17, -15, "ammo"],
+      [17, 15, "ammo"],
+      [0, -8, "popper"],
+      [0, 8, "health"],
     ],
   },
 ];
+
+// Visible garden posts also participate in movement and shot collision.
+for (const map of MAPS)
+  for (const [x, z, kind] of map.props)
+    if (kind === "pergola" || kind === "glasshouse") {
+      const base = kind === "glasshouse" ? 1.1 : surfaceAt(map, x, z);
+      for (const dx of [-4, 4])
+        for (const dz of [-4, 4])
+          map.boxes.push(
+            box(x + dx, z + dz, 0.18, 0.18, 3.4, "navy", base, "frame"),
+          );
+    }
 export const getMap = (id) => MAPS.find((m) => m.id === id) || MAPS[0];
 export function surfaceAt(map, x, z) {
   let y = 0;
@@ -170,74 +319,103 @@ export function surfaceAt(map, x, z) {
   return y;
 }
 
-// A compact navigation grid for bots. Tall geometry is blocked; low steps are navigable.
+// Layered navigation preserves both the street and the walkable deck above it.
 export function navigation(map) {
-  const cell = 2,
+  const cell = 1.5,
     n = Math.ceil((map.size * 2) / cell),
     origin = -map.size + cell / 2;
-  const key = (x, z) => z * n + x,
-    grid = new Uint8Array(n * n);
+  const cells = Array.from({ length: n * n }, () => []),
+    nodes = [];
   for (let z = 0; z < n; z++)
     for (let x = 0; x < n; x++) {
       const px = origin + x * cell,
         pz = origin + z * cell;
-      grid[key(x, z)] = map.boxes.some(
+      const overlapping = map.boxes.filter(
         (b) =>
-          b.h > 1.4 &&
-          Math.abs(px - b.x) < b.w / 2 + 0.7 &&
-          Math.abs(pz - b.z) < b.d / 2 + 0.7,
-      )
-        ? 1
-        : 0;
+          Math.abs(px - b.x) < b.w / 2 + 0.48 &&
+          Math.abs(pz - b.z) < b.d / 2 + 0.48,
+      );
+      const levels = new Set([0]);
+      for (const b of overlapping)
+        if (Math.abs(px - b.x) < b.w / 2 && Math.abs(pz - b.z) < b.d / 2)
+          levels.add(b.y + b.h);
+      for (const y of levels) {
+        if (
+          y > 8 ||
+          overlapping.some((b) => y + 0.04 < b.y + b.h && y + 1.78 > b.y + 0.01)
+        )
+          continue;
+        const node = {
+          id: nodes.length,
+          x: px,
+          y,
+          z: pz,
+          cx: x,
+          cz: z,
+          edges: [],
+        };
+        nodes.push(node);
+        cells[z * n + x].push(node);
+      }
     }
-  const pos = (v) => [
-    Math.max(0, Math.min(n - 1, Math.round((v.x - origin) / cell))),
-    Math.max(0, Math.min(n - 1, Math.round((v.z - origin) / cell))),
-  ];
+  for (const a of nodes)
+    for (const [dx, dz] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      const x = a.cx + dx,
+        z = a.cz + dz;
+      if (x < 0 || z < 0 || x >= n || z >= n) continue;
+      for (const b of cells[z * n + x])
+        if (b.y - a.y <= 0.43 && a.y - b.y <= 3.7) a.edges.push(b.id);
+    }
+  const nearest = (p) => {
+    let best = nodes[0],
+      distance = Infinity;
+    for (const node of nodes) {
+      const d =
+        (node.x - p.x) ** 2 +
+        (node.z - p.z) ** 2 +
+        4 * (node.y - (p.y || 0)) ** 2;
+      if (d < distance) {
+        distance = d;
+        best = node;
+      }
+    }
+    return best;
+  };
   return {
     path(from, to) {
-      const [sx, sz] = pos(from),
-        [ex, ez] = pos(to),
-        start = key(sx, sz),
-        end = key(ex, ez),
-        parent = new Int32Array(n * n).fill(-1),
-        q = [start];
-      parent[start] = start;
-      let best = start,
+      const start = nearest(from),
+        end = nearest(to);
+      if (!start || !end) return [];
+      const parent = new Int32Array(nodes.length).fill(-1),
+        q = [start.id];
+      parent[start.id] = start.id;
+      let best = start.id,
         bestD = Infinity;
       for (let i = 0; i < q.length; i++) {
-        const k = q[i],
-          x = k % n,
-          z = Math.floor(k / n),
-          d = (x - ex) ** 2 + (z - ez) ** 2;
+        const a = nodes[q[i]],
+          d = (a.x - end.x) ** 2 + (a.z - end.z) ** 2 + 4 * (a.y - end.y) ** 2;
         if (d < bestD) {
           bestD = d;
-          best = k;
+          best = a.id;
         }
-        if (k === end) break;
-        for (const [dx, dz] of [
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1],
-        ]) {
-          let nx = x + dx,
-            nz = z + dz;
-          if (nx < 0 || nz < 0 || nx >= n || nz >= n) continue;
-          let nk = key(nx, nz);
-          if (!grid[nk] && parent[nk] < 0) {
-            parent[nk] = k;
-            q.push(nk);
+        if (a.id === end.id) break;
+        for (const k of a.edges)
+          if (parent[k] < 0) {
+            parent[k] = a.id;
+            q.push(k);
           }
-        }
       }
-      const result = [];
-      for (let k = best; k !== start && parent[k] >= 0; k = parent[k])
-        result.unshift({
-          x: origin + (k % n) * cell,
-          z: origin + Math.floor(k / n) * cell,
-        });
-      return result;
+      const path = [];
+      for (let k = best; k !== start.id && parent[k] >= 0; k = parent[k]) {
+        const a = nodes[k];
+        path.push({ x: a.x, y: a.y, z: a.z });
+      }
+      return path.reverse();
     },
   };
 }

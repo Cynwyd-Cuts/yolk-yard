@@ -1,49 +1,56 @@
-# Verification status
+# Verification
 
-## Completed locally
+The current commit's GitHub Actions run is the authority for release status.
+The workflow requires simulation, browser multiplayer, and visual-quality
+checks before publishing; it also exercises the published site afterward.
 
-- Production build succeeds with relative URLs for GitHub project Pages.
-- Simulation regression tests cover collision, jumping, ray obstruction,
-  movement/input validation, brief network button presses, damage and shields,
-  friendly fire, ammo/reloading, respawn, captures and crown returns, contested
-  zones, full rounds in all four modes, map navigation, and all primary weapons.
-- Rendered Chromium checks exercise real keyboard/mouse movement, look, jumping,
-  firing, reload, sidearm swap, popper throwing, and practice pause.
-- Appearance is saved and restored through localStorage.
-- All three maps render and reach the results menu.
-- Desktop and narrow phone layouts were inspected. Touch controls render.
-- No JavaScript errors in the browser UI checks.
-- No production QA hooks in the compiled bundle.
+## Version 2 coverage
 
-## Multiplayer verified in GitHub Actions
+- 19 simulation checks cover movement, stepping/jumping, shielding, ammunition,
+  reloads, respawns, objectives, full bot rounds, every primary class, and input
+  sequence validation.
+- Projectile regression checks exercise finite travel and gravity, muzzle
+  origins, low cover that blocks the barrel but not the eye, swept collision
+  through thin cover, and surface-normal popper rebounds and fuse timing.
+- Navigation checks cover safe spawns and objective areas, a climb to the dock
+  deck, and the open ground-level route beneath the bridge.
+- Browser checks exercise actual keyboard/mouse controls, ammo, reloads,
+  appearance persistence, pause, results, narrow layouts, and touch controls.
+- Two independent browser sessions connect through real WebRTC: room creation,
+  guest join, host start, movement replication, remote loadout/respawn,
+  host-authoritative guest projectile damage, shared results, rematch, and closure.
+- The quality suite captures every weapon and its sight, verifies all seven
+  loadout model images, checks real muzzle-flash alignment and traveling bolts,
+  renders all maps with a full bot room, and checks mobile loadout presentation.
+  It exercises both Low rendering and High rendering with shadows.
+- The post-deployment smoke check uses the published HTTPS site and public
+  PeerJS signaling to create a room, connect two production clients, start a
+  match, and close the room. No development hooks are used in that check.
 
-All 14 simulation tests and 22 rendered browser checks passed on September 18,
-2026, at commit `2d5821f`. See the
-[successful run](https://github.com/Cynwyd-Cuts/yolk-yard/actions/runs/35384706322).
+The version 2 simulation checks and local UI checks passed during development.
+Screenshots are written to `test-results/quality/`; each Actions run retains
+its browser and live-site artifacts for seven days.
 
-The two-browser WebRTC test is included in
-`scripts/browser-check.mjs` and is a required GitHub Actions gate before Pages
-deployment. Both independent browser sessions reported connected WebRTC data
-channels. Joining, host start, replicated guest movement, remote loadout/respawn,
-shared results, rematch, and host departure passed with a local signaling server.
-
-The deploy job also runs `scripts/live-check.mjs` against the published HTTPS
-site and public PeerJS signaling service; its result is shown separately in
-the deploy job. School Wi-Fi must be checked on that network. Neither access to GitHub Pages nor
-a successful CI test guarantees that a particular network permits WebRTC.
+## Limits
 
 No physical Mac/Safari or physical touchscreen test has been performed.
-Audio synthesis is exercised in code, but the sound mix has not been listened
-to on a physical device.
+Automated Chromium checks are not a frame-rate guarantee for every laptop.
+The synthesized sound mix has not been listened to on a physical device.
+
+School Wi-Fi must be checked on that network. Access to GitHub Pages or a
+passing CI test does not guarantee that a particular network permits WebRTC.
+No paid TURN relay is provisioned. Host departure ends the room.
 
 ## Reproduce
 
-```
+```sh
 npm ci
 npm test
 npx playwright install chromium
 npm run test:browser
+npm run test:quality
 npm run build
+GAME_URL=https://cynwyd-cuts.github.io/yolk-yard/ node scripts/live-check.mjs
 ```
 
 `YOLK_TEST_UI_ONLY=1 npm run test:browser` runs UI checks without claiming to

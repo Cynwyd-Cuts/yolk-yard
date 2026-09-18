@@ -1,6 +1,6 @@
 import Peer from "peerjs";
 import { VERSION, safeProfile } from "./data.js";
-const PREFIX = "yolk-yard-v1-";
+const PREFIX = "yolk-yard-v2-";
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomCode = () =>
   Array.from(

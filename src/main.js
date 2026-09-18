@@ -107,7 +107,7 @@ const touch = {
 };
 let drag = false;
 $("#app").innerHTML =
-  `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"></div><div class="hit-flash" id="damage"></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow">SHELL DOWN</div><h2>Back in <span id="respawn-time">3</span></h2><p class="small" id="respawn-by"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="health-label">SHELL <b id="health">100</b></div><div class="health-bar"><span id="health-fill"></span></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
+  `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"></div><div class="hit-flash" id="damage"></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow">SHELL DOWN</div><h2>Back in <span id="respawn-time">3</span></h2><p class="small" id="respawn-by"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="health-label">SHELL <b id="health">100</b></div><div class="health-bar"><span id="health-fill"></span></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
 const dialog = $("#dialog");
 function remember() {
   save("yolk-profile", profile);
@@ -115,12 +115,12 @@ function remember() {
   else net?.profile(profile);
 }
 function titleBar() {
-  return `<div class="topbar"><div class="brand">YOLK<br><span>YARD</span></div><div class="top-actions"><span class="pill">PRIVATE ARENA · 01</span><button class="icon-btn" data-action="help">How to play</button><button class="icon-btn" data-action="settings" aria-label="Settings">Settings</button></div></div>`;
+  return `<div class="topbar"><div class="brand">YOLK<br><span>YARD</span></div><div class="top-actions"><span class="pill">QUALITY UPDATE · 02</span><button class="icon-btn" data-action="help">How to play</button><button class="icon-btn" data-action="settings" aria-label="Settings">Settings</button></div></div>`;
 }
 function renderMenu() {
   const w = weapon(profile.weapon);
   $("#menu").innerHTML =
-    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false"><button class="primary" data-action="setup">PLAY WITH FRIENDS <span>↗</span></button><button class="secondary" data-action="practice">PRACTICE WITH BOTS</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. Up to 8 eggs.<br>No downloads, accounts, or ads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
+    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false"><button class="primary" data-action="setup">PLAY WITH FRIENDS <span>↗</span></button><button class="secondary" data-action="practice">PRACTICE WITH BOTS</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. Up to 8 eggs.<br>No downloads, accounts, or ads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
       (w) => !w.secondary,
     )
       .map(
@@ -198,7 +198,7 @@ function loadoutMenu() {
     )
       .map(
         (w) =>
-          `<button class="weapon-card ${profile.weapon === w.id ? "selected" : ""}" data-weapon="${w.id}"><span class="eyebrow">${w.role}</span><strong>${w.name}</strong><small>${w.desc}</small><small style="margin-top:8px">${w.magazine} shots · ${w.reload}s reload</small></button>`,
+          `<button class="weapon-card ${profile.weapon === w.id ? "selected" : ""}" data-weapon="${w.id}" aria-pressed="${profile.weapon === w.id}"><img class="weapon-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><span class="eyebrow">${w.role}</span><strong>${w.name}</strong><small>${w.desc}</small><small style="margin-top:8px">${w.magazine} shots · ${w.reload}s reload · ${w.optic === "scope" ? "Precision scope" : w.optic === "prism" ? "Prism optic" : w.optic === "reflex" ? "Reflex sight" : "Open sights"}</small></button>`,
       )
       .join(
         "",
@@ -650,12 +650,20 @@ function hud() {
     1,
     Math.ceil(p.respawnAt - state.time),
   );
-  $("#crosshair").style.display = p.health > 0 && !paused ? "block" : "none";
+  const aiming =
+    (input.aim || keys.has("ShiftLeft") || touch.aim) &&
+    p.health > 0 &&
+    !paused &&
+    p.reloadEnd <= state.time;
+  $("#crosshair").style.display =
+    p.health > 0 && !paused && !aiming ? "block" : "none";
   $("#crosshair").classList.toggle("hit", performance.now() < hitUntil);
-  $("#scope").style.display =
-    input.aim && gun(p).id === "needle" && p.health > 0 && !paused
-      ? "block"
-      : "none";
+  const scoped =
+    aiming && (gun(p).optic === "scope" || gun(p).optic === "prism");
+  $("#scope").style.display = scoped ? "block" : "none";
+  $("#scope-label").textContent = scoped
+    ? `${gun(p).name.toUpperCase()} / OPTIC ${gun(p).magnification}×`
+    : "";
   $("#scoreboard").style.display = scoreHeld && !dialog.open ? "block" : "none";
   if (scoreHeld)
     $("#scoreboard").innerHTML =
@@ -716,7 +724,7 @@ const actions = {
   about: () =>
     modal(
       "Made for a good scramble",
-      `<p>Yolk Yard is an original, independent egg arena shooter. Its maps, characters, blasters, UI, and sounds were created for this game.</p><p style="margin-top:14px">3D rendering: Three.js (MIT). Multiplayer connections: PeerJS (MIT). This game is not affiliated with Shell Shockers or Blue Wizard Digital.</p><p style="margin-top:14px">Your name, loadout, settings, and match totals stay in this browser. Private rooms send your chosen name and game actions to the host. No accounts, chat, purchases, tracking, camera, or microphone.</p><p class="hint">Version 1.0 · All gameplay code is included in the project.</p>`,
+      `<p>Yolk Yard is an original, independent egg arena shooter. Its maps, characters, blasters, UI, and sounds were created for this game.</p><p style="margin-top:14px">3D rendering: Three.js (MIT). Multiplayer connections: PeerJS (MIT). This game is not affiliated with Shell Shockers or Blue Wizard Digital.</p><p style="margin-top:14px">Your name, loadout, settings, and match totals stay in this browser. Private rooms send your chosen name and game actions to the host. No accounts, chat, purchases, tracking, camera, or microphone.</p><p class="hint">Version 2.0 · All gameplay code is included in the project.</p>`,
       "about",
     ),
 };
@@ -1068,6 +1076,13 @@ if (import.meta.env.DEV && new URL(location.href).searchParams.has("qa"))
       input: { ...input },
       camera: view?.camera.rotation.toArray(),
       drawCalls: view?.renderer.info.render.calls,
+      scope: {
+        active: view?.scopeActive,
+        aimBlend: view?.aimBlend,
+        lens: !!view?.opticLens,
+      },
+      triangles: view?.renderer.info.render.triangles,
+      presentation: view?.diagnostics(),
     }),
     network: () =>
       Object.values(net?.peer?.connections || {})
@@ -1088,6 +1103,15 @@ if (import.meta.env.DEV && new URL(location.href).searchParams.has("qa"))
         })),
     finish: () => sim?.finish(),
     fixture: (fn) => fn(sim),
+    pose: (pose) => {
+      const p = sim?.players.get(localId);
+      if (!p) return;
+      Object.assign(p, pose);
+      input.yaw = pose.yaw ?? p.yaw;
+      input.pitch = pose.pitch ?? p.pitch;
+      input.slot = pose.slot ?? p.slot;
+      predicted = null;
+    },
     setTime: (t) => {
       if (sim) sim.remaining = t;
     },

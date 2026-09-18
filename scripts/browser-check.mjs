@@ -261,6 +261,43 @@ try {
       "needle",
     );
     pass("Remote loadout applies on authoritative respawn");
+    await host.evaluate(
+      (id) =>
+        window.__yolkTest.fixture((s) => {
+          const guest = s.players.get(id),
+            target = s.players.get("host");
+          Object.assign(target, {
+            x: guest.x - Math.sin(guest.yaw) * 5,
+            y: guest.y,
+            z: guest.z - Math.cos(guest.yaw) * 5,
+            health: 100,
+            shieldUntil: 0,
+            team: 1 - guest.team,
+            lastDamage: s.time,
+          });
+          for (const p of s.players.values())
+            if (p.bot) {
+              p.health = 0;
+              p.respawnAt = s.time + 60;
+            }
+        }),
+      gid,
+    );
+    await guest.mouse.click(720, 450);
+    await host.waitForFunction(
+      () =>
+        window.__yolkTest.read().state.players.find((p) => p.id === "host")
+          .health < 99,
+    );
+    await guest.waitForFunction(
+      () =>
+        window.__yolkTest.read().state.players.find((p) => p.id === "host")
+          .health < 99,
+    );
+    pass(
+      "Guest projectile hits are simulated by the host and replicated to both clients",
+    );
+
     await host.evaluate(() => window.__yolkTest.setTime(0.1));
     await host
       .getByRole("heading", { name: "That’s a wrap.", exact: true })

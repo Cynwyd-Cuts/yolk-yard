@@ -15,10 +15,29 @@ open and in front. Friends choose **Join a room**, enter the code, and wait for
 the host to start. Maximum 8 players including bots. Friends replace bots when
 the room is full. Rooms end when the host leaves; there is no host migration.
 
+## Version 2 quality update
+
+- Eight distinct beveled weapon models, including the Pip sidearm, with detailed
+  barrels, grips, magazines, stocks, and sights. Loadout images render those same
+  models rather than using unrelated artwork.
+- Physical open/reflex sights; the Needle's 3.5× scope and Duet's 1.8× prism render
+  a separate magnified view inside the modeled lens, with a reticle and range marks.
+- Muzzle-origin traveling bolts, visible trails and flashes, game-world gravity,
+  swept collision, surface impacts, and surface-normal popper bounces. Damage
+  happens on arrival. Low cover can block a barrel even when the eye is above it.
+- Three rebuilt arenas: 80 × 80 glasshouse gardens, an 84 × 84 freight harbor with
+  a bridge and underpass, and an 88 × 88 terraced town with rooftop routes.
+  Bot navigation handles both ground routes and raised platforms.
+- Static architectural and weapon details are batched by material to keep the
+  extra visual detail from requiring a draw call for each part.
+
+Refresh all players' pages before creating a new room after this update.
+Version 2 uses a new multiplayer protocol and separate room namespace.
+
 ## Included
 
 - Seven primary classes: Sprinter, Scatter, Needle, Zipper, Thumper, Anchor, Duet.
-- Pip sidearm, timed poppers, ammunition, reloads, aim zoom, hit feedback.
+- Pip sidearm, timed poppers, ammunition, reloads, modeled optics, hit feedback.
 - Three original arenas: The Yard, Cargo Club, Sunset Social.
 - Free for all, Team scramble, Capture the crown, Sunny side zone control.
 - Bot practice and optional bots in private rooms, with three difficulty levels.
@@ -105,6 +124,7 @@ npm run dev
 npm test
 npx playwright install chromium
 npm run test:browser
+npm run test:quality
 npm run build
 npm run preview
 ```
@@ -119,7 +139,9 @@ hooks require both Vite dev mode and `?qa=1`; they are removed from production.
 - `src/simulation.js`: authoritative match rules, bots, combat, objectives.
 - `src/physics.js`: movement, collision, ray tests, input validation.
 - `src/maps.js`: map geometry, spawn points, bot navigation.
-- `src/view.js`: Three.js scenes, egg models, blasters, effects.
+- `src/view.js`: Three.js scenes, modeled optics, muzzle effects, projectile presentation.
+- `src/weapons.js`: shared authored weapon models and model portraits.
+- `src/arenas.js`: batched architecture and distinct scenery for each map.
 - `src/network.js`: room signaling, WebRTC lifecycle and message validation.
 - `src/main.js`: menus, controls, prediction, HUD and game loop.
 - `src/audio.js`: original synthesized effects.

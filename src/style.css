@@ -797,20 +797,26 @@ body.in-game #hud {
   display: none;
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    circle at center,
-    transparent 0,
-    transparent 25vh,
-    #172b39f5 25.3vh
-  );
   pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 30%,
+    rgba(16, 29, 36, 0.16) 100%
+  );
 }
-.scope:after {
-  content: "";
+#scope-label {
   position: absolute;
-  inset: 50% 20%;
-  height: 1px;
-  background: #172b3980;
+  bottom: 21%;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 700 10px/1.2 monospace;
+  letter-spacing: 0.12em;
+  color: #fff3d8;
+  background: #172b39aa;
+  border: 1px solid #ffffff30;
+  padding: 7px 12px;
+  border-radius: 5px;
+  white-space: nowrap;
 }
 .killfeed {
   position: absolute;
@@ -1234,5 +1240,92 @@ body.in-game {
   * {
     animation-duration: 0.01ms !important;
     transition: none !important;
+  }
+}
+
+/* Actual model portraits in both the quick loadout and full selection. */
+.loadout-portrait {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #e5e9e4;
+  margin: 14px 0 10px;
+}
+.weapon-portrait {
+  display: block;
+  width: calc(100% + 32px);
+  max-width: none;
+  height: 160px;
+  object-fit: contain;
+  margin: -16px -16px 16px;
+  border-radius: 10px 10px 0 0;
+  background: #e5e9e4;
+}
+.weapon-card {
+  overflow: hidden;
+  position: relative;
+  transition:
+    transform 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.weapon-card:hover {
+  transform: translateY(-2px);
+  border-color: #6c8d96;
+  box-shadow: 0 5px 0 #182d3a18;
+}
+.weapon-card.selected::after {
+  content: "EQUIPPED";
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  background: var(--ink);
+  color: var(--cream);
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+@media (max-height: 760px) and (min-width: 900px) {
+  .loadout-portrait {
+    height: 100px;
+    margin: 8px 0;
+  }
+  .loadout-panel {
+    padding: 20px;
+  }
+}
+@media (max-width: 560px) {
+  .weapon-portrait {
+    height: 148px;
+  }
+  .loadout-portrait {
+    height: 110px;
+  }
+  .weapon-card {
+    padding: 16px;
+  }
+}
+
+#dialog:has(.selection-grid) {
+  width: min(920px, calc(100vw - 32px));
+}
+.weapon-card {
+  align-content: start;
+}
+@media (min-width: 1000px) {
+  .weapon-portrait {
+    height: 210px;
+  }
+}
+@media (max-width: 480px) {
+  .selection-grid {
+    grid-template-columns: 1fr;
+  }
+  .weapon-portrait {
+    height: 175px;
   }
 }

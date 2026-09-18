@@ -8,8 +8,10 @@ import {
   rayEgg,
   wallDistance,
   sanitizeInput,
+  muzzleOrigin,
+  worldHit,
 } from "../src/physics.js";
-import { safeProfile, WEAPONS } from "../src/data.js";
+import { safeProfile, WEAPONS, weapon } from "../src/data.js";
 const empty = { size: 30, boxes: [] };
 const player = () => ({
   x: 0,
@@ -34,6 +36,10 @@ function fixture(mode = "ffa") {
   Object.assign(b, { x: 0, y: 0, z: 0, shieldUntil: 0 });
   return { s, a, b };
 }
+function advance(s, frames = 12) {
+  for (let i = 0; i < frames; i++) s.tick(1 / 60);
+}
+
 test("movement has equal diagonal speed and obeys collision walls", () => {
   const a = player(),
     b = player();
@@ -108,14 +114,17 @@ test("server controls hit damage, ammunition, shielding, and respawn", () => {
   a.ammo = [5, 12];
   b.shieldUntil = 11;
   s.fire(a);
+  advance(s, 6);
   assert.equal(b.health, 100);
   s.time = 12;
   s.fire(a);
+  assert.equal(b.health, 100, "Damage waits for the projectile to arrive");
+  advance(s, 6);
   assert.equal(b.health, 0);
   assert.equal(a.kills, 1);
   assert.equal(b.deaths, 1);
   assert.equal(a.ammo[0], 3);
-  s.time = 15;
+  s.time = b.respawnAt;
   s.tick(1 / 60);
   assert.equal(b.health, 100);
   assert.ok(b.shieldUntil > s.time);
@@ -124,10 +133,12 @@ test("solid cover blocks shots and friendly fire is disabled", () => {
   const { s, a, b } = fixture();
   s.map.boxes = [{ x: 0, y: 0, z: 4, w: 4, h: 3, d: 1 }];
   s.fire(a);
+  advance(s);
   assert.equal(b.health, 100);
   const t = fixture("teams");
   t.b.team = t.a.team;
   t.s.fire(t.a);
+  advance(t.s);
   assert.equal(t.b.health, 100);
 });
 test("reload draws from finite reserves and weapon swapping cancels reload", () => {
@@ -264,4 +275,102 @@ test("all seven primary classes can fire and serialize projectiles safely", () =
     for (let i = 0; i < 180; i++) s.tick(1 / 60);
     assert.ok(Number.isFinite(s.time));
   }
+});
+
+test("bolts have finite travel, start at the muzzle, and drop under gravity", () => {
+  const { s, a, b } = fixture();
+  b.z = -30;
+  s.random = () => 0;
+  s.fire(a);
+  const bolt = s.projectiles[0],
+    m = muzzleOrigin(a, weapon(a.weapon));
+  assert.ok(Math.abs(bolt.x - m.x) < 1e-8 && Math.abs(bolt.z - m.z) < 1e-8);
+  assert.ok(bolt.x > a.x && bolt.z < a.z && bolt.y < a.y + 1.43);
+  const y = bolt.y,
+    vy = bolt.vy;
+  s.updateProjectiles(0.05);
+  assert.equal(b.health, 100);
+  assert.ok(bolt.vy < vy);
+  assert.ok(
+    Math.abs(bolt.y - (y + vy * 0.05 - 0.5 * bolt.gravity * 0.05 ** 2)) < 1e-8,
+  );
+  advance(s, 30);
+  assert.ok(b.health < 100);
+});
+test("a low wall can block the muzzle even when the camera can see over it", () => {
+  const { s, a, b } = fixture();
+  s.map.boxes = [{ x: 0, y: 0, z: 7.1, w: 4, h: 1.3, d: 0.4 }];
+  assert.equal(
+    wallDistance(s.map, { x: 0, y: 1.43, z: 8 }, direction(0), 20),
+    20,
+  );
+  s.fire(a);
+  advance(s);
+  assert.equal(b.health, 100);
+  assert.equal(s.projectiles.length, 0);
+  assert.ok(s.events.some((e) => e.type === "shot" && e.blocked));
+});
+test("swept bolt collision catches thin cover between simulation ticks", () => {
+  const { s, a, b } = fixture();
+  s.map.boxes = [{ x: 0, y: 0, z: 3.7, w: 4, h: 3, d: 0.015 }];
+  s.fire(a);
+  s.projectiles[0].vz = -1200;
+  s.updateProjectiles(1 / 60);
+  assert.equal(b.health, 100);
+  assert.equal(s.projectiles.length, 0);
+  const impact = s.events.find((e) => e.type === "impact");
+  assert.ok(Math.abs(impact.z - 3.7075) < 0.001);
+});
+test("poppers reflect the struck surface normal, retain tangential motion, and respect their fuse", () => {
+  const { s } = fixture();
+  s.map.boxes = [{ x: 1, y: 0, z: 0, w: 0.2, h: 3, d: 10 }];
+  const shell = {
+    id: 99,
+    owner: "a",
+    kind: "shell",
+    popper: true,
+    x: 0,
+    y: 1,
+    z: 0,
+    vx: 20,
+    vy: 0,
+    vz: 8,
+    gravity: 0,
+    born: s.time,
+    fuse: 2,
+    bounces: 0,
+  };
+  s.projectiles = [shell];
+  s.updateProjectiles(0.1);
+  assert.ok(shell.vx < 0);
+  assert.ok(shell.vz > 0);
+  assert.equal(shell.bounces, 1);
+  assert.equal(s.projectiles.length, 1);
+  s.time += 2.01;
+  s.updateProjectiles(1 / 60);
+  assert.equal(s.projectiles.length, 0);
+  assert.ok(s.events.some((e) => e.type === "explosion"));
+});
+test("expanded arenas have usable objectives and multi-level navigation", () => {
+  for (const map of MAPS) {
+    assert.ok(map.size >= 40);
+    assert.equal(map.zone[2], 0);
+    for (const [x, z] of [...map.bases, [map.zone[0], map.zone[1]]])
+      assert.equal(
+        map.boxes.some(
+          (b) =>
+            b.y < 1.75 &&
+            Math.abs(x - b.x) < b.w / 2 + 0.46 &&
+            Math.abs(z - b.z) < b.d / 2 + 0.46,
+        ),
+        false,
+        `${map.id} objective clear`,
+      );
+  }
+  const map = MAPS.find((m) => m.id === "depot"),
+    nav = navigation(map);
+  const path = nav.path({ x: -36, y: 0, z: 0 }, { x: -17, y: 3.2, z: 0 });
+  assert.ok(path.some((p) => p.y >= 3.15));
+  const pass = worldHit(map, { x: 0, y: 1.43, z: 5 }, direction(0), 10);
+  assert.equal(pass, null, "Underpass remains clear");
 });
