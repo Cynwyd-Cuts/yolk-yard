@@ -229,9 +229,17 @@ try {
     const gid = guestState.localId;
     const before = guestState.state.players.find((p) => p.id === gid);
     await guest.keyboard.down("KeyW");
-    await guest.waitForTimeout(400);
+    await host.waitForFunction(
+      ({ id, x, z }) => {
+        const p = window.__yolkTest
+          .read()
+          .state.players.find((p) => p.id === id);
+        return p && Math.hypot(p.x - x, p.z - z) > 0.5;
+      },
+      { id: gid, x: before.x, z: before.z },
+      { timeout: 10000 },
+    );
     await guest.keyboard.up("KeyW");
-    await host.waitForTimeout(250);
     const remote = await host.evaluate(
       (id) => window.__yolkTest.read().state.players.find((p) => p.id === id),
       gid,
@@ -267,6 +275,12 @@ try {
       "needle",
     );
     pass("Remote loadout applies on authoritative respawn");
+    await host.waitForFunction(
+      (id) =>
+        window.__yolkTest.fixture((s) => s.time > s.players.get(id).nextShot),
+      gid,
+      { timeout: 10000 },
+    );
     await host.evaluate(
       (id) =>
         window.__yolkTest.fixture((s) => {
@@ -397,6 +411,8 @@ try {
         await p.evaluate(() => ({
           network: window.__yolkTest?.network(),
           errors: document.querySelector("#dialog")?.textContent,
+          dialogOpen: document.querySelector("#dialog")?.open,
+          playerState: window.__yolkTest?.read(),
         })),
       );
   for (const [i, c] of browser.contexts().entries())
