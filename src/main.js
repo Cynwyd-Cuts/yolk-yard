@@ -82,7 +82,8 @@ let view,
 const sound = new Sound();
 sound.volume = settings.volume;
 const keys = new Set();
-const pulses = { jump: 0, reload: 0, popper: 0 };
+// Preserve brief actions until a simulation tick consumes them, even after a slow frame.
+const queuedActions = new Set();
 const input = {
   yaw: 0,
   pitch: 0,
@@ -147,6 +148,7 @@ function renderMenu() {
 function modal(title, body, type = "generic") {
   dialogType = type;
   keys.clear();
+  queuedActions.clear();
   input.fire = false;
   input.aim = false;
   paused = true;
@@ -443,6 +445,7 @@ async function resume() {
   dialogType = "";
   paused = false;
   keys.clear();
+  queuedActions.clear();
   sound.unlock();
   if (!settings.dragLook && !matchMedia("(pointer:coarse)").matches) {
     try {
@@ -481,6 +484,7 @@ function leave(confirm = false) {
   paused = true;
   busy = false;
   keys.clear();
+  queuedActions.clear();
   pendingInputs = [];
   input.fire = false;
   input.aim = false;
@@ -800,7 +804,7 @@ document.addEventListener("keydown", (e) => {
         KeyE: "popper",
         KeyG: "popper",
       }[e.code];
-      if (pulseKey) pulses[pulseKey] = performance.now() + 120;
+      if (pulseKey) queuedActions.add(pulseKey);
     }
     if (e.code === "Digit1") input.slot = 0;
     if (e.code === "Digit2") input.slot = 1;
@@ -815,6 +819,7 @@ document.addEventListener("keyup", (e) => {
 });
 window.addEventListener("blur", () => {
   keys.clear();
+  queuedActions.clear();
   input.fire = false;
   input.aim = false;
   drag = false;
@@ -823,13 +828,17 @@ window.addEventListener("blur", () => {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     keys.clear();
+    queuedActions.clear();
     input.fire = false;
     if (screen === "game" && !net && !paused) pauseMenu();
   }
 });
 $("#world").addEventListener("mousedown", (e) => {
   if (screen !== "game" || paused) return;
-  if (e.button === 0) input.fire = true;
+  if (e.button === 0) {
+    input.fire = true;
+    queuedActions.add("fire");
+  }
   if (e.button === 2) {
     input.aim = true;
     drag = true;
@@ -907,6 +916,7 @@ for (const button of document.querySelectorAll("[data-touch]")) {
     e.preventDefault();
     button.setPointerCapture(e.pointerId);
     touch[button.dataset.touch] = true;
+    if (!paused && !dialog.open) queuedActions.add(button.dataset.touch);
   });
   for (const t of ["pointerup", "pointercancel"])
     button.addEventListener(t, () => (touch[button.dataset.touch] = false));
@@ -921,7 +931,7 @@ document.addEventListener("graphics-lost", () => {
 });
 function frameInput() {
   const active = screen === "game" && !paused && !dialog.open;
-  return {
+  const nextInput = {
     seq: ++seq,
     yaw: input.yaw,
     pitch: input.pitch,
@@ -936,21 +946,22 @@ function frameInput() {
         touch.x
       : 0,
     jump:
-      active &&
-      (keys.has("Space") || touch.jump || performance.now() < pulses.jump),
-    fire: active && (input.fire || touch.fire),
+      active && (keys.has("Space") || touch.jump || queuedActions.has("jump")),
+    fire: active && (input.fire || touch.fire || queuedActions.has("fire")),
     aim: active && (input.aim || keys.has("ShiftLeft") || touch.aim),
     reload:
       active &&
-      (keys.has("KeyR") || touch.reload || performance.now() < pulses.reload),
+      (keys.has("KeyR") || touch.reload || queuedActions.has("reload")),
     popper:
       active &&
       (keys.has("KeyE") ||
         keys.has("KeyG") ||
         touch.popper ||
-        performance.now() < pulses.popper),
+        queuedActions.has("popper")),
     slot: input.slot,
   };
+  queuedActions.clear();
+  return nextInput;
 }
 let lastTime = performance.now(),
   accumulator = 0,

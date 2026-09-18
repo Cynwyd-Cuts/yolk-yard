@@ -146,7 +146,10 @@ try {
     assert.equal(Number(await host.locator("#ammo").innerText()), 30);
     pass("Reload transfers ammo from reserves");
     await host.keyboard.press("Digit2");
-    await host.waitForTimeout(200);
+    await host.waitForFunction(
+      () =>
+        document.querySelector("#gun-name").textContent.toLowerCase() === "pip",
+    );
     assert.equal(
       (await host.locator("#gun-name").innerText()).toLowerCase(),
       "pip",
@@ -154,7 +157,9 @@ try {
     await host.keyboard.press("Digit1");
     pass("Primary and sidearm swap correctly");
     await host.keyboard.press("KeyE");
-    await host.waitForTimeout(80);
+    await host.waitForFunction(() =>
+      document.querySelector("#ammo-extra").textContent.includes("1 poppers"),
+    );
     assert.match(await host.locator("#ammo-extra").innerText(), /1 poppers/);
     pass("Poppers are thrown and consumed");
     await host.screenshot({ path: new URL("02-gameplay.png", out).pathname });
@@ -246,7 +251,11 @@ try {
         }),
       gid,
     );
-    await guest.waitForTimeout(400);
+    await guest.waitForFunction(
+      () =>
+        document.querySelector("#gun-name").textContent.toLowerCase() ===
+        "needle",
+    );
     assert.equal(
       (await guest.locator("#gun-name").innerText()).toLowerCase(),
       "needle",
