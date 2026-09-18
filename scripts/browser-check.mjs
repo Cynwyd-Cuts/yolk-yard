@@ -117,12 +117,18 @@ try {
     assert.ok(Math.hypot(moved.x - start.x, moved.z - start.z) > 1);
     pass("Actual WASD input moves the player");
     await host.keyboard.down("Space");
-    await host.waitForTimeout(150);
+    // Observe the jump on a rendered simulation frame; a fixed 150 ms sample
+    // can occur before the software-rendered CI browser produces that frame.
+    await host.waitForFunction(
+      (groundY) => window.__yolkTest.read().state.players[0].y > groundY + 0.2,
+      moved.y,
+      { timeout: 3000 },
+    );
     const jumping = await host.evaluate(
       () => window.__yolkTest.read().state.players[0].y,
     );
     await host.keyboard.up("Space");
-    assert.ok(jumping > 0.2);
+    assert.ok(jumping > moved.y + 0.2);
     pass("Actual Space input jumps");
     await host.mouse.move(720, 450);
     await host.mouse.down({ button: "right" });
