@@ -1,0 +1,224 @@
+export const VERSION = 1;
+export const WEAPONS = [
+  {
+    id: "sprinter",
+    name: "Sprinter",
+    role: "ASSAULT",
+    desc: "A steady all-rounder. Fast, accurate, dependable.",
+    damage: 22,
+    interval: 0.14,
+    magazine: 30,
+    reserve: 150,
+    reload: 1.65,
+    spread: 0.014,
+    pellets: 1,
+    speed: 7.4,
+    range: 90,
+    color: 0xf8b829,
+    size: 1,
+    zoom: 65,
+  },
+  {
+    id: "scatter",
+    name: "Scatter",
+    role: "SCATTER",
+    desc: "Get close. One wide burst, plenty of punch.",
+    damage: 17,
+    interval: 0.77,
+    magazine: 7,
+    reserve: 42,
+    reload: 2.0,
+    spread: 0.1,
+    pellets: 8,
+    speed: 7.7,
+    range: 28,
+    color: 0xf47b57,
+    size: 1.1,
+    zoom: 70,
+  },
+  {
+    id: "needle",
+    name: "Needle",
+    role: "PRECISION",
+    desc: "A focused shot. Aim carefully and make it count.",
+    damage: 84,
+    interval: 1.15,
+    magazine: 5,
+    reserve: 30,
+    reload: 2.2,
+    spread: 0.002,
+    pellets: 1,
+    speed: 6.7,
+    range: 150,
+    color: 0x57c9df,
+    size: 1.35,
+    zoom: 27,
+  },
+  {
+    id: "zipper",
+    name: "Zipper",
+    role: "RAPID",
+    desc: "Move quickly and keep a stream of shots flying.",
+    damage: 13,
+    interval: 0.076,
+    magazine: 40,
+    reserve: 200,
+    reload: 1.45,
+    spread: 0.035,
+    pellets: 1,
+    speed: 8.3,
+    range: 65,
+    color: 0xb6db56,
+    size: 0.78,
+    zoom: 68,
+  },
+  {
+    id: "thumper",
+    name: "Thumper",
+    role: "LAUNCHER",
+    desc: "A slow, arcing splash shot. Watch the bounce.",
+    damage: 82,
+    interval: 1.15,
+    magazine: 4,
+    reserve: 24,
+    reload: 2.5,
+    spread: 0,
+    pellets: 1,
+    speed: 6.7,
+    range: 80,
+    color: 0xcb8cec,
+    size: 1.3,
+    zoom: 65,
+    projectile: true,
+  },
+  {
+    id: "anchor",
+    name: "Anchor",
+    role: "SUPPORT",
+    desc: "A deep magazine for holding your team’s lane.",
+    damage: 19,
+    interval: 0.105,
+    magazine: 60,
+    reserve: 180,
+    reload: 3.1,
+    spread: 0.032,
+    pellets: 1,
+    speed: 6.3,
+    range: 85,
+    color: 0x6dafcf,
+    size: 1.3,
+    zoom: 68,
+  },
+  {
+    id: "duet",
+    name: "Duet",
+    role: "BURST",
+    desc: "Three precise shots with each trigger press.",
+    damage: 25,
+    interval: 0.4,
+    burst: 3,
+    burstInterval: 0.065,
+    magazine: 24,
+    reserve: 120,
+    reload: 1.7,
+    spread: 0.012,
+    pellets: 1,
+    speed: 7.5,
+    range: 95,
+    color: 0xf1d368,
+    size: 0.95,
+    zoom: 58,
+  },
+  {
+    id: "pip",
+    name: "Pip",
+    role: "SIDEARM",
+    desc: "A dependable backup for every loadout.",
+    damage: 26,
+    interval: 0.24,
+    magazine: 12,
+    reserve: 72,
+    reload: 1.1,
+    spread: 0.02,
+    pellets: 1,
+    speed: 7.4,
+    range: 70,
+    color: 0xf2e5ba,
+    size: 0.6,
+    zoom: 65,
+    secondary: true,
+  },
+];
+export const MODES = [
+  {
+    id: "ffa",
+    name: "Free for all",
+    short: "FFA",
+    description: "Every egg for itself. First to 20 eliminations.",
+    limit: 20,
+    teams: false,
+  },
+  {
+    id: "teams",
+    name: "Team scramble",
+    short: "TEAMS",
+    description: "Coral versus blue. First team to 35 eliminations.",
+    limit: 35,
+    teams: true,
+  },
+  {
+    id: "capture",
+    name: "Capture the crown",
+    short: "CAPTURE",
+    description:
+      "Bring the other team’s crown home. Your crown must be at base. First to 3.",
+    limit: 3,
+    teams: true,
+  },
+  {
+    id: "control",
+    name: "Sunny side",
+    short: "CONTROL",
+    description: "Hold the golden zone with your team. First to 90 points.",
+    limit: 90,
+    teams: true,
+  },
+];
+export const COLORS = [
+  "#fff6da",
+  "#f9b74a",
+  "#72cfdd",
+  "#ee897b",
+  "#a5d76e",
+  "#b7a1ec",
+  "#8492a6",
+  "#fae8b6",
+];
+export const HATS = ["Bare shell", "Headphones", "Cap", "Crown", "Sprout"];
+export const TEAM_COLORS = [0x47c5e0, 0xfb7f70];
+export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+export const weapon = (id) => WEAPONS.find((w) => w.id === id) || WEAPONS[0];
+export const gun = (p) => weapon(p.slot === 1 ? "pip" : p.weapon);
+export const mode = (id) => MODES.find((m) => m.id === id) || MODES[0];
+export const cleanName = (name) =>
+  String(name ?? "Egg")
+    .replace(/[<>\x00-\x1f]/g, "")
+    .trim()
+    .slice(0, 18) || "Egg";
+export function safeProfile(p = {}) {
+  return {
+    name: cleanName(p.name),
+    weapon: weapon(p.weapon).secondary ? "sprinter" : weapon(p.weapon).id,
+    color: COLORS.includes(p.color) ? p.color : COLORS[0],
+    hat: clamp(Math.floor(Number(p.hat) || 0), 0, 4),
+  };
+}
+export function rng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s += 0x6d2b79f5;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
