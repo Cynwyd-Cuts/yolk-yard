@@ -5,6 +5,8 @@ Three.js, and PeerJS. No Java, Eclipse, account, or software installation for pl
 
 ## Play
 
+[Play Yolk Yard](https://cynwyd-cuts.github.io/yolk-yard/)
+
 Open the published HTTPS site in current Chrome, Edge, Firefox, or Safari with
 WebGL 2 enabled. Choose **Practice with bots** or **Play with friends**.
 
@@ -29,18 +31,18 @@ the room is full. Rooms end when the host leaves; there is no host migration.
 
 ## Controls
 
-| Action | Control |
-| --- | --- |
-| Move | WASD or arrow keys |
-| Look | Mouse |
-| Fire | Left click |
-| Aim | Right click or Shift |
-| Jump | Space |
-| Reload | R |
-| Throw popper | E or G |
-| Primary / sidearm | 1 / 2, or Q to toggle |
-| Scoreboard | Tab, or Scores button |
-| Release mouse / menu | Escape |
+| Action               | Control               |
+| -------------------- | --------------------- |
+| Move                 | WASD or arrow keys    |
+| Look                 | Mouse                 |
+| Fire                 | Left click            |
+| Aim                  | Right click or Shift  |
+| Jump                 | Space                 |
+| Reload               | R                     |
+| Throw popper         | E or G                |
+| Primary / sidearm    | 1 / 2, or Q to toggle |
+| Scoreboard           | Tab, or Scores button |
+| Release mouse / menu | Escape                |
 
 If mouse lock is unavailable, enable **Drag to look** in Settings, then hold
 right click and drag. A current desktop browser is recommended for a shooter.
@@ -52,8 +54,9 @@ On a touch device, use the left joystick and right look area/action buttons.
 2. Open the repository's **Settings → Pages** and select **GitHub Actions** as
    the source.
 3. Push to `main` (or run **Test and publish Yolk Yard** in Actions).
-4. GitHub installs the pinned dependencies, runs the simulation tests, builds
-   the static game, and publishes it. Use the page URL returned by the deploy job.
+4. GitHub installs the pinned dependencies, runs the simulation and browser
+   multiplayer tests, builds the static game, and publishes it. It then checks
+   the live site's connection to the public room service.
 
 Relative asset paths are configured, so project sites under `/repository-name/`
 work without changing the source. A `.nojekyll` file is included.

@@ -44,3 +44,20 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Check the published game and public multiplayer service
+        run: node scripts/live-check.mjs
+        env:
+          GAME_URL: ${{ steps.deployment.outputs.page_url }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-checks
+          path: test-results/live
+          retention-days: 7

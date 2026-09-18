@@ -15,21 +15,21 @@
 - No JavaScript errors in the browser UI checks.
 - No production QA hooks in the compiled bundle.
 
-## Multiplayer verification still required
+## Multiplayer verified in GitHub Actions
 
-The local PeerServer successfully opens rooms and exchanges connection offers,
-but this execution environment does not provide usable WebRTC ICE network
-candidates. Its network-interface enumeration is restricted. Two-client game
-traffic therefore **has not passed local end-to-end verification**.
+All 14 simulation tests and 22 rendered browser checks passed on September 18,
+2026, at commit `2d5821f`. See the
+[successful run](https://github.com/Cynwyd-Cuts/yolk-yard/actions/runs/35384706322).
 
-The complete two-browser WebRTC test is included in
+The two-browser WebRTC test is included in
 `scripts/browser-check.mjs` and is a required GitHub Actions gate before Pages
-deployment. It tests joining, host start, replicated guest movement, remote
-loadout/respawn, shared results, rematch, and host departure using a local
-signaling server. Do not mark multiplayer verified until that gate passes.
+deployment. Both independent browser sessions reported connected WebRTC data
+channels. Joining, host start, replicated guest movement, remote loadout/respawn,
+shared results, rematch, and host departure passed with a local signaling server.
 
-Public PeerJS signaling availability and connectivity on the intended school
-Wi-Fi must also be checked on that network. Neither access to GitHub Pages nor
+The deploy job also runs `scripts/live-check.mjs` against the published HTTPS
+site and public PeerJS signaling service; its result is shown separately in
+the deploy job. School Wi-Fi must be checked on that network. Neither access to GitHub Pages nor
 a successful CI test guarantees that a particular network permits WebRTC.
 
 No physical Mac/Safari or physical touchscreen test has been performed.
