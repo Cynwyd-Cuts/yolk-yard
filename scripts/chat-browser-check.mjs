@@ -73,13 +73,14 @@ try{
   await guest.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId).health>0;});
   await guest.keyboard.press('Enter');await guest.locator('#chat-input').waitFor();
   const initial=await guest.evaluate(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId);});
-  await guest.locator('#chat-input').fill('wasd r e g q 1 2');await guest.waitForTimeout(1000);
+  await guest.locator('#chat-input').pressSequentially('wasd r e g q 1 2');await guest.waitForTimeout(1000);
   const after=await guest.evaluate(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId);});
   assert.ok(Math.hypot(initial.x-after.x,initial.z-after.z)<.1);assert.deepEqual(after.ammo,initial.ammo);assert.equal(after.slot,initial.slot);
   await guest.locator('#chat-input').fill('Regroup at the tower');await guest.locator('.chat-send').click();await has(host,'Regroup at the tower');
   await guest.screenshot({path:'test-results/chat/in-game.png'});await close(guest);
   await guest.waitForFunction(()=>!window.__yolkTest.chatRead().open);
-  await guest.keyboard.press('Escape');await guest.locator('[data-action="spectate"]').click();
+  await guest.waitForFunction(()=>document.activeElement?.id==='world');
+  await guest.locator('[data-action="pause"]').click();await guest.locator('[data-action="spectate"]').click();
   await guest.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId).spectating;});
   const preSpectate=(await rows(host)).length;await send(guest,'Watching the round');await has(guest,'Watching the round');
   await host.waitForTimeout(500);assert.equal((await rows(host)).length,preSpectate);

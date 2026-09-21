@@ -31,7 +31,7 @@ export class ChatPanel {
     this.toggle.onclick=()=>this.open();
     this.panel.querySelector('.chat-close').onclick=()=>this.close();
     this.panel.addEventListener('cancel',e=>{e.preventDefault();this.close();});
-    this.panel.addEventListener('close',()=>{if(this.opened)this.finishClose();});
+    this.panel.addEventListener('close',()=>{if(this.opened&&!this.panel.open)this.finishClose();});
     this.panel.querySelector('form').onsubmit=e=>{e.preventDefault();this.send();};
     this.panel.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.isComposing)e.preventDefault();e.stopPropagation();});
     this.input.oninput=()=>{this.panel.querySelector('#chat-count').textContent=`${this.input.value.length}/${CHAT_LIMIT}`;};
@@ -50,8 +50,10 @@ export class ChatPanel {
   open() {
     const ctx=this.context(); if(!ctx.connected)return;
     this.opened=true;this.unread=0;this.toggle.textContent='Chat';this.peek.hidden=true;
-    this.callbacks.open();this.update();this.panel.showModal();
-    this.renderLog();
+    this.callbacks.open();this.update();
+    if(this.panel.open)this.panel.close();
+    this.panel.showModal();
+    this.renderLog();this.log.scrollTop=this.log.scrollHeight;
     if(!this.input.disabled)this.input.focus();else this.panel.querySelector('.chat-close').focus();
   }
   close() {if(!this.opened)return;this.panel.close();this.finishClose();}
@@ -94,9 +96,12 @@ export class ChatPanel {
   }
   renderLog() {
     const atBottom=this.log.scrollHeight-this.log.scrollTop-this.log.clientHeight<50;
-    this.log.replaceChildren(...this.inbox.rows.map(row=>this.messageNode(row)));
+    const wanted=new Set(this.inbox.rows.map(row=>String(row.id)));
+    for(const node of [...this.log.children])if(!wanted.has(node.dataset.chatId))node.remove();
+    const existing=new Set([...this.log.children].map(node=>node.dataset.chatId));
+    for(const row of this.inbox.rows)if(!existing.has(String(row.id)))this.log.append(this.messageNode(row));
     if(!this.inbox.rows.length)this.log.append(el('p','A fresh conversation. Say hello or use a quick message.','chat-empty'));
-    if(atBottom||this.opened)this.log.scrollTop=this.log.scrollHeight;
+    if(atBottom)this.log.scrollTop=this.log.scrollHeight;
   }
   update() {
     const ctx=this.context();this.toggle.hidden=!ctx.connected;

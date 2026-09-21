@@ -82,7 +82,9 @@ test('recipient rejects hostile hosts, replayed packets, forged identities and c
   assert.equal(inbox.accept({...msg,id:3,sender:'absent'},state,'host','all',5000),null);
   assert.equal(inbox.accept({...msg,id:4,channel:'team'},state,'host','all',7000),null);
   assert.equal(inbox.accept({...msg,id:5,sender:'s'},state,'host','all',9000),null);
-  assert.equal(inbox.rows.length,1);
+  assert.equal(inbox.accept({...msg,id:99999,text:profanity},state,'host','all',11000),null);
+  assert.ok(inbox.accept({...msg,id:6,text:'Thanks!'},state,'host','all',13000));
+  assert.equal(inbox.rows.length,2);
 });
 test('mute, quick-only, off, and bounded history apply at receipt',()=>{
   const inbox=new ChatInbox();const msg={version:FILTER_VERSION,sender:'a',channel:'room',text:'Nice round'};

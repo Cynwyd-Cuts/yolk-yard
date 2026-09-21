@@ -3,6 +3,7 @@ import { directory } from "./directory.js";
 import { VERSION, safeProfile } from "./data.js";
 import { ChatRoom, chatPayload } from './chat.js';
 import { FILTER_VERSION, moderateText, safeName, safeSystemText, SAFETY_MESSAGES } from './moderation.js';
+import { matchOptions } from './match-options.js';
 const PREFIX = "yolk-yard-v2-";
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomCode = () =>
@@ -252,7 +253,15 @@ export class Network {
           this.lastState = performance.now();
           // Names also occur in past events and result headlines, not just the
           // roster. Sanitize before any UI or Three.js nameplate sees them.
-          s.players=s.players.map(p=>({...p,name:safeName(p?.name)}));
+          s.players=s.players.map(p=>{
+            const player={...p,name:safeName(p?.name)};
+            // Numeric HUD fields must not become an alternate text channel.
+            for(const key of ['kills','deaths','points','team','streak','poppers'])
+              player[key]=Number.isFinite(p?.[key])?Math.max(0,Math.min(1000000,p[key])):0;
+            return player;
+          });
+          s.round=Number.isSafeInteger(s.round)?Math.max(0,s.round):0;
+          s.options=matchOptions(s.options);
           s.winner=safeSystemText(s.winner, 'Round complete');
           s.events=Array.isArray(s.events)?s.events.slice(-128).map(e=>{
             const event={...e};

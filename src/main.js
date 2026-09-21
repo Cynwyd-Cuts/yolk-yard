@@ -143,7 +143,7 @@ const chat = new ChatPanel($("#app"), {
   },
   close: () => {
     keys.clear();queuedActions.clear();
-    if(screen==="game" && state?.phase==="playing" && !dialog.open)void resume();
+    if(net?.ready && !net.closed && screen==="game" && state?.phase==="playing" && !dialog.open)void resume();
   },
 });
 function remember() {
@@ -531,6 +531,10 @@ async function resume(capture = true) {
   keys.clear();
   scoreHeld = false;
   queuedActions.clear();
+  // Returning from a chat input must restore keyboard focus as well as mouse
+  // capture; otherwise the hidden input can keep swallowing menu/move keys.
+  $("#world").tabIndex = -1;
+  $("#world").focus({preventScroll:true});
   sound.unlock();
   if (capture && !state?.players.find(p => p.id === localId)?.spectating && !matchMedia("(pointer:coarse)").matches) {
     try {
