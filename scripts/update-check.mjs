@@ -6,6 +6,7 @@ const server=await createServer({server:{host:'127.0.0.1',port:5176,strictPort:t
 await server.listen();
 const browser=await chromium.launch({headless:true, ...(process.env.YOLK_TEST_CHROME ? {executablePath:process.env.YOLK_TEST_CHROME}:{}), args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 const page=await browser.newPage({viewport:{width:1280,height:800}});
+page.setDefaultTimeout(30000);
 const errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 await page.addInitScript(()=>{if(!localStorage.getItem('yolk-settings')) localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:0}));});
@@ -30,6 +31,7 @@ try {
   await page.screenshot({path:'test-results/update/entry.png'});
   await page.getByRole('button',{name:'Enter the Yard',exact:true}).click();
   await page.waitForFunction(()=>window.__yolkTest.read().state.players[0].health===100);
+  console.log('PASS update menu, settings and entry');
   // Shift aiming must use the same saved multiplier as right mouse / touch aim.
   const turn=async aim=>{
     if(aim) await page.keyboard.down('ShiftLeft');
@@ -54,6 +56,7 @@ try {
   await page.waitForFunction(()=>!document.pointerLockElement);
   await page.getByRole('button',{name:'Respawn',exact:true}).click();
   await page.waitForFunction(()=>window.__yolkTest.read().state.players[0].health===100);
+  console.log('PASS mouse-lock respawn');
   let versionRequests=0;
   await page.route('**/version.json?*',async route=>{
     versionRequests++;
