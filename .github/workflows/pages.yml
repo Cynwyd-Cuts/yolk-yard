@@ -22,6 +22,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npm run check:cloudflare
+      - run: npm run test:cloudflare
       - run: npx playwright install --with-deps chromium
       - run: npm run test:access-browser
       - uses: actions/upload-artifact@v4
@@ -30,5 +32,4 @@ jobs:
           name: protected-game-checks
           path: test-results/access
           retention-days: 7
-# GitHub Pages cannot run this backend. Deploy the complete Node service with
-# persistent storage, then retire/redirect the old Pages site (see HOSTING.md).
+# Cloudflare deployment is connected by the owner; see HOSTING.md.

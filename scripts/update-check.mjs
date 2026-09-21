@@ -6,18 +6,20 @@ const server=await createServer({server:{host:'127.0.0.1',port:5176,strictPort:t
 await server.listen();
 const browser=await chromium.launch({headless:true, ...(process.env.YOLK_TEST_CHROME ? {executablePath:process.env.YOLK_TEST_CHROME}:{}), args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 const page=await browser.newPage({viewport:{width:1280,height:800}});
+page.setDefaultTimeout(30000);
 const errors=[];
 page.on('pageerror',e=>errors.push(e.message));
-await page.addInitScript(()=>{if(!localStorage.getItem('yolk-settings')) localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',dragLook:true,volume:0}));});
+await page.addInitScript(()=>{if(!localStorage.getItem('yolk-settings')) localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:0}));});
 await mkdir('test-results/update',{recursive:true});
 try {
   await page.goto('http://127.0.0.1:5176/?qa=1');
-  await page.getByRole('button',{name:'QUALITY UPDATE · 06',exact:true}).click();
+  await page.getByRole('button',{name:/QUALITY UPDATE ·/}).click();
   await page.getByRole('heading',{name:'Update history',exact:true}).waitFor();
-  assert.equal(await page.locator('.release-note').count(),5);
+  assert.equal(await page.locator('.release-note').count(),6);
   await page.screenshot({path:'test-results/update/history.png'});
   await page.getByRole('button',{name:'Close dialog',exact:true}).click();
   await page.getByRole('button',{name:'Settings',exact:true}).click();
+  assert.equal(await page.locator('#drag-look').count(),0);
   await page.locator('#scopeSensitivity').evaluate(el=>{el.value='0.35';el.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.getByRole('button',{name:'Done',exact:true}).click();
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('yolk-settings')).scopeSensitivity),0.35);
@@ -29,6 +31,7 @@ try {
   await page.screenshot({path:'test-results/update/entry.png'});
   await page.getByRole('button',{name:'Enter the Yard',exact:true}).click();
   await page.waitForFunction(()=>window.__yolkTest.read().state.players[0].health===100);
+  console.log('PASS update menu, settings and entry');
   // Shift aiming must use the same saved multiplier as right mouse / touch aim.
   const turn=async aim=>{
     if(aim) await page.keyboard.down('ShiftLeft');
@@ -50,8 +53,10 @@ try {
   const time=await page.evaluate(()=>window.__yolkTest.read().state.time);
   await page.waitForFunction(t=>window.__yolkTest.read().state.time>t+1,time);
   assert.equal(await page.evaluate(()=>window.__yolkTest.read().state.players[0].health),0);
+  await page.waitForFunction(()=>!document.pointerLockElement);
   await page.getByRole('button',{name:'Respawn',exact:true}).click();
   await page.waitForFunction(()=>window.__yolkTest.read().state.players[0].health===100);
+  console.log('PASS mouse-lock respawn');
   let versionRequests=0;
   await page.route('**/version.json?*',async route=>{
     versionRequests++;
@@ -61,7 +66,7 @@ try {
   const oldUrl=page.url();
   await page.evaluate(()=>window.__yolkTest.checkUpdate());
   assert.equal(page.url(),oldUrl,'an active match must not reload');
-  await page.getByRole('button',{name:'Pause menu',exact:true}).click();
+  await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'Leave match',exact:true}).click();
   await page.waitForURL('**build=simulated-next-release**');
   await page.getByRole('button',{name:'PRACTICE WITH BOTS',exact:true}).waitFor();

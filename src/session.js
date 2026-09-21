@@ -9,6 +9,7 @@ class Session {
       const timer=setTimeout(()=>{reject(new Error('The game service did not respond. Please reload.'));socket.close();},12000);
       socket.onmessage=event=>{
         let msg;try{msg=JSON.parse(event.data);}catch{return;}
+        if(msg.type==='session-ping'){this.send({type:'session-pong'});return;}
         if(msg.type==='session'){accepted=true;clearTimeout(timer);resolve();}
         if(msg.type==='reject'&&!accepted){clearTimeout(timer);reject(new Error(msg.reason));}
         if(msg.type==='revoked'){location.replace('/access');return;}

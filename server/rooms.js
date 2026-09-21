@@ -5,11 +5,15 @@ const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const code = () => [...randomBytes(8)].map(v => alphabet[v % alphabet.length]).join('');
 const send = (socket, data) => { if (socket.readyState === 1 && socket.bufferedAmount < 262144) socket.send(JSON.stringify(data)); };
 export class Rooms {
-  constructor(store) {
+  constructor(store, maxRooms = 32) {
+    this.maxRooms = maxRooms;
     this.store = store;
     this.rooms = new Map();
     this.sessions = new Map();
     this.frame = 0;
+  }
+  startTimers() {
+    if (this.timer) return;
     let last = performance.now(), accumulator = 0;
     this.timer = setInterval(() => {
       const now = performance.now(); accumulator += Math.min(.1, (now-last)/1000); last = now;
@@ -33,9 +37,10 @@ export class Rooms {
     }
     const s = {socket, browser:browser.id, person:browser.person, room:null, alive:true, packets:0, window:Date.now(), profile:safeProfile({})};
     this.sessions.set(s.person, s);
+    this.startTimers();
     socket.on('pong', () => {s.alive = true;});
     socket.on('error', () => {});
-    socket.on('close', () => { this.leave(s); if (this.sessions.get(s.person) === s) this.sessions.delete(s.person); });
+    socket.on('close', () => { this.leave(s); if (this.sessions.get(s.person) === s) this.sessions.delete(s.person); if (!this.sessions.size) this.stopTimers(); });
     socket.on('message', raw => {
       try {
         if (Date.now()-s.window > 1000) {s.window=Date.now(); s.packets=0;}
@@ -58,7 +63,7 @@ export class Rooms {
       s.profile = safeProfile(msg.profile);
       let room;
       if (msg.type === 'host') {
-        if (this.rooms.size >= 32) {send(s.socket,{type:'reject',requestId,reason:'All arenas are busy. Try again shortly.'}); return;}
+        if (this.rooms.size >= this.maxRooms) {send(s.socket,{type:'reject',requestId,reason:'All arenas are busy. Try again shortly.'}); return;}
         let id; do {id = code();} while (this.rooms.has(id));
         room = {code:id, host:s.person, visibility:msg.visibility === 'public' ? 'public' : 'private', sim:new Simulation(msg.options), members:new Map(), banned:new Set()};
         this.rooms.set(id,room);
@@ -111,8 +116,12 @@ export class Rooms {
   list() {
     return [...this.rooms.values()].filter(r=>r.visibility==='public').map(r=>({code:r.code,host:r.sim.players.get(r.host)?.name || 'Player',map:r.sim.options.map,mode:r.sim.options.mode,phase:r.sim.phase,players:r.members.size,capacity:8}));
   }
-  close() {
+  stopTimers() {
     clearInterval(this.timer); clearInterval(this.heartbeat);
+    this.timer = null; this.heartbeat = null;
+  }
+  close() {
+    this.stopTimers();
     for (const s of this.sessions.values()) s.socket.terminate();
   }
 }

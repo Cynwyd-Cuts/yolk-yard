@@ -55,7 +55,7 @@ const make = async (name, viewport = { width: 960, height: 640 }) => {
         fov: 85,
         volume: 0,
         quality: "low",
-        dragLook: true,
+
       }),
     );
   }, name);
@@ -181,7 +181,7 @@ try {
     assert.match(await host.locator("#ammo-extra").innerText(), /1 poppers/);
     pass("Poppers are thrown and consumed");
     await host.screenshot({ path: new URL("02-gameplay.png", out).pathname });
-    await host.getByRole("button", { name: "Pause menu", exact: true }).click();
+    await host.keyboard.press("Escape");
     const time = await host.evaluate(() => window.__yolkTest.read().state.time);
     await host.waitForTimeout(300);
     assert.equal(
@@ -192,7 +192,7 @@ try {
     await host.getByRole("button", {name:"Respawn",exact:true}).click();
     await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 0);
     await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 100, {}, {timeout:30000});
-    await host.getByRole("button", {name:"Pause menu",exact:true}).click();
+    await host.keyboard.press("Escape");
     await host.getByRole("button", {name:"Spectate",exact:true}).click();
     await host.locator("#spectate-panel").waitFor({state:"visible"});
     assert.match(await host.locator("#spectate-info").innerText(), /Waiting/);
@@ -206,7 +206,7 @@ try {
     await host.screenshot({path:new URL("spectator-mode.png",out).pathname});
     await host.getByRole("button", {name:"Join game",exact:true}).click();
     await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 100, {}, {timeout:30000});
-    await host.getByRole("button", {name:"Pause menu",exact:true}).click();
+    await host.keyboard.press("Escape");
     pass("Pause respawn, empty spectator state, player switching, and rejoin work");
 
     await host
@@ -217,6 +217,7 @@ try {
     await host
       .getByRole("button", { name: "PLAY WITH FRIENDS", exact: false })
       .click();
+    assert.equal(await host.locator("#setup-bots").inputValue(), "0");
     await host.locator("#setup-bots").selectOption("2");
     await host.locator("#setup-mode").selectOption("teams");
     await host
@@ -283,9 +284,7 @@ try {
     await guest.screenshot({
       path: new URL("04-multiplayer.png", out).pathname,
     });
-    await guest
-      .getByRole("button", { name: "Pause menu", exact: true })
-      .click();
+    await guest.keyboard.press("Escape");
     await guest.getByRole("button", { name: "Loadout", exact: true }).click();
     await guest.getByRole("button", { name: /PRECISION Needle/ }).click();
     await guest.getByRole("button", { name: "Done", exact: true }).click();
@@ -317,6 +316,18 @@ try {
       gid,
       { timeout: 10000 },
     );
+    await guest.waitForFunction(() => !!document.pointerLockElement);
+    // Settle the mouse input after UI clicks and respawn before placing a target.
+    await guest.evaluate(() => {
+      const i = window.__yolkTest.read().input;
+      document.dispatchEvent(new MouseEvent("mousemove", {
+        movementX: i.yaw / 0.002, movementY: i.pitch / 0.002,
+      }));
+    });
+    await host.waitForFunction(id => {
+      const p = window.__yolkTest.read().state.players.find(p => p.id === id);
+      return Math.abs(p.yaw) < 0.005 && Math.abs(p.pitch) < 0.005;
+    }, gid);
     const targetSetup = await host.evaluate(
       (id) =>
         window.__yolkTest.fixture((s) => {
@@ -353,10 +364,10 @@ try {
         Math.hypot(target.x - setup.x, target.z - setup.z) < 0.1
       );
     }, targetSetup);
-    await guest.mouse.move(720, 450);
-    await guest.mouse.down();
+    // Mouse is locked: moving the cursor here would turn away from the target.
+    await guest.locator("#world").dispatchEvent("mousedown", { button: 0 });
     await host.waitForFunction(({ id, after }) => window.__yolkTest.read().state.events.some(e => e.id > after && e.type === "shot" && e.player === id), { id: gid, after: targetSetup.eventId });
-    await guest.mouse.up();
+    await guest.evaluate(() => document.dispatchEvent(new MouseEvent("mouseup", { button: 0 })));
     await host.waitForFunction(({ after }) => { const s = window.__yolkTest.read().state; const shot=s.events.find(e=>e.id>after && e.type==="shot"); return shot && s.time>shot.time+0.3; }, {after:targetSetup.eventId});
     console.log("SHOT DIAGNOSTIC", JSON.stringify(await host.evaluate(() => window.__yolkTest.read().state)));
     await host.waitForFunction(
@@ -408,7 +419,7 @@ try {
       .getByRole("button", { name: "Enter the Yard", exact: true })
       .waitFor();
     pass("Host rematch resets scores and returns guests to play");
-    await host.getByRole("button", { name: "Pause menu", exact: true }).click();
+    await host.keyboard.press("Escape");
     await host.getByRole("button", { name: "Close room", exact: true }).click();
     await host.getByRole("button", { name: "Close room", exact: true }).click();
     await guest

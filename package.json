@@ -10,7 +10,11 @@
     "test": "node --test tests/*.test.js",
     "test:browser": "node scripts/access-browser-check.mjs",
     "start": "node server/index.js",
-    "test:access-browser": "node scripts/access-browser-check.mjs"
+    "test:access-browser": "node scripts/access-browser-check.mjs",
+    "dev:cloudflare": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check:cloudflare": "wrangler deploy --dry-run --outdir .worker-build",
+    "test:cloudflare": "node scripts/cloudflare-check.mjs"
   },
   "dependencies": {
     "three": "0.186.0",
@@ -18,7 +22,8 @@
   },
   "devDependencies": {
     "playwright": "1.61.0",
-    "vite": "6.4.3"
+    "vite": "6.4.3",
+    "wrangler": "4.135.0"
   },
   "engines": {
     "node": ">=24"

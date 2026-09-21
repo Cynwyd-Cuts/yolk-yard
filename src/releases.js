@@ -1,5 +1,11 @@
-export const RELEASE = "06";
+export const RELEASE = typeof __RELEASE_NUMBER__ !== "undefined" ? __RELEASE_NUMBER__ : "07";
 export const RELEASES = [
+  { number: RELEASE, title: "Clearer hits and simpler controls", changes: [
+    "Damage numbers are 60% larger, with distinct gold critical hits.",
+    "Desktop play always uses mouse lock; removed the drag-to-look setting.",
+    "New private rooms start with zero bots selected.",
+    "The quality update button automatically follows every published build."
+  ] },
   { number: "06", title: "A smoother yard, on your terms", changes: [
     "Automatic update refresh in the menu and lobby; active matches wait until you leave.",
     "Click the quality update button to read numbered release notes.",
