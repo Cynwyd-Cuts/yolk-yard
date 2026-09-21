@@ -1,29 +1,22 @@
 # Yolk Yard
 
-Use **Create Match** for public or private matches, with arena, mode, bots, difficulty, time limit (1–60 minutes), and win target (1–1000). Hosts can edit rules in the lobby; Play Again opens next-round setup. Guests see shared rules but cannot change them.
+[Play Yolk Yard](https://zl-2.github.io/yolk-yard/) — an original browser egg shooter with arena modes and **Yolk Royale**. Open the HTTPS site in a current browser with WebGL 2. No account or download is required.
 
-Play at https://zl-2.github.io/yolk-yard/. Opens directly without accounts or an access server. Invite-code multiplayer and the public-match directory use PeerJS; practice runs locally.
+## Yolk Royale
 
-Public hosts publish temporary listings through a browser-coordinated directory. A new coordinator is elected when the previous browser leaves; listings may take a few seconds to return. Switching a room to private removes its listing. Hosts must keep their tabs open. Multiplayer and discovery require a network that permits PeerJS and WebRTC. No paid relay is configured.
+Choose **Yolk Royale** on the home screen:
 
-The instructions below describe local development and gameplay.
+- **Find public match** discovers a waiting Royale lobby. If none is available, it creates one with a 30-second countdown and fills empty seats with bots.
+- **Create public / private match** lets the host choose 2–16 contestants, bot count/fill, difficulty and normal/quick storm. Private matches use an invite link or code and stay out of the directory.
+- **Play local with bots** immediately starts a sixteen-contestant round on your device. Menus pause local play; online rounds keep running.
 
-# Yolk Yard
+Ride the Eggspress over the 512 × 512 Sunnybreak island, choose one of nine districts, skydive and deploy your shell glider. Start empty, search chests and collect floor loot. Five slots hold eleven blasters and eight healing, shield, explosive or mobility items. Sprinting uses regenerating stamina. Eight nested storm stages close the island until one egg survives.
 
-An original 3D multiplayer egg arena shooter built for GitHub Pages. JavaScript,
-Three.js, and PeerJS. No Java, Eclipse, account, or software installation for players.
+One life per round. Eliminated players and late arrivals spectate living contestants, with target switching and their health, shields and inventory. The host can start a fresh rematch through editable setup. Four additional spectator seats are available during a round.
 
-## Play
+The original sound system contains 79 named effect cues, eleven weapon palettes and five continuous environmental layers. It covers transport, gliding, surfaces, stamina, combat, reloads, chests, loot, consumables, mobility, supply drops, storm, spectating and results. Settings have separate master, effects, ambience and music controls. Audio starts after user interaction.
 
-[Play Yolk Yard](https://cynwyd-cuts.github.io/yolk-yard/)
-
-Open the published HTTPS site in current Chrome, Edge, Firefox, or Safari with
-WebGL 2 enabled. Choose **Practice with bots** or **Play with friends**.
-
-For friends: create a room, copy the invite link or code, and keep the host's tab
-open and in front. Friends choose **Join a room**, enter the code, and wait for
-the host to start. Maximum 8 players including bots. Friends replace bots when
-the room is full. Rooms end when the host leaves; there is no host migration.
+See [the complete design and rules](docs/BATTLE_ROYALE.md). Arena modes retain their original maps, loadouts, eight-player limit and respawn rules.
 
 ## Version 2 quality update
 
@@ -51,9 +44,9 @@ Version 2 uses a new multiplayer protocol and separate room namespace.
 - Three original arenas: The Yard, Cargo Club, Sunset Social.
 - Free for all, Team scramble, Capture the crown, Sunny side zone control.
 - Bot practice and optional bots in private rooms, with three difficulty levels.
-- Spawn protection, automatic respawn, health regeneration, health/ammo pickups.
+- Arena spawn protection, manual respawn, health regeneration and health/ammo pickups.
 - Timed rounds, scoreboards, results, rematches, saved local match totals.
-- Eight shell colors and five headwear choices; all unlocked, no purchases.
+- Shell colors, patterns, finishes, headwear and eyewear; all unlocked, no purchases.
 - Mouse sensitivity, field of view, sound, graphics, and drag-look settings.
 - Touch movement/look/action controls and responsive menus.
 - Original procedural 3D meshes and synthesized sound. No asset CDN needed.
@@ -65,16 +58,21 @@ Version 2 uses a new multiplayer protocol and separate room namespace.
 | Move                 | WASD or arrow keys    |
 | Look                 | Mouse                 |
 | Fire                 | Left click            |
-| Aim                  | Right click or Shift  |
+| Aim                  | Right click  |
 | Jump                 | Space                 |
 | Reload               | R                     |
 | Throw popper         | E or G                |
 | Primary / sidearm    | 1 / 2, or Q to toggle |
+| Royale slots         | 1–5, Q or mouse wheel |
+| Royale search / take | Hold F for chests; F for floor items |
+| Royale sprint        | Hold Shift |
+| Royale map / inventory | M / I |
+| Royale drop item     | X |
+| Leave transport / deploy glider | Space |
 | Scoreboard           | Tab, or Scores button |
 | Release mouse / menu | Escape                |
 
-If mouse lock is unavailable, enable **Drag to look** in Settings, then hold
-right click and drag. A current desktop browser is recommended for a shooter.
+Desktop play uses mouse lock. Press Escape for the menu; M and I open the Royale map and inventory without needing a pointer.
 On a touch device, use the left joystick and right look area/action buttons.
 
 ## Publish in GitHub Pages
@@ -84,8 +82,7 @@ On a touch device, use the left joystick and right look area/action buttons.
    the source.
 3. Push to `main` (or run **Test and publish Yolk Yard** in Actions).
 4. GitHub installs the pinned dependencies, runs the simulation and browser
-   multiplayer tests, builds the static game, and publishes it. It then checks
-   the live site's connection to the public room service.
+   multiplayer tests, builds the static game, and publishes it.
 
 Relative asset paths are configured, so project sites under `/repository-name/`
 work without changing the source. A `.nojekyll` file is included.
@@ -99,7 +96,7 @@ and WebRTC security requirements need a web server.
 GitHub Pages hosts static game files. **It does not run the match server.**
 The host's browser runs a fixed 60 Hz simulation, and peers exchange real
 WebRTC data messages. PeerJS's public cloud service handles room discovery and
-connection signaling. Snapshots are sent at 20 Hz. Joining clients predict
+connection signaling. Snapshots are sent at 20 Hz in arenas and 10 Hz in Royale; unchanged island loot is not resent. Joining clients predict
 local movement and reconcile against the host's acknowledged input sequence.
 
 The host owns movement speed, collision, damage, ammo, reloads, respawns,
@@ -146,6 +143,8 @@ npm test
 npx playwright install chromium
 npm run test:browser
 npm run test:quality
+npm run test:royale
+node scripts/royale-solo-check.mjs
 npm run build
 npm run preview
 ```

@@ -32,9 +32,19 @@ export function rayBox(o, d, b, max = Infinity) {
   }
   return lo;
 }
+// Spatial buckets keep large-island collision proportional to nearby cover.
+const collisionIndex = new WeakMap();
+function candidates(map,o,d=null,max=0,radius=0){
+ if(map.theme!=='royale')return map.boxes;
+ let grid=collisionIndex.get(map);
+ if(!grid){grid=new Map();for(const b of map.boxes){for(let x=Math.floor((b.x-b.w/2)/16);x<=Math.floor((b.x+b.w/2)/16);x++)for(let z=Math.floor((b.z-b.d/2)/16);z<=Math.floor((b.z+b.d/2)/16);z++){const k=x+','+z;if(!grid.has(k))grid.set(k,[]);grid.get(k).push(b);}}collisionIndex.set(map,grid);}
+ const found=new Set(),length=d?Math.min(Number.isFinite(max)?max:1600,1600):0,steps=Math.max(1,Math.ceil(length*Math.hypot(d?.x||0,d?.z||0)/12)),reach=Math.max(1,Math.ceil(radius/16));
+ for(let i=0;i<=steps;i++){const f=length*i/steps,x=Math.floor((o.x+(d?.x||0)*f)/16),z=Math.floor((o.z+(d?.z||0)*f)/16);for(let dx=-reach;dx<=reach;dx++)for(let dz=-reach;dz<=reach;dz++)for(const b of grid.get((x+dx)+','+(z+dz))||[])found.add(b);}
+ return found;
+}
 export function wallDistance(map, o, d, max = 200) {
   let t = max;
-  for (const b of map.boxes) t = Math.min(t, rayBox(o, d, b, t));
+  for (const b of candidates(map,o,d,max)) t = Math.min(t, rayBox(o, d, b, t));
   if (d.y < 0) t = Math.min(t, -o.y / d.y);
   return t;
 }
@@ -64,7 +74,7 @@ function overlaps(p, b) {
 }
 function pushAxis(p, map, axis, delta) {
   p[axis] += delta;
-  for (const b of map.boxes)
+  for (const b of candidates(map,p))
     if (overlaps(p, b)) {
       const top = b.y + b.h;
       if (p.grounded && top - p.y <= 0.43 && top - p.y > 0) {
@@ -85,6 +95,32 @@ export function movePlayer(p, input, map, dt) {
     -1.48,
     1.48,
   );
+  if (p.flight === 'transport') return;
+  if (p.flight === 'dive' || p.flight === 'glide' || p.flight === 'launch') {
+    const toggle=input.jump&&!p.flightLatch;p.flightLatch=!!input.jump;
+    const f=clamp(input.forward || 0,-1,1),s=clamp(input.strafe || 0,-1,1),length=Math.max(1,Math.hypot(f,s));
+    const speed=p.flight==='glide'?24:p.flight==='launch'?26:17;
+    pushAxis(p,map,'x',(-Math.sin(p.yaw)*f+Math.cos(p.yaw)*s)/length*speed*dt);
+    pushAxis(p,map,'z',(-Math.cos(p.yaw)*f-Math.sin(p.yaw)*s)/length*speed*dt);
+    p.x=clamp(p.x,-map.size+.5,map.size-.5);p.z=clamp(p.z,-map.size+.5,map.size-.5);
+    let floor=0;for(const b of candidates(map,p))if(b.y+b.h<=p.y+.045&&Math.abs(p.x-b.x)<b.w/2+RADIUS-.015&&Math.abs(p.z-b.z)<b.d/2+RADIUS-.015)floor=Math.max(floor,b.y+b.h);
+    if(toggle){if(p.flight==='dive')p.flight='glide';else if(p.flight==='glide'&&p.y-floor>32)p.flight='dive';}
+    if(p.flight==='launch'){
+      p.vy-=20*dt;
+      const ceiling=worldHit(map,{x:p.x,y:p.y+HEIGHT,z:p.z},{x:0,y:1,z:0},Math.max(0,p.vy*dt));
+      if(ceiling||p.vy<=0){p.flight='glide';p.vy=-6;}
+    }else{if(p.y-floor<=24)p.flight='glide';p.vy=p.flight==='glide'?-6:-25;}
+    p.y+=p.vy*dt;p.grounded=false;
+    if(p.y<=floor){p.y=floor;p.vy=0;p.grounded=true;p.flight='ground';p.jumpLatch=!!input.jump;}
+    p.sprinting=false;if(p.inventory){p.sprintRest=(p.sprintRest||0)+dt;if(p.sprintRest>1.3)p.stamina=Math.min(100,(p.stamina??100)+18*dt);if(p.stamina>=20)p.exhausted=false;}return;
+  }
+  if (p.inventory) {
+    p.stamina ??= 100; p.sprintRest ??= 0;
+    if(p.stamina>=20)p.exhausted=false;
+    p.sprinting=!!input.sprint && !p.exhausted && p.stamina>0 && !input.aim && !input.fire && !p.use && Math.hypot(input.forward||0,input.strafe||0)>.1 && p.grounded;
+    if(p.sprinting){p.stamina=Math.max(0,p.stamina-22*dt);p.sprintRest=0;if(p.stamina===0)p.exhausted=true;}
+    else {p.sprintRest+=dt;if(p.sprintRest>1.3)p.stamina=Math.min(100,p.stamina+18*dt);}
+  }
   let f = clamp(input.forward || 0, -1, 1),
     s = clamp(input.strafe || 0, -1, 1),
     len = Math.hypot(f, s);
@@ -93,7 +129,7 @@ export function movePlayer(p, input, map, dt) {
     s /= len;
   }
   const speed =
-    weapon(p.weapon).speed *
+    (p.inventory ? 10.5 * (p.sprinting ? 1.75 : 1) : weapon(p.weapon).speed) *
     (input.aim ? 0.7 : 1) *
     (p.crown !== null ? 0.88 : 1);
   const dx = (-Math.sin(p.yaw) * f + Math.cos(p.yaw) * s) * speed * dt,
@@ -109,7 +145,7 @@ export function movePlayer(p, input, map, dt) {
   p.vy -= 24 * dt;
   p.y += p.vy * dt;
   p.grounded = false;
-  for (const b of map.boxes) {
+  for (const b of candidates(map,p)) {
     if (
       Math.abs(p.x - b.x) >= b.w / 2 + RADIUS - 0.015 ||
       Math.abs(p.z - b.z) >= b.d / 2 + RADIUS - 0.015
@@ -145,7 +181,9 @@ export function sanitizeInput(i = {}) {
     aim: !!i.aim,
     reload: !!i.reload,
     popper: !!i.popper,
-    slot: i.slot === 1 ? 1 : 0,
+    slot: Number.isInteger(i.slot) && i.slot>=0 && i.slot<5 ? i.slot : 0,
+    sprint: !!i.sprint, interact: !!i.interact, drop: !!i.drop,
+    swapSlot: Number.isInteger(i.swapSlot) && i.swapSlot>=0 && i.swapSlot<5 ? i.swapSlot : -1,
   };
 }
 
@@ -171,7 +209,7 @@ export function muzzleOrigin(p, w) {
 export function worldHit(map, o, d, max = 200, radius = 0) {
   let result = null,
     best = max;
-  for (const source of map.boxes) {
+  for (const source of candidates(map,o,d,max,radius)) {
     const b = radius
       ? {
           ...source,

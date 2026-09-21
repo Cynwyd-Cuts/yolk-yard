@@ -228,7 +228,7 @@ export function makeBlaster(id) {
       box(g, 0.101, 0.04, 0.07 + i * 0.025, 0.009, 0.085, 0.009, dark, 0.002);
     g.userData.reloadPart = box(g, 0, -.405, .12, .13, .13, .14, steel);
     optic(g, "iron", -0.24);
-  } else if (id === "scatter") {
+  } else if ((id === "scatter" || id === "doubleyolk")) {
     box(g, 0, 0, 0.08, 0.3, 0.23, 0.46, c);
     grip(g, 0.17);
     stock(g, c, 0.31);
@@ -243,7 +243,7 @@ export function makeBlaster(id) {
     for (let i = 0; i < 3; i++)
       tube(g, 0.19, -0.02, -0.02 + i * 0.085, 0.034, 0.065, cream);
     optic(g, "iron");
-  } else if (id === "needle") {
+  } else if ((id === "needle" || id === "peeper")) {
     plate(
       g,
       [
@@ -394,7 +394,10 @@ export function makeBlaster(id) {
     ring(g, 0, 0, -0.895, 0.063, 0.02, c);
     optic(g, "reflex");
   }
-  if (id === "scatter" || id === "thumper") {
+  if(id==='comet'){
+    for(let j=0;j<5;j++){box(g,.14,.07,-.1-j*.1,.04,.11,.06,0x9ff1ff,.008);box(g,-.14,.07,-.1-j*.1,.04,.11,.06,0x9ff1ff,.008);}
+  }
+  if (id === "scatter" || id === "doubleyolk" || id === "thumper") {
     const token = tube(g, 0, 0, 0, id === "thumper" ? .085 : .05, id === "thumper" ? .28 : .15, c);
     token.visible = false;
     g.userData.reloadToken = token;

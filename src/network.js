@@ -4,7 +4,7 @@ import { VERSION, safeProfile } from "./data.js";
 import { ChatRoom, chatPayload } from './chat.js';
 import { FILTER_VERSION, moderateText, safeName, safeSystemText, SAFETY_MESSAGES } from './moderation.js';
 import { matchOptions } from './match-options.js';
-const PREFIX = "yolk-yard-v2-";
+const PREFIX = "yolk-yard-v3-";
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomCode = () =>
   Array.from(
@@ -38,6 +38,7 @@ export class Network {
   constructor(callbacks = {}) {
     this.callbacks = callbacks;
     this.visibility = "private";
+    this.maxConnections=7;
     this.peer = null;
     this.connections = new Map();
     this.isHost = false;
@@ -108,7 +109,7 @@ export class Network {
     return this.code;
   }
   accept(conn) {
-    if (this.closed || this.connections.size >= 7 || this.kicked.has(conn.peer)) {
+    if (this.closed || this.connections.size >= this.maxConnections || this.kicked.has(conn.peer)) {
       conn.on("open", () => {
         conn.send({ type: "reject", reason: "This room is unavailable." });
         setTimeout(() => conn.close(), 150);
@@ -141,7 +142,7 @@ export class Network {
         return;
       }
       if (msg.type === "hello" && !accepted) {
-        if (msg.version !== VERSION || this.connections.size >= 7) {
+        if (msg.version !== VERSION || this.connections.size >= this.maxConnections) {
           conn.send({
             type: "reject",
             reason:
@@ -176,7 +177,7 @@ export class Network {
       }
       if (!accepted) return;
       if (msg.type === "input") this.callbacks.onInput?.(conn.peer, msg.input);
-      else if (msg.type === "player-action" && ["respawn", "spectate", "rejoin"].includes(msg.action))
+      else if (msg.type === "player-action" && (["respawn", "spectate", "rejoin"].includes(msg.action)||/^inventory-(select-[0-4]|drop-[0-4]|swap-[0-4]-[0-4])$/.test(msg.action)))
         this.callbacks.onPlayerAction?.(conn.peer, msg.action);
       else if (msg.type === "profile")
         this.callbacks.onProfile?.(conn.peer, safeProfile(msg.profile));
@@ -209,7 +210,7 @@ export class Network {
       this.rejectOpen = reject;
       const conn = this.peer.connect(PREFIX + this.code, {
         reliable: true,
-        serialization: "json",
+        serialization: "binary",
       });
       this.hostConnection = conn;
       const timer = setTimeout(
@@ -247,7 +248,7 @@ export class Network {
             !s ||
             s.version !== VERSION ||
             !Array.isArray(s.players) ||
-            s.players.length > 8
+            s.players.length > 20
           )
             return;
           this.lastState = performance.now();
@@ -271,7 +272,7 @@ export class Network {
           }):[];
           this.snapshot=s;
           this.chatEnabled=s.chatEnabled !== false;
-          this.chatMuted=Array.isArray(s.chatMuted)?s.chatMuted.filter(id=>typeof id==='string').slice(0,8):[];
+          this.chatMuted=Array.isArray(s.chatMuted)?s.chatMuted.filter(id=>typeof id==='string').slice(0,20):[];
           this.visibility = s.visibility === "public" ? "public" : "private";
           this.callbacks.onState?.(s);
         } else if (msg.type==='chat-message' && this.ready) {
@@ -378,15 +379,24 @@ export class Network {
   }
   publishRoom() {
     const s = this.snapshot;
-    directory.publish(this.visibility === "public" && s ? {code:this.code,host:s.players.find(p=>p.id === "host")?.name || "Egg",map:s.options.map,mode:s.options.mode,players:s.players.filter(p=>!p.bot).length,capacity:8,phase:s.phase} : null);
+    const humans=s?.players.filter(p=>!p.bot)||[];
+    const capacity=s?.options.mode==='royale' ? s.phase==='playing' ? humans.filter(p=>!p.spectating||p.place>0).length+4 : s.options.capacity : 8;
+    directory.publish(this.visibility === "public" && s ? {code:this.code,host:s.players.find(p=>p.id === "host")?.name || "Egg",map:s.options.map,mode:s.options.mode,players:humans.length,capacity,phase:s.phase} : null);
   }
   broadcast(state) {
     this.snapshot = state;
     if (performance.now() - (this.lastPublish || 0) > 2000) { this.lastPublish = performance.now(); this.publishRoom(); }
     state = {...state, visibility:this.visibility,chatEnabled:this.chatEnabled,chatMuted:this.chatMuted};
-    for (const conn of this.connections.values())
-      if (conn.open && (conn.dataChannel?.bufferedAmount || 0) < 65536)
-        conn.send({ type: "state", state });
+    for (const conn of this.connections.values()) {
+      if (!conn.open || (conn.dataChannel?.bufferedAmount || 0) >= 131072) continue;
+      let outgoing=state;
+      if(state.royale){
+        const version=state.round+':'+state.royale.lootVersion;
+        if(conn.royaleVersion===version){const {loot,chests,...royale}=state.royale;outgoing={...state,royale};}
+        conn.royaleVersion=version;
+      }
+      conn.send({type:'state',state:outgoing});
+    }
   }
   kick(id) {
     const conn = this.connections.get(id);

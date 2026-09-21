@@ -1,5 +1,5 @@
 import { safeName } from './moderation.js';
-export const VERSION = 6;
+export const VERSION = 7;
 export const WEAPONS = [
   {
     id: "sprinter",
@@ -266,7 +266,14 @@ export const WEAPONS = [
     secondary: true,
   },
 ];
+export const ROYALE_WEAPONS = [
+ {...WEAPONS[2],id:'peeper',name:'Peeper',role:'MARKSMAN',desc:'A repeating long-range shell scout.',damage:68,magazine:8,reserve:60,interval:.36,reload:2.2,reloadEmpty:2.5,spread:.008,range:110,boltSpeed:100,optic:'scope',magnification:2.5,color:0x94de9a},
+ {...WEAPONS[1],id:'doubleyolk',name:'Double Yolk',role:'TACTICAL',desc:'A quick cycling tactical scatter blaster.',damage:7,pellets:10,magazine:6,reserve:48,interval:.5,reload:2.4,reloadEmpty:2.7,range:22,boltSpeed:60,color:0xec99c5},
+ {...WEAPONS[0],id:'comet',name:'Comet',role:'ENERGY',desc:'A precise energy carbine with luminous rounds.',damage:27,magazine:24,reserve:240,interval:.14,reload:2.1,reloadEmpty:2.4,spread:.013,range:95,boltSpeed:110,color:0x8bafff},
+];
+const royaleStats = new Map();
 export const MODES = [
+ {id:"royale",name:"Yolk Royale",short:"ROYALE",description:"Drop in, loot up, outrun the storm. Last egg standing.",limit:1,teams:false},
   {
     id: "ffa",
     name: "Free for all",
@@ -323,15 +330,21 @@ export const NO_EYEWEAR = 6;
 const cosmeticIndex = (value, options) => Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) < options.length ? Number(value) : 0;
 export const TEAM_COLORS = [0x47c5e0, 0xfb7f70];
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-export const weapon = (id) => WEAPONS.find((w) => w.id === id) || WEAPONS[0];
-export const gun = (p) => weapon(p.slot === 1 ? "pip" : p.weapon);
-export const mode = (id) => MODES.find((m) => m.id === id) || MODES[0];
+export const weapon = (id) => WEAPONS.find((w) => w.id === id) || ROYALE_WEAPONS.find(w => w.id === id) || WEAPONS[0];
+export const gun = (p) => {
+ if (!p.inventory) return weapon(p.slot === 1 ? "pip" : p.weapon);
+ const item=p.inventory[p.slot], base=weapon(item?.weapon ? item.id : 'pip');
+ const rarity=Math.max(0,Math.min(4,item?.rarity||0)),key=base.id+rarity;
+ if(!royaleStats.has(key)) royaleStats.set(key,{...base,damage:base.damage*.72*(1+rarity*.06),range:Math.max(base.range,base.id==='scatter'||base.id==='doubleyolk'?25:base.id==='thumper'?130:140),boltSpeed:Math.max(base.boltSpeed,base.pellets>1?65:110),reload:base.reload*(1-rarity*.035),reloadEmpty:base.reloadEmpty*(1-rarity*.035)});
+ return royaleStats.get(key);
+};
+export const mode = (id) => MODES.find((m) => m.id === id) || MODES.find(m => m.id === "ffa");
 export const cleanName = safeName;
 export function safeProfile(p = {}) {
   if (!p || typeof p !== 'object') p = {};
   return {
     name: cleanName(p.name),
-    weapon: weapon(p.weapon).secondary ? "sprinter" : weapon(p.weapon).id,
+    weapon: WEAPONS.some(w => w.id === p.weapon && !w.secondary) ? p.weapon : "sprinter",
     color: COLORS.includes(p.color) ? p.color : COLORS[0],
     hat: cosmeticIndex(p.hat, HATS),
     pattern: cosmeticIndex(p.pattern, PATTERNS),
