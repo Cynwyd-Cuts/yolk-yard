@@ -26,7 +26,7 @@ await new Promise(r=>app.server.listen(3191,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHROME?{executablePath:process.env.YOLK_TEST_CHROME}:{}),args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-background-timer-throttling','--disable-renderer-backgrounding']});
 const errors=[];
 const out=pages?'test-results/pages':'test-results/access';await mkdir(out,{recursive:true});
-const context=async(viewport={width:1440,height:1000})=>{const c=await browser.newContext({viewport});await c.addInitScript(()=>localStorage.setItem('yolk-settings',JSON.stringify({quality:'low'})));if(pages)await c.addInitScript(value=>{window.YOLK_API_ORIGIN=value;},backend);c.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));return c;};
+const context=async(viewport={width:1440,height:1000})=>{const c=await browser.newContext({viewport});await c.addInitScript(()=>{if(location.origin!=='null')localStorage.setItem('yolk-settings',JSON.stringify({quality:'low'}));});if(pages)await c.addInitScript(value=>{window.YOLK_API_ORIGIN=value;},backend);c.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));return c;};
 const wait=async fn=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,100));}throw new Error('Timed out waiting for game');};
 try {
  const adminContext=await context(),hostContext=await context(),guestContext=await context(),mobileContext=await context({width:390,height:844});
