@@ -31,6 +31,7 @@ function fixture(mode = "ffa") {
   const a = s.addPlayer("a", { name: "Alpha" }),
     b = s.addPlayer("b", { name: "Bravo" });
   s.startRound();
+  for (const p of s.players.values()) s.spawn(p);
   s.map = { ...s.map, boxes: [] };
   s.time = 10;
   Object.assign(a, { x: 0, y: 0, z: 8, yaw: 0, pitch: 0, shieldUntil: 0 });
@@ -132,7 +133,10 @@ test("server controls hit damage, ammunition, shielding, and respawn", () => {
   assert.equal(a.kills, 1);
   assert.equal(b.deaths, 1);
   assert.equal(a.ammo[0], 0);
-  s.time = b.respawnAt;
+  s.time = b.respawnAt + 10;
+  s.tick(1 / 60);
+  assert.equal(b.health, 0, "death never automatically respawns a human");
+  s.playerAction(b.id, "respawn");
   s.tick(1 / 60);
   assert.equal(b.health, 100);
   assert.ok(b.shieldUntil > s.time);
@@ -230,6 +234,7 @@ test("zone contest stops scoring; owner earns points and round ends", () => {
   assert.equal(s.phase, "results");
   assert.equal(s.winner, "Blue team wins");
   s.startRound();
+  for (const p of s.players.values()) s.spawn(p);
   assert.equal(s.phase, "playing");
   assert.equal(s.scores[0], 0);
 });
@@ -260,6 +265,7 @@ test("bots complete full rounds without non-finite state or exceeding room capac
     const s = new Simulation({ mode: m, bots: 7, seed: 19 });
     s.addPlayer("host", {});
     s.startRound();
+  for (const p of s.players.values()) s.spawn(p);
     for (let i = 0; i < 18001 && s.phase === "playing"; i++) s.tick(1 / 60);
     assert.equal(s.phase, "results");
     assert.equal(s.players.size, 8);
@@ -463,4 +469,25 @@ test("manual respawn drops objectives without awarding an elimination", () => {
   assert.equal(a.respawnAt,ready);
   s.time=ready; s.tick(1/60);
   assert.equal(a.health,100);
+});
+
+
+
+test("human entrants wait safely for an explicit entry request, bots do not", () => {
+  const s = new Simulation({map: "yard", bots: 1});
+  const p = s.addPlayer("human", {});
+  s.startRound();
+  assert.equal(p.health, 0);
+  assert.equal(p.awaitingEntry, true);
+  for (let i=0; i<300; i++) s.tick(1/60);
+  assert.equal(p.health, 0);
+  assert.ok([...s.players.values()].some(p => p.bot && p.health > 0));
+  s.playerAction(p.id, "rejoin"); s.tick(1/60);
+  assert.equal(p.health, 100);
+  assert.equal(p.awaitingEntry, false);
+  const late = s.addPlayer("late", {});
+  assert.equal(late.health, 0);
+  s.startRound();
+  assert.equal(p.health, 0);
+  assert.equal(late.health, 0);
 });

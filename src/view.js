@@ -57,18 +57,24 @@ function cylinder(parent, x, y, z, radius, height, color, segments = 16) {
 }
 function eggGeometry() {
   const pts = [];
-  for (let i = 0; i <= 24; i++) {
-    const t = (Math.PI * i) / 24,
+  for (let i = 0; i <= 64; i++) {
+    const t = (Math.PI * i) / 64,
       y = 0.08 + (1.6 * (1 - Math.cos(t))) / 2,
-      r = Math.sin(t) * (0.55 - (0.1 * i) / 24);
+      r = Math.sin(t) * (0.55 - (0.1 * i) / 64);
     pts.push(new THREE.Vector2(r, y));
   }
-  return new THREE.LatheGeometry(pts, 28);
+  return new THREE.LatheGeometry(pts, 64);
 }
 const eggGeo = eggGeometry();
+const shellMaterials = new Map();
+function shellMaterial(color) {
+  if (!shellMaterials.has(color)) shellMaterials.set(color,
+    new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0, flatShading: false }));
+  return shellMaterials.get(color);
+}
 export function makeEgg(profile, team = -1, withWeapon = true) {
   const group = new THREE.Group(),
-    body = new THREE.Mesh(eggGeo, mat(profile.color || "#fff6da"));
+    body = new THREE.Mesh(eggGeo, shellMaterial(profile.color || "#fff6da"));
   body.castShadow = true;
   group.add(body);
   // Jagged paths follow the same lathed shell surface and reveal with damage.
@@ -715,7 +721,7 @@ export class View {
     if (state) {
       const seen = new Set();
       for (const p of state.players) {
-        if (p.spectating || (p.id === local?.id && p.health > 0)) continue;
+        if (p.spectating || p.awaitingEntry || (p.id === local?.id && p.health > 0)) continue;
         seen.add(p.id);
         const sig =
           p.weapon +
@@ -747,15 +753,12 @@ export class View {
           this.models.set(p.id, model);
           model.position.set(p.x, p.y, p.z);
         }
-        // Drive the gait from interpolated horizontal travel, including network players.
-        const previous = model.userData.walkPosition || { x: p.x, z: p.z };
-        const travel = Math.hypot(p.x - previous.x, p.z - previous.z);
-        model.userData.walkPosition = { x: p.x, z: p.z };
-        const walking = p.health > 0 && p.grounded && travel < 2;
-        const targetSpeed = walking ? Math.min(1, travel / Math.max(dt, 0.001) / 5) : 0;
-        const stride = model.userData.stride = (model.userData.stride || 0) + (walking ? travel * 7 : 0);
-        const gait = model.userData.gait = THREE.MathUtils.lerp(model.userData.gait || 0, targetSpeed, Math.min(1, dt * 12));
-        const bob = Math.abs(Math.sin(stride)) * 0.065 * gait;
+        // Continuous time-based gait; network snapshots never jump the phase.
+        const walking = p.health > 0 && p.grounded && p.moving;
+        const gait = model.userData.gait = THREE.MathUtils.lerp(
+          model.userData.gait || 0, walking ? 1 : 0, 1 - Math.exp(-dt * 6));
+        const stride = model.userData.stride = (model.userData.stride || 0) + dt * 5.2 * gait;
+        const bob = (1 - Math.cos(stride * 2)) * 0.014 * gait;
         const deathAge = p.health <= 0 ? state.time - (p.respawnAt - 3) : 0;
         model.visible = p.health > 0 || deathAge < 0.75;
         model.userData.cracks.forEach((crack, i) => {
@@ -783,8 +786,8 @@ export class View {
           model.scale.set(1 + collapse * 0.25, 1 - collapse * 0.95, 1 + collapse * 0.25);
           model.rotation.z = collapse * 0.35;
         } else {
-          model.rotation.z = Math.sin(stride) * 0.1 * gait;
-          model.rotation.x = Math.cos(stride * 2) * 0.025 * gait;
+          model.rotation.z = Math.sin(stride) * 0.19 * gait;
+          model.rotation.x = Math.cos(stride * 2) * 0.015 * gait;
         }
       }
       for (const [id, model] of this.models)
@@ -958,4 +961,5 @@ export class View {
     this.renderer.render(this.scene, this.camera);
   }
 }
+
 

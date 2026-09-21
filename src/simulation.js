@@ -110,6 +110,7 @@ export class Simulation {
     };
     this.players.set(id, p);
     this.spawn(p);
+    if (!p.bot) this.waitForEntry(p);
     this.emit("join", { player: id, name: p.name });
     return p;
   }
@@ -195,27 +196,40 @@ export class Simulation {
       p.assists = 0;
       p.streak = 0;
       this.spawn(p);
+      if (!p.bot) this.waitForEntry(p);
     }
     this.emit("round", { round: this.round });
+  }
+  waitForEntry(p) {
+    p.health = 0;
+    p.awaitingEntry = true;
+    p.spawnRequested = false;
+    p.respawnAt = 0;
+    p.killerId = null;
+    p.nextPlayerAction = 0;
+    this.inputs.delete(p.id);
   }
   playerAction(id, action) {
     const p = this.players.get(id);
     if (!p || p.bot || this.phase !== "playing" ||
         this.time < (p.nextPlayerAction || 0)) return;
     if (!["respawn", "spectate", "rejoin"].includes(action)) return;
-    if (action === "respawn" && (p.health <= 0 || p.spectating)) return;
-    if (action === "rejoin" && !p.spectating) return;
+    if (action === "rejoin" && !p.spectating && !p.awaitingEntry) return;
+    if (action === "respawn" && p.spectating) return;
     p.nextPlayerAction = this.time + 1;
+    const wasAlive = p.health > 0;
+    const wasSpectating = p.spectating;
     this.dropFlag(p);
     this.inputs.delete(id);
     this.projectiles = this.projectiles.filter(b => b.owner !== id);
     p.reloadEnd = 0;
     p.burstLeft = 0;
-    p.killerId = null;
     p.moving = false;
     p.health = 0;
     p.spectating = action === "spectate";
-    p.respawnAt = p.spectating ? 0 : this.time + 3;
+    p.spawnRequested = !p.spectating;
+    if (p.spectating) p.killerId = null;
+    if (wasAlive || wasSpectating) p.respawnAt = this.time + 3;
     this.emit("player-action", {player: id, action});
   }
   spawn(p) {
@@ -245,6 +259,8 @@ export class Simulation {
       grounded: true,
       jumpLatch: false,
       health: 100,
+      awaitingEntry: false,
+      spawnRequested: false,
       slot: 0,
       ammo: [weapon(p.weapon).magazine, weapon("pip").magazine],
       reserve: [weapon(p.weapon).reserve, weapon("pip").reserve],
@@ -275,7 +291,7 @@ export class Simulation {
     for (const p of this.players.values()) {
       if (p.spectating) continue;
       if (p.health <= 0) {
-        if (this.time >= p.respawnAt) this.spawn(p);
+        if ((p.bot || p.spawnRequested) && this.time >= p.respawnAt) this.spawn(p);
         continue;
       }
       let input = p.bot ? this.botInput(p) : this.inputs.get(p.id);
@@ -289,6 +305,7 @@ export class Simulation {
       }
       const previousPosition = { x: p.x, y: p.y, z: p.z };
       movePlayer(p, input, this.map, dt);
+      p.moving = Math.hypot(p.x - previousPosition.x, p.z - previousPosition.z) > 0.001;
       p.ack = Math.max(p.ack, input.seq || 0);
       p.aim = !!input.aim;
       this.updateAccuracy(p, previousPosition, dt);
@@ -670,6 +687,7 @@ export class Simulation {
     victim.deaths++;
     victim.streak = 0;
     victim.respawnAt = this.time + 3;
+    victim.spawnRequested = false;
     victim.reloadEnd = 0;
     victim.burstLeft = 0;
     this.dropFlag(victim);
@@ -929,6 +947,9 @@ export class Simulation {
       "respawnAt",
       "killerId",
       "spectating",
+      "awaitingEntry",
+      "spawnRequested",
+      "moving",
       "crown",
       "ack",
       "aim",
@@ -967,4 +988,5 @@ export class Simulation {
     };
   }
 }
+
 

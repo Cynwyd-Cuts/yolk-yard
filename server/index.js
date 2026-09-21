@@ -37,7 +37,7 @@ export function createApp({origin, adminSecret, database, dist=resolve(root,'dis
   }
   async function serve(res,path) {
     const content=await readFile(path);
-    res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'})[extname(path)]||'application/octet-stream'});
+    res.writeHead(200,{'Content-Type':({'.json':'application/json','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'})[extname(path)]||'application/octet-stream'});
     res.end(content);
   }
   const server=createServer(async(req,res)=>{

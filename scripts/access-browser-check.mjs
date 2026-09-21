@@ -37,12 +37,12 @@ try {
  await guest.getByRole('button',{name:'BROWSE PUBLIC MATCHES'}).click();await guest.locator('[data-join-room]').waitFor();
  await guest.screenshot({path:out+'/public-matches.png'});
  await host.getByRole('button',{name:'START MATCH'}).click();
- await host.getByRole('button',{name:'ENTER ARENA'}).waitFor();
- await guest.locator('[data-join-room]').click();await guest.getByRole('button',{name:'ENTER ARENA'}).waitFor();
+ await host.getByRole('button',{name:'Enter the yard',exact:true}).waitFor();
+ await guest.locator('[data-join-room]').click();await guest.getByRole('button',{name:'Enter the yard',exact:true}).waitFor();
  console.log('PASS public listing, creating room, starting and joining an in-progress match');
  // Avoid pointer capture in headless verification; keyboard/mouse inputs still follow the game handlers.
  for(const page of [host,guest])await page.evaluate(()=>{HTMLCanvasElement.prototype.requestPointerLock=()=>Promise.resolve();});
- await host.getByRole('button',{name:'ENTER ARENA'}).click();await guest.getByRole('button',{name:'ENTER ARENA'}).click();
+ await host.getByRole('button',{name:'Enter the yard',exact:true}).click();await guest.getByRole('button',{name:'Enter the yard',exact:true}).click();
  const room=[...app.rooms.rooms.values()][0];
  await wait(()=>room.members.size===2);
  const guestId=[...room.members.keys()].find(id=>id!==room.host),p=room.sim.players.get(guestId);

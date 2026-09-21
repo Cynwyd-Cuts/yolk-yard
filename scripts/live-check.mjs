@@ -56,7 +56,9 @@ try {
     "PASS Public room connects two production clients through WebRTC",
   );
   await host.getByRole("button", { name: "START MATCH", exact: true }).click();
-  await guest.getByRole("button", { name: "ENTER ARENA", exact: true }).click();
+    await host.getByRole("button", { name: "Enter the Yard", exact: true }).click();
+    await host.waitForFunction(() => document.querySelector("#health").textContent === "100");
+  await guest.getByRole("button", { name: "Enter the Yard", exact: true }).click();
   await guest.getByRole("button", { name: "Scoreboard", exact: true }).click();
   await guest
     .locator("#scoreboard")
@@ -90,3 +92,4 @@ try {
 } finally {
   await browser.close();
 }
+
