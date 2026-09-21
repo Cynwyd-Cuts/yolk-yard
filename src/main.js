@@ -1,3 +1,5 @@
+import { ChatPanel } from "./chat-ui.js";
+import { moderateText, safeName } from "./moderation.js";
 import {matchOptions, targetLabel} from "./match-options.js";
 import "./style.css";
 import { CONTROLS, normalizeBindings, validBinding, bindingDown, bindingLabel } from "./keybinds.js";
@@ -58,9 +60,12 @@ const settings = {
   invert: false,
   centerDot: true,
   hitMarkers: true,
+  chatMode: "all",
   ...read("yolk-settings", {}),
 };
 settings.keybinds = normalizeBindings(settings.keybinds);
+settings.chatMode = ["all", "quick", "off"].includes(settings.chatMode) ? settings.chatMode : "all";
+save("yolk-profile", profile);
 delete settings.dragLook;
 save("yolk-settings", settings);
 settings.sensitivity = clamp(Number(settings.sensitivity) || 1, 0.2, 3);
@@ -122,6 +127,25 @@ const touch = {
 $("#app").innerHTML =
   `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"><i class="crosshair-arm left"></i><i class="crosshair-arm right"></i><i class="crosshair-arm top"></i><i class="crosshair-arm bottom"></i><span class="center-dot" id="center-dot"></span></div><div id="hit-marker" class="hit-marker" hidden></div><div class="hit-flash" id="damage"></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow" id="spawn-heading">SHELL DOWN</div><h2 id="spawn-status">Ready when you are</h2><button class="primary" id="spawn-button" data-action="enter-yard">Respawn</button><p class="small" id="respawn-by"></p><p class="small" id="spectator-stats"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="health-label">SHELL <b id="health">100</b></div><div class="health-bar"><span id="health-fill"></span></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div id="spectate-panel" hidden><div class="eyebrow">SPECTATING</div><p id="spectate-info"></p><div class="split-actions"><button data-action="spectate-prev">← Previous</button><button data-action="spectate-next">Next →</button><button data-action="rejoin">Join game</button></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
 const dialog = $("#dialog");
+const chat = new ChatPanel($("#app"), {
+  context: () => ({state, localId, preference:settings.chatMode, connected:!!net?.ready && !net.closed && screen!=="menu", host:!!net?.isHost, enabled:net?.chatEnabled, roomMuted:net?.chatMuted||[]}),
+  setPreference: value => {settings.chatMode=value;save("yolk-settings",settings);},
+  send: payload => net?.chat(payload) || {ok:false,reason:"disconnected"},
+  report: (id,reason) => net?.reportChat(id,reason),
+  silence: (id,value) => net?.setChatMuted(id,value),
+  enable: value => net?.setChatEnabled(value),
+  remove: id => net?.kick(id),
+  open: () => {
+    keys.clear();queuedActions.clear();scoreHeld=false;
+    input.fire=false;input.aim=false;
+    Object.assign(touch,{x:0,y:0,jump:false,fire:false,aim:false,reload:false,popper:false});
+    if(document.pointerLockElement)document.exitPointerLock();
+  },
+  close: () => {
+    keys.clear();queuedActions.clear();
+    if(net?.ready && !net.closed && screen==="game" && state?.phase==="playing" && !dialog.open)void resume();
+  },
+});
 function remember() {
   save("yolk-profile", profile);
   if (sim) sim.setProfile(localId, profile);
@@ -133,7 +157,7 @@ function titleBar() {
 function renderMenu() {
   const w = weapon(profile.weapon);
   $("#menu").innerHTML =
-    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false"><button class="primary" data-action="setup">CREATE MATCH <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. Up to 8 eggs.<br>No accounts or downloads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
+    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="name-safety"><p class="name-safety" id="name-safety" role="status">Use a nickname. Keep personal details private.</p><button class="primary" data-action="setup">CREATE MATCH <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. Up to 8 eggs.<br>No accounts or downloads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
       (w) => !w.secondary,
     )
       .map(
@@ -153,7 +177,10 @@ function renderMenu() {
         "",
       )}<button class="plain" data-action="customize">Egg studio</button><p class="hint">${stats.matches} matches · ${stats.kills} eliminations</p></section></main><div class="footer"><span>YOLK YARD · ORIGINAL EGG ARENA</span><span class="footer-right">WASD + MOUSE &nbsp; / &nbsp; <button data-action="about">About & credits</button></span></div>`;
   $("#player-name").addEventListener("change", (e) => {
-    profile.name = safeProfile({ name: e.target.value }).name;
+    const checked=moderateText(e.target.value,{kind:"name"});
+    profile.name = safeName(e.target.value);
+    $("#name-safety").textContent=checked.ok ? "Use a nickname. Keep personal details private." : "That name was filtered. Please choose a friendly nickname.";
+    const caption=$(".character-caption strong");if(caption)caption.textContent=profile.name;
     e.target.value = profile.name;
     remember();
   });
@@ -203,7 +230,7 @@ function settingsMenu() {
       )
       .join(
         "",
-      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Keybinds</h3><p class="small" id="binding-help" role="status">Choose a binding, then press a key or mouse button. Esc cancels; Delete clears. Esc always opens the menu.</p><div class="keybind-list">${CONTROLS.map(([id,label]) => `<div class="keybind-row"><span>${label}</span>${settings.keybinds[id].map((code, slot) => `<button data-bind="${id}" data-bind-slot="${slot}" aria-label="Bind ${label} ${slot ? 'alternate' : 'primary'}">${bindingLabel(code)}</button>`).join('')}</div>`).join('')}</div><button data-reset-bindings style="margin-top:16px">Reset default keybinds</button><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
+      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Chat & privacy</h3><div class="setting-row"><label for="chatMode" class="setting-label">Chat messages</label><select id="chatMode" data-setting="chatMode"><option value="all" ${settings.chatMode === "all" ? "selected" : ""}>Filtered messages</option><option value="quick" ${settings.chatMode === "quick" ? "selected" : ""}>Quick messages only</option><option value="off" ${settings.chatMode === "off" ? "selected" : ""}>Off</option></select></div><p class="small">The safety filter stays on in every room. Use Chat → Players & safety to mute or report a player.</p><h3>Keybinds</h3><p class="small" id="binding-help" role="status">Choose a binding, then press a key or mouse button. Esc cancels; Delete clears. Esc always opens the menu.</p><div class="keybind-list">${CONTROLS.map(([id,label]) => `<div class="keybind-row"><span>${label}</span>${settings.keybinds[id].map((code, slot) => `<button data-bind="${id}" data-bind-slot="${slot}" aria-label="Bind ${label} ${slot ? 'alternate' : 'primary'}">${bindingLabel(code)}</button>`).join('')}</div>`).join('')}</div><button data-reset-bindings style="margin-top:16px">Reset default keybinds</button><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
     "settings",
   );
 }
@@ -311,6 +338,13 @@ function joinMenu(code = "") {
 }
 function callbacks() {
   return {
+    getChatState: () => sim ? sim.snapshot() : state,
+    onChat: message => chat.receive(message),
+    onChatStatus: result => chat.feedback(result),
+    onChatReport: report => {
+      const text=`${report.reporter} reported ${report.target}: ${report.reason}. Open Chat → Players & safety to review.`;
+      chat.status.textContent=text;toast(text);
+    },
     onJoin: (id, p) => {
       if (!sim) return false;
       if (sim.players.size >= 8) {
@@ -353,6 +387,7 @@ function callbacks() {
   };
 }
 function beginSim() {
+  chat.reset();
   sim = new Simulation(options);
   sim.addPlayer("host", profile);
   localId = "host";
@@ -419,6 +454,7 @@ async function joinRoom(publicCode) {
     `<div class="spinner"></div><p>Looking for ${formatCode(code)}…</p><button class="plain" data-action="cancel-connect" style="margin-top:18px">Cancel</button>`,
     "connecting",
   );
+  chat.reset();
   const attempt = new Network(callbacks());
   net = attempt;
   sim = null;
@@ -495,6 +531,10 @@ async function resume(capture = true) {
   keys.clear();
   scoreHeld = false;
   queuedActions.clear();
+  // Returning from a chat input must restore keyboard focus as well as mouse
+  // capture; otherwise the hidden input can keep swallowing menu/move keys.
+  $("#world").tabIndex = -1;
+  $("#world").focus({preventScroll:true});
   sound.unlock();
   if (capture && !state?.players.find(p => p.id === localId)?.spectating && !matchMedia("(pointer:coarse)").matches) {
     try {
@@ -525,7 +565,7 @@ function pauseMenu() {
   if (screen !== "game") return;
   modal(
     "Take a breather",
-    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "The local match is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${visibilityButton()}${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
+    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "The local match is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${net ? '<button class="plain" data-action="chat" style="margin-top:12px">Chat & player controls</button>' : ""}${visibilityButton()}${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
     "pause",
   );
 }
@@ -540,6 +580,7 @@ function leave(confirm = false) {
   }
   net?.destroy();
   net = null;
+  chat.reset();
   sim = null;
   state = null;
   predicted = null;
@@ -590,7 +631,7 @@ function resultsMenu() {
   }
   modal(
     "That’s a wrap.",
-    `<div class="results"><div class="eyebrow">ROUND ${state.round} COMPLETE</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions"><button class="plain" data-action="loadout">Change loadout</button><button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
+    `<div class="results"><div class="eyebrow">ROUND ${state.round} COMPLETE</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}${net ? '<button class="plain" data-action="chat">Chat & player controls</button>' : ""}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions"><button class="plain" data-action="loadout">Change loadout</button><button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
     "results",
   );
 }
@@ -779,6 +820,7 @@ async function copy(text) {
   }
 }
 const actions = {
+  chat: () => chat.open(),
   updates: () => modal("Update history", RELEASES.map(r =>
     `<article class="release-note"><div class="eyebrow">UPDATE ${esc(r.number)}</div><h3>${esc(r.title)}</h3><ul>${r.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul></article>`).join("")),
   "enter-yard": () => playerAction(state?.players.find(p => p.id === localId)?.awaitingEntry ? "rejoin" : "respawn"),
@@ -838,7 +880,7 @@ const actions = {
   about: () =>
     modal(
       "Made for a good scramble",
-      `<p>Yolk Yard is an original, independent egg arena shooter. Its maps, characters, blasters, UI, and sounds were created for this game.</p><p style="margin-top:14px">3D rendering: Three.js (MIT). Multiplayer connections: PeerJS (MIT). This game is not affiliated with Shell Shockers or Blue Wizard Digital.</p><p style="margin-top:14px">Settings and match totals stay in this browser. Rooms share your chosen name and game state with other players. Public rooms also share their room code and details in the directory. No chat, camera, or microphone.</p><p class="hint">Version 2.0 · All gameplay code is included in the project.</p>`,
+      `<p>Yolk Yard is an original, independent egg arena shooter. Its maps, characters, blasters, UI, and sounds were created for this game.</p><p style="margin-top:14px">3D rendering: Three.js (MIT). Multiplayer connections: PeerJS (MIT). This game is not affiliated with Shell Shockers or Blue Wizard Digital.</p><p style="margin-top:14px">Settings and match totals stay in this browser. Rooms share your chosen name and game state with other players. Public rooms also share their room code and details in the directory. Filtered text chat is shared only within your room or team. Chat history stays in memory and clears when you leave. Reports notify the room host. No camera or microphone.</p><p class="hint">Version 2.0 · All gameplay code is included in the project.</p>`,
       "about",
     ),
 };
@@ -907,6 +949,7 @@ document.addEventListener("pointerlockchange", () => {
     !document.pointerLockElement &&
     screen === "game" &&
     !paused &&
+    !chat.opened &&
     state?.players.find(p => p.id === localId)?.health > 0 &&
     !matchMedia("(pointer:coarse)").matches
   )
@@ -958,7 +1001,11 @@ function captureBinding(e) {
 document.addEventListener('keydown', captureBinding, true);
 document.addEventListener('mousedown', captureBinding, true);
 document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input,select,textarea") || screen !== 'game' || dialog.open) return;
+  if (chat.opened || e.target.matches("input,select,textarea") || dialog.open) return;
+  if (settings.keybinds.chat.includes(e.code) && net?.ready && screen!=="menu") {
+    e.preventDefault();if(!e.repeat)chat.open();return;
+  }
+  if (screen !== 'game') return;
   if (e.code === 'Escape') {
     e.preventDefault();
     if (!e.repeat) pauseMenu();
@@ -990,7 +1037,7 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 $("#world").addEventListener("mousedown", (e) => {
-  if (screen !== "game" || paused || dialog.open) return;
+  if (screen !== "game" || paused || dialog.open || chat.opened) return;
   e.preventDefault();
   pressControl(`Mouse${e.button}`);
 });
@@ -1006,7 +1053,7 @@ document.addEventListener("mousemove", (e) => {
   if (
     screen !== "game" ||
     paused ||
-    !document.pointerLockElement
+    !document.pointerLockElement || chat.opened
   )
     return;
   input.yaw -=
@@ -1081,7 +1128,7 @@ document.addEventListener("graphics-lost", () => {
   );
 });
 function frameInput() {
-  const active = screen === "game" && !paused && !dialog.open && state?.players.find(p => p.id === localId)?.health > 0;
+  const active = screen === "game" && !paused && !dialog.open && !chat.opened && state?.players.find(p => p.id === localId)?.health > 0;
   const nextInput = {
     seq: ++seq,
     yaw: input.yaw,
@@ -1183,10 +1230,11 @@ function loop(now) {
     renderPlayer,
     dt,
     screen === "game",
-    !paused && (actionDown("aim") || touch.aim),
+    !paused && !chat.opened && (actionDown("aim") || touch.aim),
     profile,
   );
   if (hudClock > 0.06) {
+    chat.update();
     hud();
     hudClock = 0;
   }
@@ -1212,6 +1260,9 @@ try {
 // Development-only diagnostics. Vite removes this branch from the published bundle.
 if (import.meta.env.DEV && new URL(location.href).searchParams.has("qa"))
   window.__yolkTest = {
+    chatRead: () => ({rows:chat.inbox.rows,open:chat.opened,muted:[...chat.inbox.muted],chatEnabled:net?.chatEnabled}),
+    chatPacket: packet => net?.send(packet),
+    chatInject: message => {for(const conn of net?.connections.values()||[])conn.send({type:"chat-message",message});},
     checkUpdate: () => updates.check(),
     read: () => ({
       state,
