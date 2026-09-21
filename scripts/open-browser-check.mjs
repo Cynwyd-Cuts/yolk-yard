@@ -88,6 +88,20 @@ try{
  await guest.keyboard.down('KeyW');
  await host.waitForFunction(({id,x,z})=>{const p=window.__yolkTest.read().state.players.find(p=>p.id===id);return Math.hypot(p.x-x,p.z-z)>.5;},before);
  await guest.keyboard.up('KeyW');
+ const idleHands=await guest.evaluate(()=>window.__yolkTest.read().presentation.arms.hands);
+ await guest.locator('#world').dispatchEvent('mousedown',{button:0});
+ await guest.waitForFunction(()=>{const q=window.__yolkTest.read(),p=q.state.players.find(p=>p.id===q.localId);return p.ammo[0]<30;});
+ await guest.locator('#world').dispatchEvent('mouseup',{button:0});
+ await guest.keyboard.press('KeyR');
+ await guest.waitForFunction(()=>window.__yolkTest.read().presentation.arms.progress>.2);
+ assert.notDeepEqual(await guest.evaluate(()=>window.__yolkTest.read().presentation.arms.hands),idleHands);
+ await host.waitForFunction(()=>window.__yolkTest.read().presentation.remoteArms.some(r=>r.progress>.1));
+ await guest.screenshot({path:'test-results/arms/in-game-reload.png'});
+ await guest.keyboard.press('Digit2');
+ await guest.waitForFunction(()=>{const arms=window.__yolkTest.read().presentation.arms;return arms.weapon==='pip'&&arms.progress===-1;});
+ await guest.keyboard.press('Digit1');
+ console.log('PASS live reload hand movement, remote reload animation, and weapon-swap cancellation');
+
  await host.keyboard.press('Escape');await host.locator('[data-action="toggle-visibility"]:visible').click();
  
  console.log('PASS multiplayer input replication and in-match visibility switch');

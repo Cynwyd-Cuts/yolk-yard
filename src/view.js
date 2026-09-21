@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { makeArms, updateArms, reloadProgress } from "./arms.js";
 import { patternedShell, addHeadwear, addEyewear, optionProfile } from "./cosmetics.js";
 import { getMap } from "./maps.js";
 import { gun, weapon, TEAM_COLORS, mode, clamp, NO_EYEWEAR } from "./data.js";
@@ -137,11 +138,14 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
   addHeadwear(group, profile, {ball, block, cylinder, mat});
   if (withWeapon) {
     const blaster = makeBlaster(profile.weapon);
-    blaster.position.set(VIEWMODEL.x, EYE + VIEWMODEL.y, VIEWMODEL.z);
-    blaster.scale.setScalar(VIEWMODEL.scale);
-    group.add(blaster);
-    ball(group, 0.34, 0.66, -0.18, 0.1, 0.1, 0.1, profile.color || "#fff6da");
+    const held = new THREE.Group();
+    held.position.set(VIEWMODEL.x, EYE + VIEWMODEL.y, VIEWMODEL.z);
+    held.scale.setScalar(VIEWMODEL.scale);
+    const arms = makeArms(profile.weapon, profile.color, false);
+    held.add(blaster, arms); group.add(held);
     group.userData.blaster = blaster;
+    group.userData.held = held;
+    group.userData.arms = arms;
   }
   return group;
 }
@@ -420,6 +424,8 @@ export class View {
   diagnostics() {
     return {
       weapon: this.localWeapon,
+      remoteArms: [...this.models.entries()].map(([id, model]) => ({id, progress: model.userData.arms?.userData.progress})),
+      arms: this.localArms ? { weapon: this.localArms.userData.id, progress: this.localArms.userData.progress, hands: this.localArms.userData.limbs.map(l=>l.hand.position.toArray()) } : null,
       muzzle: this.localModel?.userData.muzzle
         ?.getWorldPosition(new THREE.Vector3())
         .toArray(),
@@ -463,7 +469,8 @@ export class View {
   }
   setWeapon(p) {
     const id = gun(p).id;
-    if (id === this.localWeapon) return;
+    if (id === this.localWeapon && p.color === this.armColor) return;
+    this.armColor = p.color;
     this.localWeapon = id;
     this.disposeGroup(this.gunGroup);
     const model = makeBlaster(id);
@@ -487,8 +494,8 @@ export class View {
       reticle.userData.ownedMaterial = true;
       model.add(reticle);
     }
-    ball(this.gunGroup, 0.005, -0.24, 0.17, 0.095, 0.12, 0.13, p.color);
-    ball(this.gunGroup, -0.07, -0.14, -0.4, 0.08, 0.09, 0.11, p.color);
+    this.localArms = makeArms(id, p.color, true);
+    this.gunGroup.add(this.localArms);
   }
   event(e, localId) {
     if (e.type === "hit" && e.player === localId && Number.isFinite(e.x)) {
@@ -505,6 +512,8 @@ export class View {
 
     if (e.type === "shot" || e.type === "launch") {
       if (e.player === localId) this.recoil = Math.min(1.6, this.recoil + 0.85);
+      const actor = this.models.get(e.player);
+      if (actor && !e.popper) actor.userData.armRecoil = 1;
       if (!e.popper)
         this.pendingShots.push({ event: e, local: e.player === localId });
     }
@@ -714,13 +723,8 @@ export class View {
         0.012 *
         (p.moving ? 1 : 0) *
         (1 - this.aimBlend);
-      const reload =
-        local.reloadEnd > state.time
-          ? Math.sin(
-              Math.PI *
-                clamp(1 - (local.reloadEnd - state.time) / (local.ammo[local.slot] === 0 ? w.reloadEmpty : w.reload), 0, 1),
-            )
-          : 0;
+      const reload = reloadProgress(local, state.time);
+      const hands = updateArms(this.localArms, reload, this.localModel, this.recoil);
       const front = -VIEWMODEL.z + w.muzzle * VIEWMODEL.scale;
       const wall = wallDistance(
         getMap(state.options.map),
@@ -736,13 +740,13 @@ export class View {
           this.aimBlend,
         ) +
           bob -
-          reload * 0.22,
+          hands.dip,
         VIEWMODEL.z + this.recoil * 0.035 + Math.max(0, front - wall) * 0.65,
       );
       this.gunGroup.rotation.set(
-        this.recoil * 0.045 * (1 - this.aimBlend * 0.65) - reload * 0.5,
-        0,
-        -reload * 0.5,
+        this.recoil * 0.045 * (1 - this.aimBlend * 0.65) + hands.rotation[0],
+        hands.rotation[1],
+        hands.rotation[2],
       );
       this.scopeActive = aiming && scoped && this.aimBlend > 0.1;
     }
@@ -793,7 +797,12 @@ export class View {
           crack.visible = p.health < 100 && i < Math.ceil((1-p.health/100)*12);
         });
 
-        if (model.userData.blaster) model.userData.blaster.rotation.x = p.pitch;
+        if (model.userData.arms) {
+          const recoil = model.userData.armRecoil = Math.max(0, (model.userData.armRecoil || 0) - dt * 7);
+          const hands = updateArms(model.userData.arms, reloadProgress(p, state.time), model.userData.blaster, recoil);
+          model.userData.held.rotation.set(p.pitch + hands.rotation[0] + recoil * .045, hands.rotation[1], hands.rotation[2]);
+          model.userData.held.position.y = EYE + VIEWMODEL.y - hands.dip;
+        }
         // Do not let cosmetic smoothing leave a moving shell behind its hitbox.
         const base = model.userData.basePosition ||= new THREE.Vector3(p.x, p.y, p.z);
         const targetPosition = new THREE.Vector3(p.x, p.y, p.z);

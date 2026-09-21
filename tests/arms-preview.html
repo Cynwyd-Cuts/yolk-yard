@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="UTF-8"><style>body{background:#e7eadf;color:#263e4c;font:16px Arial;margin:12px}main{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.tile img{width:100%;display:block}.tile{background:#fff;border-radius:8px;overflow:hidden}.tile strong{display:block;padding:8px}</style></head><body><main id="gallery"></main><script type="module">
+import * as THREE from 'three';
+import {makeArms,updateArms} from '../src/arms.js';
+import {makeBlaster} from '../src/weapons.js';
+import {makeEgg} from '../src/view.js';
+import {WEAPONS} from '../src/data.js';
+import {VIEWMODEL} from '../src/physics.js';
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(400,280);
+window.checks=[];
+for(const w of WEAPONS) for(const kind of ['Idle','Reload','Aim','Other player']) {
+ const scene=new THREE.Scene();scene.background=new THREE.Color('#c9d6d6');
+ scene.add(new THREE.HemisphereLight(0xffffff,0x657785,2.6));
+ const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(-2,4,3);scene.add(light);
+ const camera=new THREE.PerspectiveCamera(85,400/280,.03,20);
+ let model,rig;
+ if(kind==='Other player') {
+  const egg=makeEgg({weapon:w.id,color:'#f9b74a',hat:0,pattern:0,eyewear:6},-1,true);
+  egg.rotation.y=.2;scene.add(egg);camera.position.set(-1.5,1.25,-2.2);camera.lookAt(0,.9,0);
+  model=egg.userData.blaster;rig=egg.userData.arms;
+ } else {
+  const group=new THREE.Group();group.scale.setScalar(VIEWMODEL.scale);scene.add(group);
+  group.position.set(VIEWMODEL.x,VIEWMODEL.y,VIEWMODEL.z);
+  model=makeBlaster(w.id);rig=makeArms(w.id,'#f9b74a',true);group.add(model,rig);
+  if(kind==='Aim') {group.position.set(0,-w.sightY*VIEWMODEL.scale,VIEWMODEL.z);camera.fov=65;camera.updateProjectionMatrix();}
+  if(kind==='Reload'){const pose=updateArms(rig,.45,model);group.position.y-=pose.dip;group.rotation.set(...pose.rotation);}
+ }
+ if(kind!=='Reload')updateArms(rig,-1,model);
+ renderer.render(scene,camera);
+ window.checks.push({weapon:w.id,kind,hands:rig.userData.limbs.map(l=>l.hand.position.toArray())});
+ const tile=document.createElement('div');tile.className='tile';
+ const title=document.createElement('strong');title.textContent=w.name+' · '+kind;
+ const img=new Image();img.src=renderer.domElement.toDataURL();tile.append(title,img);document.querySelector('main').append(tile);
+}
+window.ready=true;
+</script></body></html>
