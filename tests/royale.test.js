@@ -8,6 +8,12 @@ import {ROYALE_MAP} from '../src/royale-map.js';
 const make=(options={})=>{const s=new RoyaleSimulation({capacity:4,bots:0,seed:21,...options});s.addPlayer('host',{name:'Host'});s.addPlayer('guest',{name:'Guest'});s.startRound();return s;};
 const ground=(p,x=70,z=0)=>Object.assign(p,{x,y:0,z,flight:'ground',grounded:true,shieldUntil:0});
 const advance=(s,seconds)=>{for(let i=0;i<seconds*60;i++)s.tick(1/60);};
+test('the expanded island can open every chest without the old loot cap swallowing rewards',()=>{
+ const s=make(),p=s.players.get('host'),initial=s.loot.length;
+ for(const chest of s.chests){ground(p,chest.x,chest.z);p.y=chest.y;assert.equal(s.openChest(p,chest),true,chest.id);}
+ assert.equal(s.loot.length,initial+s.chests.length*3);
+ assert.ok(s.loot.length>700);
+});
 test('Royale isolates loadouts, fills to capacity, and only starts with two contestants',()=>{
  const empty=new RoyaleSimulation({bots:0});empty.addPlayer('host',{});assert.equal(empty.startRound(),false);
  const s=make({bots:15,capacity:8,fill:true});assert.equal(s.players.size,8);assert.equal(s.alive,8);

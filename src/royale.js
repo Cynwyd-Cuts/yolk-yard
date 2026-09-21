@@ -62,7 +62,9 @@ export class RoyaleSimulation extends Simulation {
  }
  randomGun(){return ROYALE_GUN_IDS[Math.floor(this.random()*ROYALE_GUN_IDS.length)];}
  dropLoot(point,item){
-  if(this.loot.length>=700)return null;
+  // Covers every authored floor spawn + chest, supply drops and all death drops.
+  // Rendering remains distance-limited and unchanged world loot is not re-sent.
+  if(this.loot.length>=1400)return null;
   const drop={...item,uid:++this.lootId,x:point.x,y:Math.max(point.y||0,groundAt(this.map,point.x,point.z)),z:point.z};this.loot.push(drop);this.lootVersion++;return drop;
  }
  dropWeapon(point,id,rarity=0,ammo=weapon(id).magazine){return this.dropLoot(point,{id,weapon:true,rarity,count:1,ammo});}
