@@ -68,3 +68,6 @@ try{
  for(const [i,p]of pages.entries()){try{console.log('DIAGNOSTICS',i,await p.evaluate(()=>{const q=window.__yolkTest.read();return {screen:q.screen,paused:q.paused,localId:q.localId,phase:q.state?.phase,players:q.state?.players.map(p=>({id:p.id,health:p.health,flight:p.flight})),dialog:document.querySelector('#dialog')?.innerText,network:window.__yolkTest.network()};}));await p.screenshot({path:`test-results/royale-failure-${i}.png`});}catch{}}
  console.error('BROWSER ERRORS',errors);throw error;
 }finally{await browser.close();await vite.close();await new Promise(resolve=>signaling?.close(resolve)||resolve());}
+// PeerServer retains housekeeping timers after its HTTP server closes. Reach
+// this only after all assertions and cleanup succeed; thrown failures still exit 1.
+process.exit(0);
