@@ -1,4 +1,5 @@
 import "./style.css";
+import { CONTROLS, normalizeBindings, validBinding, bindingDown, bindingLabel } from "./keybinds.js";
 import { RELEASES, RELEASE } from "./releases.js";
 import { UpdateWatcher } from "./updates.js";
 import {
@@ -57,6 +58,7 @@ const settings = {
   hitMarkers: true,
   ...read("yolk-settings", {}),
 };
+settings.keybinds = normalizeBindings(settings.keybinds);
 delete settings.dragLook;
 save("yolk-settings", settings);
 settings.sensitivity = clamp(Number(settings.sensitivity) || 1, 0.2, 3);
@@ -89,6 +91,9 @@ let view,
 const sound = new Sound();
 sound.volume = settings.volume;
 const keys = new Set();
+const actionDown = action => bindingDown(settings.keybinds, keys, action);
+const controlLabel = action => settings.keybinds[action].filter(Boolean).map(bindingLabel).join(' / ') || 'Unbound';
+let bindingCapture = null;
 // Preserve brief actions until a simulation tick consumes them, even after a slow frame.
 const queuedActions = new Set();
 const input = {
@@ -152,8 +157,10 @@ function renderMenu() {
   });
 }
 function modal(title, body, type = "generic") {
+  bindingCapture = null;
   dialogType = type;
   keys.clear();
+  scoreHeld = false;
   queuedActions.clear();
   input.fire = false;
   input.aim = false;
@@ -163,6 +170,7 @@ function modal(title, body, type = "generic") {
   if (!dialog.open) dialog.showModal();
 }
 function closeDialog() {
+  bindingCapture = null;
   dialog.close();
   dialogType = "";
   if (screen === "game") {
@@ -193,7 +201,7 @@ function settingsMenu() {
       )
       .join(
         "",
-      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
+      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Keybinds</h3><p class="small" id="binding-help" role="status">Choose a binding, then press a key or mouse button. Esc cancels; Delete clears. Esc always opens the menu.</p><div class="keybind-list">${CONTROLS.map(([id,label]) => `<div class="keybind-row"><span>${label}</span>${settings.keybinds[id].map((code, slot) => `<button data-bind="${id}" data-bind-slot="${slot}" aria-label="Bind ${label} ${slot ? 'alternate' : 'primary'}">${bindingLabel(code)}</button>`).join('')}</div>`).join('')}</div><button data-reset-bindings style="margin-top:16px">Reset default keybinds</button><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
     "settings",
   );
 }
@@ -229,15 +237,8 @@ function helpMenu() {
   modal(
     "How to play",
     `<p>Move, aim, and tag the other eggs. You return after 3 seconds when your shell runs out. Health recovers after 6 seconds without a hit.</p><table class="controls-table">${[
-      ["W A S D / Arrow keys", "Move"],
+      ...CONTROLS.map(([id, label]) => [controlLabel(id), label]),
       ["Mouse", "Look"],
-      ["Left click", "Fire"],
-      ["Right click / Shift", "Aim"],
-      ["Space", "Jump"],
-      ["R", "Reload"],
-      ["E / G", "Throw a popper"],
-      ["1 / 2 / Q", "Primary / sidearm"],
-      ["Tab", "Scoreboard"],
       ["Escape", "Menu"],
     ]
       .map(([a, b]) => `<tr><td><kbd>${a}</kbd></td><td>${b}</td></tr>`)
@@ -464,6 +465,7 @@ async function resume(capture = true) {
   dialogType = "";
   paused = false;
   keys.clear();
+  scoreHeld = false;
   queuedActions.clear();
   sound.unlock();
   if (capture && !state?.players.find(p => p.id === localId)?.spectating && !matchMedia("(pointer:coarse)").matches) {
@@ -517,6 +519,7 @@ function leave(confirm = false) {
   paused = true;
   busy = false;
   keys.clear();
+  scoreHeld = false;
   queuedActions.clear();
   pendingInputs = [];
   input.fire = false;
@@ -679,13 +682,14 @@ function hud() {
         : p.streak > 1
           ? p.streak + " elimination streak"
           : "Freshly hatched";
+  $('.quick-controls').innerHTML = [['forward','Move'],['reload','Reload'],['popper','Popper'],['swap','Swap']].map(([id,label]) => `<span><kbd>${esc(controlLabel(id))}</kbd> ${label}</span>`).join('') + '<span><kbd>Esc</kbd> Menu</span>';
   $("#gun-name").textContent = gun(p).name;
   $("#ammo").textContent = p.ammo[p.slot];
   $("#reserve").textContent = p.reserve[p.slot];
   $("#ammo-extra").textContent =
     p.reloadEnd > state.time
       ? "RELOADING…"
-      : `${p.poppers} poppers · ${p.slot === 0 ? "2 → sidearm" : "1 → primary"}`;
+      : `${p.poppers} poppers · ${p.slot === 0 ? `${controlLabel("sidearm")} → sidearm` : `${controlLabel("primary")} → primary`}`;
   $("#respawn").style.display =
     p.health <= 0 && !p.spectating && state.phase === "playing" ? "block" : "none";
   const killer = p.health <= 0 && state.players.find(k => k.id === p.killerId);
@@ -710,7 +714,7 @@ function hud() {
   if (p.health <= 0 && !p.spawnRequested && performance.now() > spawnIntentUntil && document.pointerLockElement)
     document.exitPointerLock();
   const aiming =
-    (input.aim || keys.has("ShiftLeft") || touch.aim) &&
+    (actionDown("aim") || touch.aim) &&
     p.health > 0 &&
     !paused &&
     p.reloadEnd <= state.time;
@@ -881,47 +885,69 @@ document.addEventListener("pointerlockchange", () => {
   )
     pauseMenu();
 });
-document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input,select,textarea")) return;
-  if (screen !== "game") return;
-  if (
-    [
-      "Tab",
-      "Space",
-      "ArrowUp",
-      "ArrowDown",
-      "ArrowLeft",
-      "ArrowRight",
-    ].includes(e.code)
-  )
-    e.preventDefault();
-  keys.add(e.code);
-  if (e.code === "Tab") scoreHeld = true;
-  if (!e.repeat) {
-    if (!paused) {
-      const pulseKey = {
-        Space: "jump",
-        KeyR: "reload",
-        KeyE: "popper",
-        KeyG: "popper",
-      }[e.code];
-      if (pulseKey) queuedActions.add(pulseKey);
-    }
-    if (e.code === "Digit1") input.slot = 0;
-    if (e.code === "Digit2") input.slot = 1;
-    if (e.code === "KeyQ") input.slot = 1 - input.slot;
-    if (e.code === "Escape" && !dialog.open) {
-      e.preventDefault();
-      pauseMenu();
-    }
+function pressControl(code) {
+  keys.add(code);
+  for (const action of ['jump', 'fire', 'reload', 'popper']) {
+    if (settings.keybinds[action].includes(code)) queuedActions.add(action);
   }
+  if (settings.keybinds.primary.includes(code)) input.slot = 0;
+  if (settings.keybinds.sidearm.includes(code)) input.slot = 1;
+  if (settings.keybinds.swap.includes(code)) input.slot = 1 - input.slot;
+  scoreHeld = actionDown('scores');
+}
+dialog.addEventListener('click', e => {
+  const button = e.target.closest('[data-bind]');
+  if (button) {
+    bindingCapture = { action: button.dataset.bind, slot: Number(button.dataset.bindSlot) };
+    dialog.querySelectorAll('[data-bind]').forEach(b => b.classList.toggle('listening', b === button));
+    $('#binding-help').textContent = 'Press a key or mouse button. Esc cancels; Delete clears.';
+  } else if (e.target.closest('[data-reset-bindings]')) {
+    settings.keybinds = normalizeBindings();
+    save('yolk-settings', settings);
+    settingsMenu();
+  }
+});
+function captureBinding(e) {
+  if (!bindingCapture || !dialog.open) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.repeat) return;
+  const code = e.type === 'mousedown' ? `Mouse${e.button}` : e.code;
+  if (code === 'Escape') { settingsMenu(); return; }
+  const clear = code === 'Delete' || code === 'Backspace';
+  if (!clear && !validBinding(code)) {
+    $('#binding-help').textContent = 'Choose a letter, number, navigation key, modifier, or mouse button.';
+    return;
+  }
+  const { action, slot } = bindingCapture;
+  const conflict = CONTROLS.find(([id]) => settings.keybinds[id].some((key, i) => key === code && (id !== action || i !== slot)));
+  if (!clear && conflict) {
+    $('#binding-help').textContent = `${bindingLabel(code)} is already assigned to ${conflict[1]}. Clear that binding first, or choose another.`;
+    return;
+  }
+  settings.keybinds[action][slot] = clear ? null : code;
+  save('yolk-settings', settings);
+  settingsMenu();
+}
+document.addEventListener('keydown', captureBinding, true);
+document.addEventListener('mousedown', captureBinding, true);
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input,select,textarea") || screen !== 'game' || dialog.open) return;
+  if (e.code === 'Escape') {
+    e.preventDefault();
+    if (!e.repeat) pauseMenu();
+    return;
+  }
+  if (paused) return;
+  if (Object.values(settings.keybinds).some(codes => codes.includes(e.code))) e.preventDefault();
+  if (!e.repeat) pressControl(e.code);
 });
 document.addEventListener("keyup", (e) => {
   keys.delete(e.code);
-  if (e.code === "Tab") scoreHeld = false;
+  scoreHeld = actionDown('scores');
 });
 window.addEventListener("blur", () => {
   keys.clear();
+  scoreHeld = false;
   queuedActions.clear();
   input.fire = false;
   input.aim = false;
@@ -930,29 +956,23 @@ window.addEventListener("blur", () => {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     keys.clear();
+    scoreHeld = false;
     queuedActions.clear();
     input.fire = false;
     if (screen === "game" && !net && !paused) pauseMenu();
   }
 });
 $("#world").addEventListener("mousedown", (e) => {
-  if (screen !== "game" || paused) return;
-  if (e.button === 0) {
-    input.fire = true;
-    queuedActions.add("fire");
-  }
-  if (e.button === 2) {
-    input.aim = true;
-  }
+  if (screen !== "game" || paused || dialog.open) return;
+  e.preventDefault();
+  pressControl(`Mouse${e.button}`);
 });
 document.addEventListener("mouseup", (e) => {
-  if (e.button === 0) input.fire = false;
-  if (e.button === 2) {
-    input.aim = false;
-  }
+  keys.delete(`Mouse${e.button}`);
+  scoreHeld = actionDown('scores');
 });
 function aimSensitivity() {
-  const aiming = input.aim || keys.has("ShiftLeft") || touch.aim;
+  const aiming = actionDown("aim") || touch.aim;
   return aiming ? settings.scopeSensitivity : 1;
 }
 document.addEventListener("mousemove", (e) => {
@@ -1040,26 +1060,25 @@ function frameInput() {
     yaw: input.yaw,
     pitch: input.pitch,
     forward: active
-      ? Number(keys.has("KeyW") || keys.has("ArrowUp")) -
-        Number(keys.has("KeyS") || keys.has("ArrowDown")) +
+      ? Number(actionDown("forward")) -
+        Number(actionDown("back")) +
         touch.y
       : 0,
     strafe: active
-      ? Number(keys.has("KeyD") || keys.has("ArrowRight")) -
-        Number(keys.has("KeyA") || keys.has("ArrowLeft")) +
+      ? Number(actionDown("right")) -
+        Number(actionDown("left")) +
         touch.x
       : 0,
     jump:
-      active && (keys.has("Space") || touch.jump || queuedActions.has("jump")),
-    fire: active && (input.fire || touch.fire || queuedActions.has("fire")),
-    aim: active && (input.aim || keys.has("ShiftLeft") || touch.aim),
+      active && (actionDown("jump") || touch.jump || queuedActions.has("jump")),
+    fire: active && (actionDown("fire") || touch.fire || queuedActions.has("fire")),
+    aim: active && (actionDown("aim") || touch.aim),
     reload:
       active &&
-      (keys.has("KeyR") || touch.reload || queuedActions.has("reload")),
+      (actionDown("reload") || touch.reload || queuedActions.has("reload")),
     popper:
       active &&
-      (keys.has("KeyE") ||
-        keys.has("KeyG") ||
+      (actionDown("popper") ||
         touch.popper ||
         queuedActions.has("popper")),
     slot: input.slot,
@@ -1132,7 +1151,7 @@ function loop(now) {
     renderPlayer,
     dt,
     screen === "game",
-    !paused && (input.aim || keys.has("ShiftLeft") || touch.aim),
+    !paused && (actionDown("aim") || touch.aim),
     profile,
   );
   if (hudClock > 0.06) {

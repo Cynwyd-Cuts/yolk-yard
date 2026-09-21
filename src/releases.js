@@ -1,4 +1,6 @@
 export const RELEASE_NOTES = [
+
+  { number: "13", title: "Your controls, your way", changes: ["Customize keyboard and mouse bindings with two bindings per action, or restore the defaults.", "Control hints follow your saved bindings."] },
   { number: "12", title: "The egg studio", changes: [
     "Choose your look with image tiles showing the actual 3D cosmetics and a larger outfit preview.",
     "24 shell colors, 20 headwear styles, 10 patterns, 4 finishes and 6 eyewear styles—all unlocked.",
