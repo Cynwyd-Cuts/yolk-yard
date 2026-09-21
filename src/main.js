@@ -619,6 +619,7 @@ function processEvents() {
       const p = state.players.find((p) => p.id === localId);
       if (p) {
         if (p.health > 0 && performance.now() < spawnIntentUntil && !dialog.open) void resume();
+        spawnIntentUntil = 0;
         input.yaw = p.yaw;
         input.pitch = 0;
       }
@@ -687,6 +688,7 @@ function hud() {
     : delay ? `Respawn available in ${delay}` : "Ready when you are";
   $("#spawn-button").textContent = p.awaitingEntry ? "Enter the Yard" : "Respawn";
   $("#spawn-button").disabled = !!p.spawnRequested || delay > 0;
+  if (p.health > 0) spawnIntentUntil = 0;
   if (p.health <= 0 && !p.spawnRequested && performance.now() > spawnIntentUntil && document.pointerLockElement)
     document.exitPointerLock();
   const aiming =
@@ -864,8 +866,10 @@ document.addEventListener("keydown", (e) => {
     if (e.code === "Digit1") input.slot = 0;
     if (e.code === "Digit2") input.slot = 1;
     if (e.code === "KeyQ") input.slot = 1 - input.slot;
-    if (e.code === "Escape" && !document.pointerLockElement && !dialog.open)
+    if (e.code === "Escape" && !dialog.open) {
+      e.preventDefault();
       pauseMenu();
+    }
   }
 });
 document.addEventListener("keyup", (e) => {

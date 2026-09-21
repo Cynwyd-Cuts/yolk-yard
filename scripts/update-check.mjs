@@ -51,6 +51,7 @@ try {
   const time=await page.evaluate(()=>window.__yolkTest.read().state.time);
   await page.waitForFunction(t=>window.__yolkTest.read().state.time>t+1,time);
   assert.equal(await page.evaluate(()=>window.__yolkTest.read().state.players[0].health),0);
+  await page.waitForFunction(()=>!document.pointerLockElement);
   await page.getByRole('button',{name:'Respawn',exact:true}).click();
   await page.waitForFunction(()=>window.__yolkTest.read().state.players[0].health===100);
   let versionRequests=0;
