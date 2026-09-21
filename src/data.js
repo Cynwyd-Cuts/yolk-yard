@@ -1,4 +1,5 @@
-export const VERSION = 5;
+import { safeName } from './moderation.js';
+export const VERSION = 6;
 export const WEAPONS = [
   {
     id: "sprinter",
@@ -325,12 +326,9 @@ export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const weapon = (id) => WEAPONS.find((w) => w.id === id) || WEAPONS[0];
 export const gun = (p) => weapon(p.slot === 1 ? "pip" : p.weapon);
 export const mode = (id) => MODES.find((m) => m.id === id) || MODES[0];
-export const cleanName = (name) =>
-  String(name ?? "Egg")
-    .replace(/[<>\x00-\x1f]/g, "")
-    .trim()
-    .slice(0, 18) || "Egg";
+export const cleanName = safeName;
 export function safeProfile(p = {}) {
+  if (!p || typeof p !== 'object') p = {};
   return {
     name: cleanName(p.name),
     weapon: weapon(p.weapon).secondary ? "sprinter" : weapon(p.weapon).id,
@@ -351,4 +349,3 @@ export function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-

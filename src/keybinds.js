@@ -12,6 +12,7 @@ export const CONTROLS = [
   ['sidearm', 'Sidearm', 'Digit2', null],
   ['swap', 'Swap blaster', 'KeyQ', null],
   ['scores', 'Scoreboard', 'Tab', null],
+  ['chat', 'Open chat', 'Enter', 'KeyT'],
 ];
 export const validBinding = code => typeof code === 'string' && /^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Space|Tab|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Mouse[0-4]|Numpad[0-9]|Enter|CapsLock|Backquote|Minus|Equal|BracketLeft|BracketRight|Backslash|Semicolon|Quote|Comma|Period|Slash|Home|End|PageUp|PageDown|Insert)$/.test(code);
 export function normalizeBindings(saved) {

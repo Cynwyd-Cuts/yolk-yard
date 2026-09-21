@@ -121,7 +121,19 @@ still needs to be permitted by the network. TURN credentials in static files
 are public, so use short-lived credentials from your own service.
 
 The host must keep the tab in front. Background throttling or the host losing
-connectivity can pause or end a match. Rooms and public listings are ephemeral. No central accounts, cross-device progression, ranked service, voice, or text chat.
+connectivity can pause or end a match. Rooms and public listings are ephemeral. No central accounts, cross-device progression, ranked service, or voice chat. Text chat is moderated and scoped to the current room.
+
+## Chat and safety
+
+Press **Enter** or **T**, or tap **Chat**. Use Room or Team chat; spectators in an active match speak only to other spectators. Quick messages work on desktop and touch devices. Chat can be disabled, or limited to quick messages, in Settings or Players & safety.
+
+All messages are checked before leaving the sender, at the host, and at the recipient. Names are filtered on save, profile admission, public listings, snapshots, events and result displays. Blocked input is not echoed into shared chat or saved to an abuse log. Common contact details, links, addresses, numeric identifiers, personal-information disclosures, common real names/locations, profanity, slurs, harassment and obfuscated variants are filtered. Typed chat supports English with normalized Latin characters; unsupported scripts fail closed and can use quick messages.
+
+Players can mute or report others. A report uses a fixed reason, mutes that player locally, and notifies the room host. Hosts can silence/remove players and pause room chat. Spam throttles, duplicate rejection, a temporary cooldown after repeated prohibited submissions, verified sender identity, team routing and replay checks apply independently of the sender UI. Chat history is capped at 60 messages in memory and cleared on leaving; no late-join history or direct messages are sent.
+
+**Limits:** this is a local rules/English NLP filter, not Roblox’s proprietary moderation service, and it cannot guarantee detection of every personal detail or prohibited expression. A name or place may be ambiguous, and entirely unknown information cannot always be recognized. The game has no central accounts, moderation staff, persistent global bans or trusted dedicated match server. Reports go to the current host; muting and leaving remain available if the host is the problem. A modified client/host can inspect or alter its own software; standard recipients independently reject unsafe text. Quick-message-only mode provides the most restrictive communication option. Do not claim Roblox equivalence or complete prevention.
+
+See [CHAT_SAFETY.md](CHAT_SAFETY.md) for the policy, trust boundaries and regression coverage.
 
 ## Develop and test
 
