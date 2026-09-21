@@ -1,5 +1,5 @@
 import { safeName } from './moderation.js';
-export const VERSION = 7;
+export const VERSION = 8;
 export const WEAPONS = [
   {
     id: "sprinter",

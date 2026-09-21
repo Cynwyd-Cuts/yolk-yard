@@ -1,11 +1,12 @@
 import { RegExpMatcher, englishDataset, englishRecommendedTransformers } from 'obscenity';
 import nlp from 'compromise/two';
+import { PROFANITY_TERMS } from './profanity-terms.js';
 
 // One policy for outbound input, host admission and recipient display. Never log
 // rejected input. This is a heuristic, not a claim to detect every possible PII.
 export const CHAT_LIMIT = 180;
 export const NAME_LIMIT = 18;
-export const FILTER_VERSION = 1;
+export const FILTER_VERSION = 2;
 const matcher = new RegExpMatcher({ ...englishDataset.build(), ...englishRecommendedTransformers });
 const controls = /[\p{Cc}\p{Cf}\p{Cs}]/gu;
 const lookalikes = Object.fromEntries([...'аеорсхуіјѕһԁԛαορνικτ'].map((c, i) => [c, 'aeopcxyijshdq aopvikt'.replace(/ /g, '')[i]]));
@@ -13,6 +14,14 @@ export function foldText(text) {
   return text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
     .replace(controls, '').replace(/[‘’]/g, "'").replace(/./gu, c => lookalikes[c] || c);
 }
+const foldLeet = text => text.replace(/[01345789@$!|]/g, c => ({0:'o',1:'i',3:'e',4:'a',5:'s',7:'t',8:'b',9:'g','@':'a','$':'s','!':'i','|':'i'})[c]);
+const escapePattern = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Literal matching preserves every supplied spelling, including punctuation.
+// Flexible matching also catches separators, accents, invisible characters and
+// leetspeak. Boundaries prevent short entries matching inside innocent words.
+const importedLiteral = new RegExp(`(?:^|[^a-z0-9])(?:${[...new Set(PROFANITY_TERMS.map(foldText))].map(escapePattern).join('|')})(?=$|[^a-z0-9])`, 'i');
+const importedCompact = [...new Set(PROFANITY_TERMS.map(term => foldLeet(foldText(term)).replace(/[^a-z0-9]/g, '')).filter(Boolean))];
+const importedFlexible = new RegExp(`(?:^|[^a-z0-9])(?:${importedCompact.map(term => [...term].join('[^a-z0-9]*')).join('|')})(?=$|[^a-z0-9])`, 'i');
 const numericWords = /\b(?:zero|oh|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)\b/g;
 const numberValue = { zero:'0', oh:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6', seven:'7', eight:'8', nine:'9' };
 const privacyRules = [
@@ -40,9 +49,10 @@ function reasonFor(text) {
   if (privacyRules.some(rule => rule.test(numbers)) ||
       /\d(?:[\s().,\-/]*\d){3}/.test(numbers) ||
       (numbers.match(/\d/g) || []).length >= 7) return 'privacy';
-  const leet = folded.replace(/[01345789@$!|]/g, c => ({0:'o',1:'i',3:'e',4:'a',5:'s',7:'t',8:'b',9:'g','@':'a','$':'s','!':'i','|':'i'})[c]);
+  const leet = foldLeet(folded);
   const unspaced=folded.replace(/[^a-z0-9]/g,'');
-  if (matcher.hasMatch(text) || matcher.hasMatch(folded) ||
+  if (importedLiteral.test(folded) || importedFlexible.test(leet) ||
+      matcher.hasMatch(text) || matcher.hasMatch(folded) ||
       matcher.hasMatch(unspaced) || /\b[a-z]+[*#]+[a-z]+\b/.test(folded) ||
       extraLanguage.test(leet) || threats.test(leet) ||
       extraLanguage.test(leet.replace(/(?<=\b[a-z])[.\s_-](?=[a-z]\b)/g, ''))) return 'language';

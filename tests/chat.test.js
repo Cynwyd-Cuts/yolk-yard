@@ -4,6 +4,7 @@ import { moderateText, safeName, CHAT_LIMIT, FILTER_VERSION } from '../src/moder
 import { ChatRoom, ChatInbox, QUICK_MESSAGES } from '../src/chat.js';
 import { safeProfile } from '../src/data.js';
 import { cleanListing } from '../src/directory.js';
+import { PROFANITY_TERMS } from '../src/profanity-terms.js';
 
 const state={phase:'playing',options:{mode:'teams'},players:[
   {id:'host',name:'Host egg',team:0}, {id:'a',name:'Alpha',team:1},
@@ -13,6 +14,25 @@ const state={phase:'playing',options:{mode:'teams'},players:[
 const packet=(text,channel='room')=>({version:FILTER_VERSION,text,channel});
 const profanity=String.fromCharCode(102,117,99,107);
 const slur=String.fromCharCode(110,105,103,103,101,114);
+
+test('every supplied entry and canonical form is blocked in messages and player names',()=>{
+  assert.equal(PROFANITY_TERMS.length,3717);
+  assert.equal(new Set(PROFANITY_TERMS).size,3717);
+  PROFANITY_TERMS.forEach((term,i)=>{
+    for(const text of [term,term.toUpperCase(),`Please say ${term} now`]){
+      const result=moderateText(text);
+      assert.equal(result.ok,false,`imported chat entry ${i}`);
+      assert.equal(result.text,'');
+    }
+    assert.equal(safeName(term),'Egg',`imported name entry ${i}`);
+  });
+});
+test('imported words remain blocked with separators and invisible characters',()=>{
+  PROFANITY_TERMS.filter(term=>/^[a-z]{3,18}$/i.test(term)).forEach((term,i)=>{
+    for(const text of [term.split('').join('.'),term.split('').join(' '),term.split('').join('\u200b')])
+      assert.equal(moderateText(text).ok,false,`disguised imported entry ${i}`);
+  });
+});
 
 test('friendly conversation, quick messages and ordinary substrings remain usable',()=>{
   const samples=[...Object.values(QUICK_MESSAGES),'Host egg','Guest egg','Blue team wins','Classical','assassin','grapes','Need 30 ammo','I am at the tower','Push left','Shells are awesome'];
@@ -49,7 +69,7 @@ test('host binds sender identity, routes teams privately, and isolates spectator
   assert.equal(room.submit('a',packet('Hello','team'),{...state,options:{mode:'ffa'}},1000).ok,false);
 });
 test('host rejects raw prohibited payloads, fabricated quick IDs and outdated protocol versions',()=>{
-  for(const text of [profanity,slur,'user@example.com'])assert.equal(new ChatRoom().submit('a',packet(text),state,1000).ok,false);
+  for(const text of [profanity,slur,'pistol','words','user@example.com'])assert.equal(new ChatRoom().submit('a',packet(text),state,1000).ok,false);
   for(const payload of [null,{},packet('x'.repeat(CHAT_LIMIT+1)),{...packet('Hi'),version:0},{...packet('Hi'),quick:'invalid'}])assert.equal(new ChatRoom().submit('a',payload,state,1000).ok,false);
   const quick=new ChatRoom().submit('a',{...packet(profanity),quick:'gg'},state,1000);
   assert.equal(quick.message.text,QUICK_MESSAGES.gg);
@@ -83,6 +103,7 @@ test('recipient rejects hostile hosts, replayed packets, forged identities and c
   assert.equal(inbox.accept({...msg,id:4,channel:'team'},state,'host','all',7000),null);
   assert.equal(inbox.accept({...msg,id:5,sender:'s'},state,'host','all',9000),null);
   assert.equal(inbox.accept({...msg,id:99999,text:profanity},state,'host','all',11000),null);
+  assert.equal(inbox.accept({...msg,id:99999,text:'pistol'},state,'host','all',11000),null);
   assert.ok(inbox.accept({...msg,id:6,text:'Thanks!'},state,'host','all',13000));
   assert.equal(inbox.rows.length,2);
 });
