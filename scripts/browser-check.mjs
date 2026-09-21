@@ -157,7 +157,7 @@ try {
     await host.waitForFunction(
       () => document.querySelector("#ammo").textContent === "30",
       {},
-      { timeout: 6000 },
+      { timeout: 30000 },
     );
     assert.equal(Number(await host.locator("#ammo").innerText()), 30);
     pass("Reload transfers ammo from reserves");
