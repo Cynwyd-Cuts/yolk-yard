@@ -62,6 +62,15 @@ try{
  const code=(await host.locator('.room-code').innerText()).replace('-','').trim();
  await host.waitForTimeout(2500);
  const guest=await make('Guest egg');
+ await guest.getByRole('button',{name:'Customize egg',exact:true}).click();
+ await guest.getByRole('button',{name:'Shell color 4',exact:true}).click();
+ await guest.getByRole('button',{name:'Metallic',exact:true}).click();
+ await guest.getByRole('button',{name:'Patterns',exact:true}).click();
+ await guest.getByRole('button',{name:'Stripes',exact:true}).click();
+ await guest.getByRole('button',{name:'Accent color 1',exact:true}).click();
+ const styled=await guest.evaluate(()=>{const p=JSON.parse(localStorage.getItem('yolk-profile'));return {color:p.color,pattern:p.pattern,accent:p.accent,finish:p.finish};});
+ await guest.screenshot({path:'test-results/arms/customized-studio.png'});
+ await guest.getByRole('button',{name:'Looking good',exact:true}).click();
  await listing(guest,code,true);
  console.log('PASS public room discovered across independent browsers');
  await closeModal(guest);
@@ -89,6 +98,9 @@ try{
  await host.waitForFunction(({id,x,z})=>{const p=window.__yolkTest.read().state.players.find(p=>p.id===id);return Math.hypot(p.x-x,p.z-z)>.5;},before);
  await guest.keyboard.up('KeyW');
  await guest.waitForFunction(()=>window.__yolkTest.read().presentation.draw?.active===false);
+ assert.deepEqual(await guest.evaluate(()=>window.__yolkTest.read().presentation.arms.appearance),styled);
+ await host.waitForFunction(styled=>window.__yolkTest.read().presentation.remoteArms.some(r=>JSON.stringify(r.appearance)===JSON.stringify(styled)),styled);
+ console.log('PASS Egg Studio style reaches first-person and remote arms and hands');
  const idleHands=await guest.evaluate(()=>window.__yolkTest.read().presentation.arms.hands);
  await guest.locator('#world').dispatchEvent('mousedown',{button:0});
  await guest.waitForFunction(()=>{const q=window.__yolkTest.read(),p=q.state.players.find(p=>p.id===q.localId);return p.ammo[0]<30;});
@@ -112,6 +124,8 @@ try{
  assert.equal(await guest.evaluate(()=>window.__yolkTest.read().presentation.outgoing),false);
  await guest.keyboard.press('Digit1');
  await guest.waitForFunction(()=>{const p=window.__yolkTest.read().presentation;return p.arms.weapon==='sprinter'&&!p.draw.active;});
+ assert.deepEqual(await guest.evaluate(()=>window.__yolkTest.read().presentation.arms.appearance),styled);
+ console.log('PASS customized arm style survives reloads and both weapon switches');
  console.log('PASS draw and holster motion finishes cleanly for both weapon slots');
  console.log('PASS live reload hand movement, remote reload animation, and weapon-swap cancellation');
 

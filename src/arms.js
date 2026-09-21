@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {gun, clamp} from './data.js';
+import {patternedShell} from './cosmetics.js';
+
+export function armAppearance(value={}) {
+  const p=typeof value==='string'?{color:value}:value;
+  return {color:p.color||'#fff6da',pattern:p.pattern||0,accent:p.accent||'#f9b74a',finish:p.finish||0};
+}
 
 // Authored cartoon poses in blaster-local coordinates. The camera and other
 // players use the same timeline, driven by the host's reload clock.
@@ -72,6 +78,10 @@ function handGeometry(side) {
   // Opposing thumb crosses the near side of the grip, with its own rounded tip.
   finger([[.065,-.018,.067],[.034,.068,.096],[-.029,.13,.073],[-.086,.113,.027]],.041);
   const geometry=mergeGeometries(pieces);pieces.forEach(g=>g.dispose());
+  // Project one continuous pattern across the palm and fingers, rather than
+  // restarting the texture separately on every sculpted piece.
+  const positions=geometry.attributes.position,uv=geometry.attributes.uv;
+  for(let i=0;i<positions.count;i++)uv.setXY(i,(positions.getX(i)*side+.16)/.34,(positions.getY(i)+.15)/.34);
   geometry.computeBoundingSphere();geometry.userData.shared=true;
   handShapes.set(side,geometry);return geometry;
 }
@@ -87,11 +97,16 @@ function armGeometry() {
     const a=i*(ARM_SIDES+1)+j,b=a+ARM_SIDES+1;
     indices.push(a,a+1,b,a+1,b+1,b);
   }
+  const uv=new Float32Array(count*2);
+  for(let i=0;i<=ARM_RINGS;i++)for(let j=0;j<=ARM_SIDES;j++){
+    const k=(i*(ARM_SIDES+1)+j)*2;uv[k]=j/ARM_SIDES;uv[k+1]=i/ARM_RINGS;
+  }
+  g.setAttribute('uv',new THREE.BufferAttribute(uv,2));
   g.setIndex(indices);return g;
 }
-export function makeArms(id, shellColor='#fff6da', firstPerson=true) {
+export function makeArms(id, profile={}, firstPerson=true) {
   const group=new THREE.Group();group.name='Animated egg arms';
-  const material=new THREE.MeshStandardMaterial({color:shellColor,roughness:.62});
+  const appearance=armAppearance(profile),material=patternedShell(appearance);
   const mesh=(geo)=>{const m=new THREE.Mesh(geo,material);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;};
   const limbs=[-1,1].map(side=>{
     const hand=mesh(handGeometry(side));hand.name=side<0?'Support hand':'Grip hand';
@@ -100,7 +115,7 @@ export function makeArms(id, shellColor='#fff6da', firstPerson=true) {
     return {side,hand,arm,shoulder,lastWrist:new THREE.Vector3(Infinity,Infinity,Infinity)};
   });
   limbs[0].hand.userData.ownedMaterial=true;
-  group.userData={id,limbs,progress:-1};
+  group.userData={id,limbs,appearance,progress:-1};
   updateArms(group,-1);
   return group;
 }

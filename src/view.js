@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {equipPose} from "./equip.js";
-import { makeArms, updateArms, reloadProgress } from "./arms.js";
+import { makeArms, updateArms, reloadProgress, armAppearance } from "./arms.js";
 import { patternedShell, addHeadwear, addEyewear, optionProfile } from "./cosmetics.js";
 import { getMap } from "./maps.js";
 import { gun, weapon, TEAM_COLORS, mode, clamp, NO_EYEWEAR } from "./data.js";
@@ -142,7 +142,7 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
     const held = new THREE.Group();
     held.position.set(VIEWMODEL.x, EYE + VIEWMODEL.y, VIEWMODEL.z);
     held.scale.setScalar(VIEWMODEL.scale);
-    const arms = makeArms(profile.weapon, profile.color, false);
+    const arms = makeArms(profile.weapon, profile, false);
     held.add(blaster, arms); group.add(held);
     group.userData.blaster = blaster;
     group.userData.held = held;
@@ -427,8 +427,8 @@ export class View {
       weapon: this.localWeapon,
       draw: this.drawPresentation,
       outgoing: !!this.outgoing,
-      remoteArms: [...this.models.entries()].map(([id, model]) => ({id, progress: model.userData.arms?.userData.progress, draw: model.userData.draw?.progress})),
-      arms: this.localArms ? { weapon: this.localArms.userData.id, progress: this.localArms.userData.progress, hands: this.localArms.userData.limbs.map(l=>l.hand.position.toArray()) } : null,
+      remoteArms: [...this.models.entries()].map(([id, model]) => ({id, progress: model.userData.arms?.userData.progress, appearance: model.userData.arms?.userData.appearance, draw: model.userData.draw?.progress})),
+      arms: this.localArms ? { weapon: this.localArms.userData.id, appearance: this.localArms.userData.appearance, progress: this.localArms.userData.progress, hands: this.localArms.userData.limbs.map(l=>l.hand.position.toArray()) } : null,
       muzzle: this.localModel?.userData.muzzle
         ?.getWorldPosition(new THREE.Vector3())
         .toArray(),
@@ -441,11 +441,11 @@ export class View {
     this.cosmeticPortraits ||= new Map();
     const id = `${key}:${value}`;
     if (!this.cosmeticPortraits.has(id)) {
-      this.cosmeticPortraits.set(id, this.eggPortrait(optionProfile(key, value), 160));
+      this.cosmeticPortraits.set(id, this.eggPortrait(optionProfile(key, value), 160, false));
     }
     return this.cosmeticPortraits.get(id);
   }
-  eggPortrait(profile, size = 440) {
+  eggPortrait(profile, size = 440, withWeapon = true) {
     if (!this.portraitRenderer) {
       this.portraitRenderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
 
@@ -456,10 +456,10 @@ export class View {
     scene.add(new THREE.HemisphereLight(0xffffff, 0x7d8c82, 2.8));
     const light = new THREE.DirectionalLight(0xffffff, 3);
     light.position.set(-3, 5, -4); scene.add(light);
-    const egg = makeEgg(profile, -1, false);
+    const egg = makeEgg(profile, -1, withWeapon);
     egg.rotation.y = -.25; scene.add(egg);
     const camera = new THREE.PerspectiveCamera(36, 1, .1, 20);
-    camera.position.set(0, 1.5, -4.2); camera.lookAt(0, 1.15, 0);
+    camera.position.set(withWeapon ? -2.5 : 0, 1.5, withWeapon ? -4.8 : -4.2); camera.lookAt(0, 1.1, withWeapon ? -.2 : 0);
     this.portraitRenderer.render(scene, camera);
     const image = this.portraitRenderer.domElement.toDataURL();
     this.disposeGroup(egg);
@@ -488,7 +488,8 @@ export class View {
   }
   setWeapon(p,draw) {
     const id = gun(p).id;
-    if (id === this.localWeapon && p.color === this.armColor) return;
+    const appearance=JSON.stringify(armAppearance(p));
+    if (id === this.localWeapon && appearance === this.armStyle) return;
     this.clearOutgoing(this);
     if(this.localModel && this.localWeapon!==id && draw.holster<1 && this.gunGroup.visible){
       updateArms(this.localArms,-1,this.localModel);
@@ -498,7 +499,7 @@ export class View {
       this.camera.add(old);
       this.outgoing={group:old,position:old.position.clone(),rotation:old.rotation.clone()};
     }
-    this.armColor = p.color;
+    this.armStyle = appearance;
     this.localWeapon = id;
     this.disposeGroup(this.gunGroup);
     const model = makeBlaster(id);
@@ -522,7 +523,7 @@ export class View {
       reticle.userData.ownedMaterial = true;
       model.add(reticle);
     }
-    this.localArms = makeArms(id, p.color, true);
+    this.localArms = makeArms(id, p, true);
     this.gunGroup.add(this.localArms);
   }
   event(e, localId) {
@@ -824,7 +825,7 @@ export class View {
             updateArms(model.userData.arms,-1,model.userData.blaster);
             model.userData.outgoing={group:old,position:old.position.clone(),rotation:old.rotation.clone()};
           }else{old.removeFromParent();this.disposeGroup(old);}
-          const held=new THREE.Group(),blaster=makeBlaster(gun(p).id),arms=makeArms(gun(p).id,p.color,false);
+          const held=new THREE.Group(),blaster=makeBlaster(gun(p).id),arms=makeArms(gun(p).id,p,false);
           held.scale.setScalar(VIEWMODEL.scale);held.add(blaster,arms);model.add(held);
           Object.assign(model.userData,{held,blaster,arms,armRecoil:0});
         }
