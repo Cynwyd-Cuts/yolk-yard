@@ -149,7 +149,7 @@ export function sanitizeInput(i = {}) {
   };
 }
 
-export const VIEWMODEL = { scale: 0.68, x: 0.32, y: -0.31, z: -0.48 };
+export const VIEWMODEL = { scale: 0.62, x: 0.28, y: -0.28, z: -0.78 };
 export function muzzleOrigin(p, w) {
   const f = direction(p.yaw, p.pitch),
     right = { x: Math.cos(p.yaw), y: 0, z: -Math.sin(p.yaw) };

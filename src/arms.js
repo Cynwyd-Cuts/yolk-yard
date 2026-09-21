@@ -5,14 +5,14 @@ import {gun, clamp} from './data.js';
 // Authored cartoon poses in blaster-local coordinates. The camera and other
 // players use the same timeline, driven by the host's reload clock.
 export const ARM_POSES = {
-  sprinter: {right:[.095,-.24,.13], left:[-.10,-.14,-.43], socket:[-.10,-.33,-.10], drop:[-.34,-.75,.04], tilt:[-.18,0,-.32]},
-  zipper:   {right:[.095,-.24,.13], left:[-.12,-.14,-.34], socket:[-.10,-.33,-.16], drop:[-.36,-.66,-.02], tilt:[-.12,0,-.4]},
-  anchor:   {right:[.095,-.25,.20], left:[-.13,-.16,-.48], socket:[-.23,-.34,-.045], drop:[-.46,-.73,.04], tilt:[-.22,.12,-.24]},
-  duet:     {right:[.095,-.24,-.03],left:[-.10,-.15,-.41], socket:[-.12,-.34,.35], drop:[-.38,-.68,.48], tilt:[-.15,-.12,-.35]},
-  pip:      {right:[.09,-.23,.12],  left:[-.10,-.28,.12],  socket:[-.10,-.40,.12], drop:[-.32,-.73,.25], tilt:[-.12,.13,-.28]},
-  needle:   {right:[.095,-.24,.13], left:[-.10,-.14,-.44], socket:[-.10,-.30,-.15],drop:[-.38,-.67,.02], tilt:[-.16,-.06,-.26]},
-  scatter:  {right:[.11,-.25,.17],  left:[-.13,-.15,-.47], socket:[-.13,-.16,.04], drop:[-.37,-.65,.18], tilt:[-.26,.1,-.36]},
-  thumper:  {right:[.11,-.25,.17],  left:[-.14,-.20,-.32], socket:[-.13,-.20,-.30],drop:[-.48,-.68,-.18],tilt:[-.1,.2,-.46]},
+  sprinter: {right:[.095,-.24,.13], left:[-.10,-.14,-.43], socket:[-.10,-.33,-.10], drop:[-.42,-.39,-.18], tilt:[-.18,0,-.32]},
+  zipper:   {right:[.095,-.24,.13], left:[-.12,-.14,-.34], socket:[-.10,-.33,-.16], drop:[-.40,-.36,-.22], tilt:[-.12,0,-.4]},
+  anchor:   {right:[.095,-.25,.20], left:[-.13,-.16,-.48], socket:[-.23,-.34,-.045], drop:[-.46,-.4,-.18], tilt:[-.22,.12,-.24]},
+  duet:     {right:[.095,-.24,-.03],left:[-.10,-.15,-.41], socket:[-.12,-.34,.35], drop:[-.48,-.34,.13], tilt:[-.15,-.12,-.35]},
+  pip:      {right:[.09,-.23,.12],  left:[-.10,-.28,.12],  socket:[-.10,-.40,.12], drop:[-.38,-.38,-.06], tilt:[-.12,.13,-.28]},
+  needle:   {right:[.095,-.24,.13], left:[-.10,-.14,-.44], socket:[-.10,-.30,-.15],drop:[-.42,-.36,-.19], tilt:[-.16,-.06,-.26]},
+  scatter:  {right:[.11,-.25,.17],  left:[-.13,-.15,-.47], socket:[-.13,-.16,.04], drop:[-.42,-.35,-.15], tilt:[-.26,.1,-.36]},
+  thumper:  {right:[.11,-.25,.17],  left:[-.14,-.20,-.32], socket:[-.13,-.20,-.30],drop:[-.48,-.36,-.3],tilt:[-.1,.2,-.46]},
 };
 const smooth = t => {t=clamp(t,0,1);return t*t*(3-2*t);};
 function path(points, t) {
@@ -65,7 +65,7 @@ export function makeArms(id, shellColor='#fff6da', firstPerson=true) {
   const limbs=[-1,1].map(side=>{
     const hand=mesh(handGeometry(side));hand.name=side<0?'Support hand':'Grip hand';
     const upper=mesh(tube),forearm=mesh(tube),elbow=mesh(sphere);elbow.scale.setScalar(.06);
-    const shoulder=new THREE.Vector3(side<0?-.76:.34,firstPerson?-.66:-.4,firstPerson?.64:.48);
+    const shoulder=new THREE.Vector3(side<0?-.76:.34,firstPerson?-.66:-.4,firstPerson?.64:.9);
     return {side,hand,upper,forearm,elbow,shoulder};
   });
   limbs[0].hand.userData.ownedMaterial=true;
