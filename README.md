@@ -1,5 +1,7 @@
 # Yolk Yard
 
+Use **Create Match** for public or private matches, with arena, mode, bots, difficulty, time limit (1–60 minutes), and win target (1–1000). Hosts can edit rules in the lobby; Play Again opens next-round setup. Guests see shared rules but cannot change them.
+
 Play at https://zl-2.github.io/yolk-yard/. Opens directly without accounts or an access server. Invite-code multiplayer and the public-match directory use PeerJS; practice runs locally.
 
 Public hosts publish temporary listings through a browser-coordinated directory. A new coordinator is elected when the previous browser leaves; listings may take a few seconds to return. Switching a room to private removes its listing. Hosts must keep their tabs open. Multiplayer and discovery require a network that permits PeerJS and WebRTC. No paid relay is configured.

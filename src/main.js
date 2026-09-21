@@ -1,3 +1,4 @@
+import {matchOptions, targetLabel} from "./match-options.js";
 import "./style.css";
 import { CONTROLS, normalizeBindings, validBinding, bindingDown, bindingLabel } from "./keybinds.js";
 import { RELEASES, RELEASE } from "./releases.js";
@@ -67,7 +68,7 @@ settings.scopeSensitivity = clamp(Number(settings.scopeSensitivity) || 0.65, 0.1
 settings.fov = clamp(Number(settings.fov) || 85, 65, 110);
 settings.volume = clamp(Number(settings.volume) || 0, 0, 1);
 let stats = read("yolk-stats", { matches: 0, kills: 0, wins: 0 }),
-  options = { map: "yard", mode: "ffa", bots: 4, difficulty: 2 };
+  options = matchOptions({map:"yard", mode:"ffa"});
 let view,
   sim = null,
   net = null,
@@ -132,7 +133,7 @@ function titleBar() {
 function renderMenu() {
   const w = weapon(profile.weapon);
   $("#menu").innerHTML =
-    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false"><button class="primary" data-action="setup">PLAY WITH FRIENDS <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><button class="plain" data-action="practice" style="margin-top:14px">Practice with bots</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. Up to 8 eggs.<br>No accounts or downloads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
+    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false"><button class="primary" data-action="setup">CREATE MATCH <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. Up to 8 eggs.<br>No accounts or downloads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
       (w) => !w.secondary,
     )
       .map(
@@ -249,24 +250,36 @@ function helpMenu() {
     "help",
   );
 }
-function setupMenu(practice = false) {
-  if (!practice) options.bots = 0;
-  modal(
-    practice ? "Practice arena" : "Create a room",
-    `<p>${practice ? "Warm up with bots in your own arena." : "Choose who can discover your match. Share the code or list your room publicly."}</p>${practice ? "" : `<label class="setting-label" for="setup-visibility">VISIBILITY</label><select class="field" id="setup-visibility"><option value="private">Private · invite code only</option><option value="public">Public · listed for everyone</option></select>`}<div class="form-grid"><label>ARENA<select class="field" id="setup-map">${MAPS.map((m) => `<option value="${m.id}" ${m.id === options.map ? "selected" : ""}>${m.name}</option>`).join("")}</select></label><label>MODE<select class="field" id="setup-mode">${MODES.map((m) => `<option value="${m.id}" ${m.id === options.mode ? "selected" : ""}>${m.name}</option>`).join("")}</select></label><label>BOTS<select class="field" id="setup-bots">${[0, 1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === options.bots ? "selected" : ""}>${n}</option>`).join("")}</select></label><label>BOT DIFFICULTY<select class="field" id="setup-difficulty">${["Relaxed", "Regular", "Sharp"].map((n, i) => `<option value="${i + 1}" ${i + 1 === options.difficulty ? "selected" : ""}>${n}</option>`).join("")}</select></label></div><p class="small" id="mode-desc">${mode(options.mode).description}</p><p class="hint">${practice ? "5-minute rounds. Choose zero bots to explore the arena." : "Friends replace bots when the room is full. The host decides when to start."}</p><button class="primary" style="margin-top:22px" data-action="${practice ? "start-practice" : "create-room"}">${practice ? "START PRACTICE" : "CREATE ROOM"}</button>`,
-    "setup",
-  );
-  $("#setup-mode").onchange = (e) =>
-    ($("#mode-desc").textContent = mode(e.target.value).description);
+function ruleSummary(o) {
+  return `${o.minutes} min · ${o.scoreLimit} ${o.mode === "capture" ? "captures" : o.mode === "control" ? "points" : "eliminations"} to win · ${o.bots} bots · ${["Relaxed", "Regular", "Sharp"][o.difficulty-1]}`;
+}
+function setupMenu(editing = false) {
+  if (editing && (!sim || state?.phase === "playing")) return;
+  const o = editing ? state.options : options;
+  const nextRound = editing && state.phase === "results";
+  const select = (id,label,items,value) => `<label>${label}<select class="field" id="setup-${id}">${items.map(([key,text])=>`<option value="${key}" ${key === value ? "selected" : ""}>${text}</option>`).join("")}</select></label>`;
+  modal(nextRound ? "Set up the next round" : editing ? "Match settings" : "Create Match",
+    `<p>${editing ? "The host sets the rules for everyone. Changes apply before the next round starts." : "Choose your arena, invite friends, and add bots to fill the match."}</p><div class="form-grid match-rules">${select("visibility","VISIBILITY",[["private","Private · invite code only"],["public","Public · listed for everyone"]],net?.visibility || "private")}${select("map","ARENA",MAPS.map(m=>[m.id,m.name]),o.map)}${select("mode","GAME MODE",MODES.map(m=>[m.id,m.name]),o.mode)}${select("bots","BOTS",Array.from({length:8},(_,n)=>[n,String(n)]),o.bots)}${select("difficulty","BOT DIFFICULTY",[[1,"Relaxed"],[2,"Regular"],[3,"Sharp"]],o.difficulty)}<label>TIME LIMIT (MINUTES)<input class="field" id="setup-minutes" type="number" min="1" max="60" step="1" required value="${o.minutes}"></label><label><span id="target-label">${targetLabel(o.mode)}</span><input class="field" id="setup-scoreLimit" type="number" min="1" max="1000" step="1" required value="${o.scoreLimit}"></label></div><p class="hint">The round ends at the time limit or score target. Up to 8 players including bots; friends replace bots when full.</p><button class="primary" style="margin-top:22px" data-action="${nextRound ? "apply-rematch" : editing ? "save-match-settings" : "create-room"}">${nextRound ? "START NEXT ROUND" : editing ? "SAVE SETTINGS" : "CREATE MATCH"}</button>`, "setup");
+  if(editing && !net) $("#setup-visibility").disabled=true;
+  $("#setup-mode").onchange = e => {
+    $("#target-label").textContent = targetLabel(e.target.value);
+    $("#setup-scoreLimit").value = mode(e.target.value).limit;
+  };
 }
 function getOptions() {
-  options = {
-    map: $("#setup-map").value,
-    mode: $("#setup-mode").value,
-    bots: Number($("#setup-bots").value),
-    difficulty: Number($("#setup-difficulty").value),
-  };
-  return options;
+  if (![...document.querySelectorAll('#dialog input[type="number"]')].every(input=>input.reportValidity())) return null;
+  return matchOptions(Object.fromEntries(["map","mode","bots","difficulty","minutes","scoreLimit"].map(key=>[key,$(`#setup-${key}`).value])));
+}
+function saveMatchSettings(start = false) {
+  if (!sim || state?.phase === "playing") return;
+  const next=getOptions();
+  if (!next || !sim.configure(next)) return;
+  options=sim.options;
+  net?.setVisibility($("#setup-visibility").value);
+  state=sim.snapshot();
+  net?.broadcast(state);
+  if(start) {sim.startRound();state=sim.snapshot();net?.broadcast(state);enterGame(true);}
+  else {closeDialog();renderLobby();}
 }
 function visibilityLabel() {
   return `Room: ${net?.visibility === "public" ? "public" : "private"} · Make ${net?.visibility === "public" ? "private" : "public"}`;
@@ -353,7 +366,9 @@ function beginSim() {
 }
 async function createRoom() {
   if (busy) return;
-  getOptions();
+  const next = getOptions();
+  if (!next) return;
+  options = next;
   const visibility = $("#setup-visibility")?.value || "private";
   beginSim();
   busy = true;
@@ -384,7 +399,7 @@ async function createRoom() {
     state = null;
     modal(
       "Room could not open",
-      `<div class="error-box">${esc(e.message)}</div><button class="primary" data-action="practice">Play practice</button><button class="plain" data-action="setup" style="margin-top:12px">Try creating a room again</button>`,
+      `<div class="error-box">${esc(e.message)}</div>${visibility === "private" ? '<button class="primary" data-action="start-local">START LOCAL MATCH</button>' : ""}<button class="plain" data-action="setup" style="margin-top:12px">Try creating a room again</button>`,
       "error",
     );
   } finally {
@@ -429,7 +444,7 @@ async function joinRoom(publicCode) {
     net = null;
     modal(
       "Could not join",
-      `<div class="error-box">${esc(e.message)}</div><button class="primary" data-action="join">Check the code & retry</button><button class="plain" data-action="practice" style="margin-top:12px">Practice instead</button>`,
+      `<div class="error-box">${esc(e.message)}</div><button class="primary" data-action="join">Check the code & retry</button><button class="plain" data-action="setup" style="margin-top:12px">Create a match</button>`,
       "error",
     );
   } finally {
@@ -445,10 +460,9 @@ function renderLobby() {
   if (key === lobbyRenderKey) return;
   lobbyRenderKey = key;
   $("#lobby").innerHTML =
-    `${titleBar()}<section class="panel lobby-panel"><div class="eyebrow">${net?.visibility === "public" ? "PUBLIC" : "PRIVATE"} ROOM</div><h2 style="margin-top:8px">The gang’s all here.</h2><div class="room-code">${formatCode(net?.code || "--------")}</div><div class="split-actions"><button class="plain" data-action="copy-code">Copy code</button><button class="plain" data-action="copy-link">Copy invite link</button></div><div class="lobby-meta"><strong>${getMap(o.map).name}</strong><span>·</span><span>${mode(o.mode).name}</span></div><div class="roster">${roster.map((p) => `<div class="roster-row"><b><span class="team-dot ${p.team === 1 ? "coral" : ""}"></span>${esc(p.name)}${p.id === localId ? " (you)" : ""}</b><span>${p.bot ? "BOT" : weapon(p.weapon).name}</span>${net?.isHost && p.id !== localId && !p.bot ? `<button data-kick="${esc(p.id)}">Remove</button>` : ""}</div>`).join("")}</div><p class="hint" style="margin-bottom:18px">${net?.isHost ? `${o.bots} bots will fill available spots. Keep this tab open while hosting.` : "Waiting for the host to start. You can choose your loadout while you wait."}</p>${visibilityButton()}<div class="room-bottom">${net?.isHost ? '<button class="primary" data-action="start-match">START MATCH</button>' : '<button class="primary" data-action="loadout">Choose loadout</button>'}<button class="plain" data-action="leave">Leave</button></div></section>`;
+    `${titleBar()}<section class="panel lobby-panel"><div class="eyebrow">${net?.visibility === "public" ? "PUBLIC" : "PRIVATE"} ROOM</div><h2 style="margin-top:8px">The gang’s all here.</h2><div class="room-code">${formatCode(net?.code || "--------")}</div><div class="split-actions"><button class="plain" data-action="copy-code">Copy code</button><button class="plain" data-action="copy-link">Copy invite link</button></div><div class="lobby-meta"><strong>${getMap(o.map).name}</strong><span>·</span><span>${mode(o.mode).name}</span></div><div class="roster">${roster.map((p) => `<div class="roster-row"><b><span class="team-dot ${p.team === 1 ? "coral" : ""}"></span>${esc(p.name)}${p.id === localId ? " (you)" : ""}</b><span>${p.bot ? "BOT" : weapon(p.weapon).name}</span>${net?.isHost && p.id !== localId && !p.bot ? `<button data-kick="${esc(p.id)}">Remove</button>` : ""}</div>`).join("")}</div><p class="hint" style="margin-bottom:18px">${net?.isHost ? `${o.bots} bots will fill available spots. Keep this tab open while hosting.` : "Waiting for the host to start. You can choose your loadout while you wait."}</p><p class="hint">${ruleSummary(o)}</p>${net?.isHost ? '<button class="secondary" data-action="match-settings">EDIT MATCH SETTINGS</button>' : ""}${visibilityButton()}<div class="room-bottom">${net?.isHost ? '<button class="primary" data-action="start-match">START MATCH</button>' : '<button class="primary" data-action="loadout">Choose loadout</button>'}<button class="plain" data-action="leave">Leave</button></div></section>`;
 }
-function startPractice() {
-  getOptions();
+function startLocalMatch() {
   beginSim();
   sim.startRound();
   state = sim.snapshot();
@@ -511,7 +525,7 @@ function pauseMenu() {
   if (screen !== "game") return;
   modal(
     "Take a breather",
-    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "Practice is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${visibilityButton()}${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
+    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "The local match is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${visibilityButton()}${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
     "pause",
   );
 }
@@ -576,7 +590,7 @@ function resultsMenu() {
   }
   modal(
     "That’s a wrap.",
-    `<div class="results"><div class="eyebrow">ROUND ${state.round} COMPLETE</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions"><button class="plain" data-action="loadout">Change loadout</button><button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
+    `<div class="results"><div class="eyebrow">ROUND ${state.round} COMPLETE</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions"><button class="plain" data-action="loadout">Change loadout</button><button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
     "results",
   );
 }
@@ -672,7 +686,7 @@ function hud() {
   $("#hud-map").textContent = getMap(state.options.map).name;
   $("#hud-network").textContent = net
     ? (net.isHost ? "HOST · " : net.latency + " ms · ") + formatCode(net.code)
-    : "PRACTICE";
+    : "LOCAL MATCH";
   $("#timer").textContent =
     Math.floor(Math.ceil(state.remaining) / 60) +
     ":" +
@@ -683,8 +697,8 @@ function hud() {
     m.id === "control"
       ? state.zone.contested
         ? "ZONE CONTESTED"
-        : "HOLD THE GOLDEN ZONE"
-      : `FIRST TO ${m.limit} ${m.id === "capture" ? "CAPTURES" : "ELIMINATIONS"}`;
+        : `FIRST TO ${state.options.scoreLimit} POINTS · HOLD THE ZONE`
+      : `FIRST TO ${state.options.scoreLimit} ${m.id === "capture" ? "CAPTURES" : "ELIMINATIONS"}`;
   $("#health").textContent = Math.ceil(p.health);
   $("#health-fill").style.width = p.health + "%";
   $("#health-fill").style.background = p.health < 30 ? "#f99b74" : "#8bdcc5";
@@ -769,8 +783,10 @@ const actions = {
     `<article class="release-note"><div class="eyebrow">UPDATE ${esc(r.number)}</div><h3>${esc(r.title)}</h3><ul>${r.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul></article>`).join("")),
   "enter-yard": () => playerAction(state?.players.find(p => p.id === localId)?.awaitingEntry ? "rejoin" : "respawn"),
   setup: () => setupMenu(false),
-  practice: () => setupMenu(true),
-  "start-practice": startPractice,
+  "match-settings": () => setupMenu(true),
+  "save-match-settings": () => saveMatchSettings(),
+  "apply-rematch": () => saveMatchSettings(true),
+  "start-local": startLocalMatch,
   "create-room": createRoom,
   "join-room": joinRoom,
   join: () => joinMenu(),
@@ -804,9 +820,7 @@ const actions = {
   "start-match": () => {
     sim.startRound(); state = sim.snapshot(); net?.broadcast(state); enterGame(true);
   },
-  rematch: () => {
-    sim.startRound(); state = sim.snapshot(); net?.broadcast(state); enterGame(true);
-  },
+  rematch: () => setupMenu(true),
   "public-rooms": () => publicRooms(),
   "refresh-rooms": () => publicRooms(),
   "toggle-visibility": () => {

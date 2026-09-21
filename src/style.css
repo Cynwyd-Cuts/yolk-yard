@@ -1377,3 +1377,7 @@ button:disabled { opacity: 0.55; cursor: default; }
 .keybind-row { display:grid; grid-template-columns: minmax(95px,1fr) 1fr 1fr; gap:8px; align-items:center; margin:8px 0; }
 .keybind-row button { padding:10px 6px; font-size:.8rem; overflow-wrap:anywhere; }
 .keybind-row button.listening { outline:3px solid var(--accent, #f5ad45); }
+
+@media (max-width: 520px) {
+  .match-rules > label:nth-child(-n+3) { grid-column: 1 / -1; }
+}

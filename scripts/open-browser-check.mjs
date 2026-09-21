@@ -17,7 +17,7 @@ async function make(name,mobile=false){
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
  page.on('console',m=>{if(m.type()==='error'||m.text().includes('Directory'))console.log('BROWSER',m.text().slice(0,240));});
  await page.goto('http://127.0.0.1:5173/?qa=1');
- await page.locator('[data-action="practice"]').first().waitFor();
+ await page.locator('[data-action="setup"]').first().waitFor();
  return page;
 }
 async function listing(page,code,visible){
@@ -39,14 +39,9 @@ try{
  assert.equal(requests.some(u=>/workers\.dev|\/api\/(access|request)|\/session/.test(u)),false);
  assert.equal(await host.locator('a[href*="admin"]').count(),0);
  console.log('PASS direct startup without access service or external connection');
- await host.locator('[data-action="practice"]').click();
- await host.locator('#setup-bots').selectOption('1');await host.locator('[data-action="start-practice"]').click();
- await host.locator('#spawn-button').click();
- await host.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId)?.health>0;});
- await host.keyboard.press('Escape');await host.locator('[data-action="leave-confirm"]').click();
- console.log('PASS local practice and manual entry without login');
+ assert.equal(await host.getByRole('button',{name:/practice with bots/i}).count(),0);
  await host.locator('[data-action="setup"]').click();assert.equal(await host.locator('#setup-bots').inputValue(),'0');
- await host.locator('#setup-visibility').selectOption('public');await host.locator('[data-action="create-room"]').click();
+ await host.locator('#setup-visibility').selectOption('public');await host.locator('#setup-minutes').fill('9');await host.locator('#setup-scoreLimit').fill('12');await host.locator('[data-action="create-room"]').click();
  await host.locator('.room-code').waitFor();
  const code=(await host.locator('.room-code').innerText()).replace('-','').trim();
  await host.waitForTimeout(2500);
@@ -61,6 +56,14 @@ try{
  await guest.locator(`[data-join-room="${code}"]`).click();await guest.locator('.room-code').waitFor();
  await host.waitForFunction(()=>window.__yolkTest.read().state.players.length===2);
  console.log('PASS privacy removes listings and public-list Join connects through WebRTC');
+ assert.equal(await guest.locator('[data-action="match-settings"]').count(),0);
+ await host.locator('[data-action="match-settings"]').click();
+ assert.equal(await host.locator('#setup-minutes').inputValue(),'9');
+ await host.locator('#setup-minutes').fill('2');await host.locator('#setup-scoreLimit').fill('7');
+ await host.locator('[data-action="save-match-settings"]').click();
+ await guest.waitForFunction(()=>window.__yolkTest.read().state.options.scoreLimit===7);
+ assert.equal(await guest.evaluate(()=>window.__yolkTest.read().state.options.minutes),2);
+ console.log('PASS lobby rules edit on host and replicate to guests');
  await host.locator('[data-action="start-match"]').click();
  await guest.locator('#spawn-button').waitFor();await guest.locator('#spawn-button').click();
  await guest.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId)?.health>0;});
@@ -72,6 +75,18 @@ try{
  
  console.log('PASS multiplayer input replication and in-match visibility switch');
  await guest.screenshot({path:'test-results/open-multiplayer.png'});
+ await host.evaluate(()=>window.__yolkTest.finish());
+ await host.locator('[data-action="rematch"]').waitFor();
+ await host.locator('[data-action="rematch"]').click();
+ await host.locator('#setup-mode').selectOption('capture');
+ assert.equal(await host.locator('#setup-scoreLimit').inputValue(),'3');
+ await host.locator('#setup-scoreLimit').fill('5');await host.locator('#setup-minutes').fill('8');
+ await host.locator('#setup-map').selectOption({index:1});await host.locator('#setup-bots').selectOption('1');
+ await host.screenshot({path:'test-results/match-rematch-settings.png'});
+ await host.locator('[data-action="apply-rematch"]').click();
+ await guest.waitForFunction(()=>{const s=window.__yolkTest.read().state;return s.round===2&&s.options.mode==='capture'&&s.options.minutes===8&&s.options.scoreLimit===5;});
+ assert.equal(await guest.evaluate(()=>window.__yolkTest.read().state.players.filter(p=>p.bot).length),1);
+ console.log('PASS rematch setup changes arena, mode, time, target and bots without losing guests');
  await host.close();
  await guest.locator('[data-action="close"]').first().click();
  // A remaining browser must take over discovery after its coordinator closes.

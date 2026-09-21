@@ -1,3 +1,4 @@
+import {matchOptions} from "./match-options.js";
 import {
   VERSION,
   WEAPONS,
@@ -33,13 +34,7 @@ const BOT_NAMES = [
 ];
 export class Simulation {
   constructor(options = {}) {
-    this.options = {
-      map: getMap(options.map).id,
-      mode: mode(options.mode).id,
-      bots: clamp(Number(options.bots) || 0, 0, 7),
-      difficulty: clamp(Number(options.difficulty) || 1, 1, 3),
-      minutes: 5,
-    };
+    this.options = matchOptions(options);
     this.map = getMap(this.options.map);
     this.nav = navigation(this.map);
     this.random = rng(options.seed || Date.now());
@@ -50,7 +45,7 @@ export class Simulation {
     this.time = 0;
     this.round = 0;
     this.phase = "lobby";
-    this.remaining = 300;
+    this.remaining = this.options.minutes * 60;
     this.scores = [0, 0];
     this.projectiles = [];
     this.projectileId = 0;
@@ -162,6 +157,16 @@ export class Simulation {
         true,
       );
     }
+  }
+  configure(options) {
+    if (this.phase === "playing") return false;
+    const next = matchOptions(options);
+    for (const p of [...this.players.values()]) if (p.bot) this.removePlayer(p.id);
+    this.options = next;
+    this.map = getMap(next.map);
+    this.nav = navigation(this.map);
+    this.remaining = next.minutes * 60;
+    return true;
   }
   startRound() {
     this.phase = "playing";
@@ -362,8 +367,8 @@ export class Simulation {
     if (this.remaining <= 0) this.finish();
     const m = mode(this.options.mode);
     if (
-      (m.teams && Math.max(...this.scores) >= m.limit) ||
-      (!m.teams && [...this.players.values()].some((p) => p.kills >= m.limit))
+      (m.teams && Math.max(...this.scores) >= this.options.scoreLimit) ||
+      (!m.teams && [...this.players.values()].some((p) => p.kills >= this.options.scoreLimit))
     )
       this.finish();
   }
