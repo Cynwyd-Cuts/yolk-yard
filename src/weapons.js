@@ -226,6 +226,7 @@ export function makeBlaster(id) {
     ring(g, 0, 0.015, -0.435, 0.05, 0.012, c);
     for (let i = 0; i < 5; i++)
       box(g, 0.101, 0.04, 0.07 + i * 0.025, 0.009, 0.085, 0.009, dark, 0.002);
+    g.userData.reloadPart = box(g, 0, -.405, .12, .13, .13, .14, steel);
     optic(g, "iron", -0.24);
   } else if (id === "scatter") {
     box(g, 0, 0, 0.08, 0.3, 0.23, 0.46, c);
@@ -261,7 +262,7 @@ export function makeBlaster(id) {
     tube(g, 0, 0, -0.66, 0.044, 0.82, steel);
     tube(g, 0, 0, -0.96, 0.062, 0.23, dark);
     ring(g, 0, 0, -1.087, 0.058, 0.012, c);
-    box(g, 0, -0.23, -0.15, 0.14, 0.27, 0.16, dark);
+    g.userData.reloadPart = box(g, 0, -0.23, -0.15, 0.14, 0.27, 0.16, dark);
     vents(g, -0.23, 4, 0.225, 0.055);
     for (const x of [-0.1, 0.1]) {
       const leg = box(g, x, -0.18, -0.56, 0.038, 0.3, 0.04, steel, 0.008, true);
@@ -299,7 +300,7 @@ export function makeBlaster(id) {
       c,
     );
     grip(g, 0.13);
-    box(g, 0, -0.22, -0.16, 0.14, 0.34, 0.16, dark);
+    g.userData.reloadPart = box(g, 0, -0.22, -0.16, 0.14, 0.34, 0.16, dark);
     for (const x of [-0.095, 0.095])
       box(g, x, 0.035, 0.46, 0.035, 0.075, 0.42, steel, 0.01, true);
     box(g, 0, -0.025, 0.66, 0.2, 0.23, 0.055, dark);
@@ -316,8 +317,8 @@ export function makeBlaster(id) {
     ring(g, 0, 0, -0.93, 0.077, 0.023, c);
     for (let i = 0; i < 5; i++)
       ring(g, 0, 0, -0.27 - i * 0.085, 0.132, 0.015, steel);
-    box(g, 0, -0.26, -0.045, 0.34, 0.31, 0.32, dark);
-    box(g, 0.18, -0.26, -0.045, 0.024, 0.18, 0.21, c);
+    g.userData.reloadPart = box(g, 0, -0.26, -0.045, 0.34, 0.31, 0.32, dark);
+
     for (let i = 0; i < 5; i++)
       box(
         g,
@@ -362,7 +363,7 @@ export function makeBlaster(id) {
       c,
     );
     grip(g, -0.03);
-    box(g, 0, -0.25, 0.35, 0.16, 0.27, 0.18, dark);
+    g.userData.reloadPart = box(g, 0, -0.25, 0.35, 0.16, 0.27, 0.18, dark);
     box(g, 0, -0.025, 0.61, 0.28, 0.28, 0.055, dark);
     box(g, 0, -0.07, -0.4, 0.23, 0.17, 0.24, steel);
     tube(g, 0, 0, -0.68, 0.052, 0.42, dark);
@@ -386,11 +387,17 @@ export function makeBlaster(id) {
     stock(g, c, 0.35);
     const mag = box(g, 0, -0.24, -0.1, 0.15, 0.32, 0.2, dark);
     mag.rotation.x = 0.13;
+    g.userData.reloadPart = mag;
     box(g, 0, 0.015, -0.43, 0.23, 0.19, 0.32, steel);
     vents(g, -0.32, 5, 0.24, 0.045);
     tube(g, 0, 0, -0.72, 0.052, 0.3, dark);
     ring(g, 0, 0, -0.895, 0.063, 0.02, c);
     optic(g, "reflex");
+  }
+  if (id === "scatter" || id === "thumper") {
+    const token = tube(g, 0, 0, 0, id === "thumper" ? .085 : .05, id === "thumper" ? .28 : .15, c);
+    token.visible = false;
+    g.userData.reloadToken = token;
   }
   // Small construction details break up broad surfaces while keeping readable silhouettes.
   const detailX =
@@ -423,7 +430,7 @@ export function makeBlaster(id) {
   g.updateMatrixWorld(true);
   const batches = new Map();
   for (const object of [...g.children])
-    if (object.isMesh && !object.userData.ownedMaterial) {
+    if (object.isMesh && !object.userData.ownedMaterial && object !== g.userData.reloadPart && object !== g.userData.reloadToken) {
       const key = object.material.uuid;
       if (!batches.has(key))
         batches.set(key, { material: object.material, parts: [] });
