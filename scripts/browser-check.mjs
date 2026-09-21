@@ -332,6 +332,8 @@ try {
               p.respawnAt = s.time + 60;
             }
           s.projectiles = [];
+          // This checks replicated hit delivery, not a random spread sample.
+          s.random = () => 0.5;
           return { time: s.time, eventId: s.eventId, x: target.x, z: target.z };
         }),
       gid,
@@ -345,7 +347,10 @@ try {
         Math.hypot(target.x - setup.x, target.z - setup.z) < 0.1
       );
     }, targetSetup);
-    await guest.mouse.click(720, 450);
+    await guest.mouse.move(720, 450);
+    await guest.mouse.down();
+    await host.waitForFunction(({ id, after }) => window.__yolkTest.read().state.events.some(e => e.id > after && e.type === "shot" && e.player === id), { id: gid, after: targetSetup.eventId });
+    await guest.mouse.up();
     await host.waitForFunction(
       ({ id, after }) => {
         const state = window.__yolkTest.read().state;
