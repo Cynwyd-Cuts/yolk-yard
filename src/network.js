@@ -1,6 +1,9 @@
 import Peer from "peerjs";
 import { directory } from "./directory.js";
 import { VERSION, safeProfile } from "./data.js";
+import { ChatRoom, chatPayload } from './chat.js';
+import { FILTER_VERSION, moderateText, safeName, safeSystemText, SAFETY_MESSAGES } from './moderation.js';
+import { matchOptions } from './match-options.js';
 const PREFIX = "yolk-yard-v3-";
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomCode = () =>
@@ -45,6 +48,11 @@ export class Network {
     this.lastState = 0;
     this.lastPing = 0;
     this.timers = new Set();
+    this.chatRoom = new ChatRoom();
+    this.chatEnabled = true;
+    this.chatMuted = [];
+    this.outboundChat = [];
+    this.kicked = new Set();
   }
   makePeer(id) {
     const config = window.YOLK_NETWORK || {};
@@ -101,9 +109,9 @@ export class Network {
     return this.code;
   }
   accept(conn) {
-    if (this.closed || this.connections.size >= this.maxConnections) {
+    if (this.closed || this.connections.size >= this.maxConnections || this.kicked.has(conn.peer)) {
       conn.on("open", () => {
-        conn.send({ type: "reject", reason: "This room has no open seats." });
+        conn.send({ type: "reject", reason: "This room is unavailable." });
         setTimeout(() => conn.close(), 150);
       });
       return;
@@ -173,6 +181,11 @@ export class Network {
         this.callbacks.onPlayerAction?.(conn.peer, msg.action);
       else if (msg.type === "profile")
         this.callbacks.onProfile?.(conn.peer, safeProfile(msg.profile));
+      else if (msg.type === 'chat-send') this.relayChat(conn.peer, msg);
+      else if (msg.type === 'chat-report') {
+        const report=this.chatRoom.report(conn.peer,msg.target,msg.reason,this.chatState());
+        if(report)this.callbacks.onChatReport?.(report);
+      }
       else if (msg.type === "ping" && Number.isFinite(msg.time))
         conn.send({ type: "pong", time: msg.time });
     });
@@ -181,6 +194,7 @@ export class Network {
       this.timers.delete(timeout);
       if (this.connections.get(conn.peer) === conn) {
         this.connections.delete(conn.peer);
+        this.chatRoom.remove(conn.peer);
         this.callbacks.onLeave?.(conn.peer);
       }
     };
@@ -227,7 +241,7 @@ export class Network {
           resolve();
         } else if (msg.type === "reject") {
           clearTimeout(timer);
-          reject(new Error(String(msg.reason).slice(0, 200)));
+          reject(new Error(safeSystemText(msg.reason, 'This room is unavailable. Refresh and try again.')));
         } else if (msg.type === "state" && this.ready) {
           const s = msg.state;
           if (
@@ -238,8 +252,33 @@ export class Network {
           )
             return;
           this.lastState = performance.now();
+          // Names also occur in past events and result headlines, not just the
+          // roster. Sanitize before any UI or Three.js nameplate sees them.
+          s.players=s.players.map(p=>{
+            const player={...p,name:safeName(p?.name)};
+            // Numeric HUD fields must not become an alternate text channel.
+            for(const key of ['kills','deaths','points','team','streak','poppers'])
+              player[key]=Number.isFinite(p?.[key])?Math.max(0,Math.min(1000000,p[key])):0;
+            return player;
+          });
+          s.round=Number.isSafeInteger(s.round)?Math.max(0,s.round):0;
+          s.options=matchOptions(s.options);
+          s.winner=safeSystemText(s.winner, 'Round complete');
+          s.events=Array.isArray(s.events)?s.events.slice(-128).map(e=>{
+            const event={...e};
+            for(const key of ['name','targetName'])if(key in event)event[key]=safeName(event[key]);
+            for(const key of ['text','winner','weapon'])if(key in event)event[key]=safeSystemText(event[key]);
+            return event;
+          }):[];
+          this.snapshot=s;
+          this.chatEnabled=s.chatEnabled !== false;
+          this.chatMuted=Array.isArray(s.chatMuted)?s.chatMuted.filter(id=>typeof id==='string').slice(0,20):[];
           this.visibility = s.visibility === "public" ? "public" : "private";
           this.callbacks.onState?.(s);
+        } else if (msg.type==='chat-message' && this.ready) {
+          this.callbacks.onChat?.(msg.message);
+        } else if (msg.type==='chat-status' && this.ready && Object.hasOwn(SAFETY_MESSAGES,msg.reason)) {
+          this.callbacks.onChatStatus?.({ok:false,reason:msg.reason,retryAfter:Math.min(120,Math.max(0,Number(msg.retryAfter)||0))});
         } else if (msg.type === "pong")
           this.latency = Math.max(0, Math.round(performance.now() - msg.time));
         else if (msg.type === "closed") {
@@ -286,7 +325,52 @@ export class Network {
     this.send({ type: "input", input });
   }
   profile(profile) {
-    this.send({ type: "profile", profile });
+    this.send({ type: "profile", profile:safeProfile(profile) });
+  }
+  chatState() { return this.callbacks.getChatState?.() || this.snapshot; }
+  chat(payload) {
+    if(!this.ready || this.closed) return {ok:false,reason:'disconnected'};
+    const parsed=chatPayload({...payload,version:FILTER_VERSION});
+    if(!parsed)return {ok:false,reason:'format'};
+    const now=Date.now();
+    this.outboundChat=this.outboundChat.filter(m=>now-m.time<20000).slice(-4);
+    const checked=moderateText(parsed.text,{previous:parsed.quick?[]:this.outboundChat.filter(m=>!m.quick).map(m=>m.text)});
+    if(!checked.ok)return checked;
+    const message={...parsed,type:'chat-send',text:checked.text};
+    if(this.isHost)return this.relayChat('host',message);
+    if(!this.hostConnection?.open)return {ok:false,reason:'disconnected'};
+    // No optimistic echo: a message is shown only after host approval.
+    this.send(message);
+    this.outboundChat.push({text:checked.text,time:now,quick:parsed.quick});
+    return {ok:true};
+  }
+  relayChat(id,payload) {
+    const result=this.chatRoom.submit(id,payload,this.chatState());
+    if(!result.ok) {
+      if(id==='host')this.callbacks.onChatStatus?.(result);
+      else if(this.connections.get(id)?.open)this.connections.get(id).send({type:'chat-status',reason:result.reason,retryAfter:result.retryAfter});
+      return result;
+    }
+    for(const recipient of result.recipients) {
+      if(recipient==='host')this.callbacks.onChat?.(result.message);
+      else {
+        const conn=this.connections.get(recipient);
+        if(conn?.open && (conn.dataChannel?.bufferedAmount||0)<65536)conn.send({type:'chat-message',message:result.message});
+      }
+    }
+    return {ok:true};
+  }
+  setChatMuted(id,muted) {
+    if(!this.isHost || id==='host' || !this.connections.has(id))return;
+    if(muted)this.chatRoom.muted.add(id); else this.chatRoom.muted.delete(id);
+    this.chatMuted=[...this.chatRoom.muted];
+  }
+  setChatEnabled(enabled) { if(this.isHost)this.chatEnabled=this.chatRoom.enabled=!!enabled; }
+  reportChat(target,reason) {
+    if(this.isHost) {
+      const report=this.chatRoom.report('host',target,reason,this.chatState());
+      if(report)this.callbacks.onChatReport?.(report);
+    } else this.send({type:'chat-report',target,reason});
   }
   setVisibility(value) {
     if (!this.isHost) return;
@@ -302,7 +386,7 @@ export class Network {
   broadcast(state) {
     this.snapshot = state;
     if (performance.now() - (this.lastPublish || 0) > 2000) { this.lastPublish = performance.now(); this.publishRoom(); }
-    state = {...state, visibility:this.visibility};
+    state = {...state, visibility:this.visibility,chatEnabled:this.chatEnabled,chatMuted:this.chatMuted};
     for (const conn of this.connections.values()) {
       if (!conn.open || (conn.dataChannel?.bufferedAmount || 0) >= 131072) continue;
       let outgoing=state;
@@ -317,6 +401,7 @@ export class Network {
   kick(id) {
     const conn = this.connections.get(id);
     if (conn) {
+      if(this.kicked.size<128)this.kicked.add(id);
       conn.send({ type: "closed" });
       setTimeout(() => conn.close(), 100);
     }

@@ -1,6 +1,8 @@
 import {RoyaleSimulation} from './royale.js';
 import {RoyaleUI} from './royale-ui.js';
 import {queueCandidates,ITEMS,itemInfo} from './royale-data.js';
+import { ChatPanel } from "./chat-ui.js";
+import { moderateText, safeName } from "./moderation.js";
 import {matchOptions, targetLabel} from "./match-options.js";
 import "./style.css";
 import { CONTROLS, normalizeBindings, validBinding, bindingDown, bindingLabel } from "./keybinds.js";
@@ -62,11 +64,14 @@ const settings = {
   invert: false,
   centerDot: true,
   hitMarkers: true,
+  chatMode: "all",
   ...read("yolk-settings", {}),
 };
 // Migrate the former alternate aim key to dedicated sprint exactly once.
 if(!settings.royaleBindings){if(settings.keybinds?.aim)settings.keybinds.aim=settings.keybinds.aim.map(k=>k==='ShiftLeft'?null:k);settings.royaleBindings=true;}
 settings.keybinds = normalizeBindings(settings.keybinds);
+settings.chatMode = ["all", "quick", "off"].includes(settings.chatMode) ? settings.chatMode : "all";
+save("yolk-profile", profile);
 delete settings.dragLook;
 save("yolk-settings", settings);
 settings.sensitivity = clamp(Number(settings.sensitivity) || 1, 0.2, 3);
@@ -130,6 +135,25 @@ $("#app").innerHTML =
 const dialog = $("#dialog");
 const royaleUI = new RoyaleUI(id=>view.weaponPreview(id));
 let matchRequest=0, autoQueue=false, swapSlot=-1;
+const chat = new ChatPanel($("#app"), {
+  context: () => ({state, localId, preference:settings.chatMode, connected:!!net?.ready && !net.closed && screen!=="menu", host:!!net?.isHost, enabled:net?.chatEnabled, roomMuted:net?.chatMuted||[]}),
+  setPreference: value => {settings.chatMode=value;save("yolk-settings",settings);},
+  send: payload => net?.chat(payload) || {ok:false,reason:"disconnected"},
+  report: (id,reason) => net?.reportChat(id,reason),
+  silence: (id,value) => net?.setChatMuted(id,value),
+  enable: value => net?.setChatEnabled(value),
+  remove: id => net?.kick(id),
+  open: () => {
+    keys.clear();queuedActions.clear();scoreHeld=false;
+    input.fire=false;input.aim=false;
+    Object.assign(touch,{x:0,y:0,jump:false,fire:false,aim:false,reload:false,popper:false,sprint:false,interact:false});
+    if(document.pointerLockElement)document.exitPointerLock();
+  },
+  close: () => {
+    keys.clear();queuedActions.clear();
+    if(net?.ready && !net.closed && screen==="game" && state?.phase==="playing" && !dialog.open)void resume();
+  },
+});
 function remember() {
   save("yolk-profile", profile);
   if (sim) sim.setProfile(localId, profile);
@@ -141,7 +165,7 @@ function titleBar() {
 function renderMenu() {
   const w = weapon(profile.weapon);
   $("#menu").innerHTML =
-    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false"><button class="primary royale-home" data-action="royale-home">YOLK ROYALE <span>↗</span><small>DROP IN · LOOT UP · LAST EGG STANDING</small></button><button class="secondary" data-action="setup">CREATE MATCH <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. 8 in arenas. 16 in Royale.<br>No accounts or downloads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
+    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="name-safety"><p class="name-safety" id="name-safety" role="status">Use a nickname. Keep personal details private.</p><button class="primary royale-home" data-action="royale-home">YOLK ROYALE <span>↗</span><small>DROP IN · LOOT UP · LAST EGG STANDING</small></button><button class="secondary" data-action="setup">CREATE MATCH <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. 8 in arenas. 16 in Royale.<br>No accounts or downloads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
       (w) => !w.secondary,
     )
       .map(
@@ -161,7 +185,10 @@ function renderMenu() {
         "",
       )}<button class="plain" data-action="customize">Egg studio</button><p class="hint">${stats.matches} matches · ${stats.kills} eliminations</p></section></main><div class="footer"><span>YOLK YARD · ORIGINAL EGG ARENA</span><span class="footer-right">WASD + MOUSE &nbsp; / &nbsp; <button data-action="about">About & credits</button></span></div>`;
   $("#player-name").addEventListener("change", (e) => {
-    profile.name = safeProfile({ name: e.target.value }).name;
+    const checked=moderateText(e.target.value,{kind:"name"});
+    profile.name = safeName(e.target.value);
+    $("#name-safety").textContent=checked.ok ? "Use a nickname. Keep personal details private." : "That name was filtered. Please choose a friendly nickname.";
+    const caption=$(".character-caption strong");if(caption)caption.textContent=profile.name;
     e.target.value = profile.name;
     remember();
   });
@@ -216,7 +243,7 @@ function settingsMenu() {
       )
       .join(
         "",
-      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Keybinds</h3><p class="small" id="binding-help" role="status">Choose a binding, then press a key or mouse button. Esc cancels; Delete clears. Esc always opens the menu.</p><div class="keybind-list">${CONTROLS.map(([id,label]) => `<div class="keybind-row"><span>${label}</span>${settings.keybinds[id].map((code, slot) => `<button data-bind="${id}" data-bind-slot="${slot}" aria-label="Bind ${label} ${slot ? 'alternate' : 'primary'}">${bindingLabel(code)}</button>`).join('')}</div>`).join('')}</div><button data-reset-bindings style="margin-top:16px">Reset default keybinds</button><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
+      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Chat & privacy</h3><div class="setting-row"><label for="chatMode" class="setting-label">Chat messages</label><select id="chatMode" data-setting="chatMode"><option value="all" ${settings.chatMode === "all" ? "selected" : ""}>Filtered messages</option><option value="quick" ${settings.chatMode === "quick" ? "selected" : ""}>Quick messages only</option><option value="off" ${settings.chatMode === "off" ? "selected" : ""}>Off</option></select></div><p class="small">The safety filter stays on in every room. Use Chat → Players & safety to mute or report a player.</p><h3>Keybinds</h3><p class="small" id="binding-help" role="status">Choose a binding, then press a key or mouse button. Esc cancels; Delete clears. Esc always opens the menu.</p><div class="keybind-list">${CONTROLS.map(([id,label]) => `<div class="keybind-row"><span>${label}</span>${settings.keybinds[id].map((code, slot) => `<button data-bind="${id}" data-bind-slot="${slot}" aria-label="Bind ${label} ${slot ? 'alternate' : 'primary'}">${bindingLabel(code)}</button>`).join('')}</div>`).join('')}</div><button data-reset-bindings style="margin-top:16px">Reset default keybinds</button><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
     "settings",
   );
 }
@@ -339,6 +366,13 @@ function joinMenu(code = "") {
 }
 function callbacks() {
   return {
+    getChatState: () => sim ? sim.snapshot() : state,
+    onChat: message => chat.receive(message),
+    onChatStatus: result => chat.feedback(result),
+    onChatReport: report => {
+      const text=`${report.reporter} reported ${report.target}: ${report.reason}. Open Chat → Players & safety to review.`;
+      chat.status.textContent=text;toast(text);
+    },
     onJoin: (id, p) => {
       if (!sim) return false;
       if(sim.options.mode==='royale')return !!sim.addPlayer(id,p);
@@ -383,6 +417,7 @@ function callbacks() {
   };
 }
 function beginSim() {
+  chat.reset();
   sim = options.mode==='royale'?new RoyaleSimulation(options):new Simulation(options);
   sim.addPlayer("host", profile);
   localId = "host";
@@ -451,6 +486,7 @@ async function joinRoom(publicCode, quiet=false) {
     `<div class="spinner"></div><p>Looking for ${formatCode(code)}…</p><button class="plain" data-action="cancel-connect" style="margin-top:18px">Cancel</button>`,
     "connecting",
   );
+  chat.reset();
   const attempt = new Network(callbacks());
   net = attempt;
   sim = null;
@@ -528,6 +564,10 @@ async function resume(capture = true) {
   keys.clear();
   scoreHeld = false;
   queuedActions.clear();
+  // Returning from a chat input must restore keyboard focus as well as mouse
+  // capture; otherwise the hidden input can keep swallowing menu/move keys.
+  $("#world").tabIndex = -1;
+  $("#world").focus({preventScroll:true});
   sound.unlock();
   if (capture && !state?.players.find(p => p.id === localId)?.spectating && !matchMedia("(pointer:coarse)").matches) {
     try {
@@ -557,11 +597,11 @@ function playerAction(action) {
 }
 function pauseMenu() {
   if(screen!=='game')return;
-  if(state?.royale){modal('Take a breather',`<p>${net?'The match keeps running while this menu is open.':'The local match is paused.'} One life per round. Eliminated eggs spectate the survivors.</p><button class="primary" data-action="resume">RESUME</button><div class="split-actions"><button data-action="royale-map">Island map</button><button data-action="royale-inventory">Inventory</button><button data-action="settings">Settings</button></div>${visibilityButton()}<button class="secondary" data-action="leave-confirm">${net?.isHost?'Close room':'Leave match'}</button>`,'pause');return;}
+  if(state?.royale){modal('Take a breather',`<p>${net?'The match keeps running while this menu is open.':'The local match is paused.'} One life per round. Eliminated eggs spectate the survivors.</p><button class="primary" data-action="resume">RESUME</button><div class="split-actions"><button data-action="royale-map">Island map</button><button data-action="royale-inventory">Inventory</button><button data-action="settings">Settings</button></div>${net?'<button class="plain" data-action="chat">Chat & player controls</button>':''}${visibilityButton()}<button class="secondary" data-action="leave-confirm">${net?.isHost?'Close room':'Leave match'}</button>`,'pause');return;}
 
   modal(
     "Take a breather",
-    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "The local match is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${visibilityButton()}${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
+    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "The local match is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${net ? '<button class="plain" data-action="chat" style="margin-top:12px">Chat & player controls</button>' : ""}${visibilityButton()}${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
     "pause",
   );
 }
@@ -577,6 +617,7 @@ function leave(confirm = false) {
   matchRequest++;autoQueue=false;sound.stopWorld();royaleUI.waypoint=null;royaleUI.root.hidden=true;document.body.classList.remove('in-royale');
   net?.destroy();
   net = null;
+  chat.reset();
   sim = null;
   state = null;
   predicted = null;
@@ -629,7 +670,7 @@ function resultsMenu() {
   }
   modal(
     state.royale ? state.royale.winnerId===localId ? "VICTORY YOLK!" : "Round complete" : "That’s a wrap.",
-    `<div class="results"><div class="eyebrow">${state.royale?`YOUR PLACEMENT ${p?.place?'#'+p.place:'SPECTATOR'} · ${p?.kills||0} ELIMINATIONS`:`ROUND ${state.round} COMPLETE`}</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions">${state.royale?'<button class="plain" data-action="royale-queue">Find public match</button>':'<button class="plain" data-action="loadout">Change loadout</button>'}<button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
+    `<div class="results"><div class="eyebrow">${state.royale?`YOUR PLACEMENT ${p?.place?'#'+p.place:'SPECTATOR'} · ${p?.kills||0} ELIMINATIONS`:`ROUND ${state.round} COMPLETE`}</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}${net ? '<button class="plain" data-action="chat">Chat & player controls</button>' : ""}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions">${state.royale?'<button class="plain" data-action="royale-queue">Find public match</button>':'<button class="plain" data-action="loadout">Change loadout</button>'}<button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
     "results",
   );
 }
@@ -864,6 +905,7 @@ const actions = {
  'royale-jump':()=>{if(paused)resume(false);queuedActions.add('jump');sound.unlock();},
  'royale-drop':()=>inventoryAction('drop'),
 
+  chat: () => chat.open(),
   updates: () => modal("Update history", RELEASES.map(r =>
     `<article class="release-note"><div class="eyebrow">UPDATE ${esc(r.number)}</div><h3>${esc(r.title)}</h3><ul>${r.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul></article>`).join("")),
   "enter-yard": () => playerAction(state?.players.find(p => p.id === localId)?.awaitingEntry ? "rejoin" : "respawn"),
@@ -923,7 +965,7 @@ const actions = {
   about: () =>
     modal(
       "Made for a good scramble",
-      `<p>Yolk Yard is an original, independent egg arena shooter. Its maps, characters, blasters, UI, and sounds were created for this game.</p><p style="margin-top:14px">3D rendering: Three.js (MIT). Multiplayer connections: PeerJS (MIT). This game is not affiliated with Shell Shockers or Blue Wizard Digital.</p><p style="margin-top:14px">Settings and match totals stay in this browser. Rooms share your chosen name and game state with other players. Public rooms also share their room code and details in the directory. No chat, camera, or microphone.</p><p class="hint">Version 2.0 · All gameplay code is included in the project.</p>`,
+      `<p>Yolk Yard is an original, independent egg arena shooter. Its maps, characters, blasters, UI, and sounds were created for this game.</p><p style="margin-top:14px">3D rendering: Three.js (MIT). Multiplayer connections: PeerJS (MIT). This game is not affiliated with Shell Shockers or Blue Wizard Digital.</p><p style="margin-top:14px">Settings and match totals stay in this browser. Rooms share your chosen name and game state with other players. Public rooms also share their room code and details in the directory. Filtered text chat is shared only within your room or team. Chat history stays in memory and clears when you leave. Reports notify the room host. No camera or microphone.</p><p class="hint">Version 2.0 · All gameplay code is included in the project.</p>`,
       "about",
     ),
 };
@@ -992,6 +1034,7 @@ document.addEventListener("pointerlockchange", () => {
     !document.pointerLockElement &&
     screen === "game" &&
     !paused &&
+    !chat.opened &&
     state?.players.find(p => p.id === localId)?.health > 0 &&
     !matchMedia("(pointer:coarse)").matches
   )
@@ -1049,7 +1092,11 @@ function captureBinding(e) {
 document.addEventListener('keydown', captureBinding, true);
 document.addEventListener('mousedown', captureBinding, true);
 document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input,select,textarea") || screen !== 'game' || dialog.open) return;
+  if (chat.opened || e.target.matches("input,select,textarea") || dialog.open) return;
+  if (settings.keybinds.chat.includes(e.code) && net?.ready && screen!=="menu") {
+    e.preventDefault();if(!e.repeat)chat.open();return;
+  }
+  if (screen !== 'game') return;
   if (e.code === 'Escape') {
     e.preventDefault();
     if (!e.repeat) pauseMenu();
@@ -1081,7 +1128,7 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 $("#world").addEventListener("mousedown", (e) => {
-  if (screen !== "game" || paused || dialog.open) return;
+  if (screen !== "game" || paused || dialog.open || chat.opened) return;
   e.preventDefault();
   pressControl(`Mouse${e.button}`);
 });
@@ -1097,7 +1144,7 @@ document.addEventListener("mousemove", (e) => {
   if (
     screen !== "game" ||
     paused ||
-    !document.pointerLockElement
+    !document.pointerLockElement || chat.opened
   )
     return;
   input.yaw -=
@@ -1123,7 +1170,7 @@ document.addEventListener('click',e=>{
  if(e.target.closest('button')){sound.unlock();sound.cue('ui-select',null,.45);}
 });
 document.addEventListener('pointerover',e=>{const b=e.target.closest('button');if(b&&!b.contains(e.relatedTarget))sound.cue('ui-hover');});
-document.addEventListener('wheel',e=>{if(screen==='game'&&state?.royale&&!paused&&!dialog.open){e.preventDefault();input.slot=(input.slot+(e.deltaY>0?1:4))%5;}},{passive:false});
+document.addEventListener('wheel',e=>{if(screen==='game'&&state?.royale&&!paused&&!dialog.open&&!chat.opened){e.preventDefault();input.slot=(input.slot+(e.deltaY>0?1:4))%5;}},{passive:false});
 document.addEventListener("contextmenu", (e) => {
   if (screen === "game") e.preventDefault();
 });
@@ -1183,7 +1230,7 @@ document.addEventListener("graphics-lost", () => {
   );
 });
 function frameInput() {
-  const active = screen === "game" && !paused && !dialog.open && state?.players.find(p => p.id === localId)?.health > 0;
+  const active = screen === "game" && !paused && !dialog.open && !chat.opened && state?.players.find(p => p.id === localId)?.health > 0;
   const nextInput = {
     seq: ++seq,
     yaw: input.yaw,
@@ -1294,10 +1341,11 @@ function loop(now) {
     renderPlayer,
     dt,
     screen === "game",
-    !paused && (actionDown("aim") || touch.aim),
+    !paused && !chat.opened && (actionDown("aim") || touch.aim),
     profile,
   );
   if (hudClock > 0.06) {
+    chat.update();
     hud();
     hudClock = 0;
   }
@@ -1323,6 +1371,9 @@ try {
 // Development-only diagnostics. Vite removes this branch from the published bundle.
 if (import.meta.env.DEV && new URL(location.href).searchParams.has("qa"))
   window.__yolkTest = {
+    chatRead: () => ({rows:chat.inbox.rows,open:chat.opened,muted:[...chat.inbox.muted],chatEnabled:net?.chatEnabled}),
+    chatPacket: packet => net?.send(packet),
+    chatInject: message => {for(const conn of net?.connections.values()||[])conn.send({type:"chat-message",message});},
     checkUpdate: () => updates.check(),
     read: () => ({
       state,

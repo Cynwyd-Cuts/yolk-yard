@@ -66,8 +66,61 @@ button:active {
 #app input,
 #app select,
 #app dialog,
-#app a {
+#app a,
+#app summary {
   pointer-events: auto;
+}
+
+.name-safety { font-size: .73rem; line-height: 1.4; color: #47606a; margin: -5px 0 16px; }
+.chat-toggle { position: fixed; left: 22px; bottom: 24px; z-index: 15; padding: 12px 19px; border-radius: 14px; color: #fff8df; background: #183c40; box-shadow: 0 5px 20px #102a332b; font-weight: 800; font-size: .88rem; }
+.in-game .chat-toggle { bottom: 142px; }
+.chat-peek { position: fixed; left: 22px; bottom: 197px; width: 320px; z-index: 12; padding: 12px 16px; border-radius: 14px; background: #102c35d9; color: #fff8df; pointer-events: none; }
+.chat-peek .chat-message { padding: 5px 0; border: 0; font-size: .82rem; }
+#chat-panel { position: fixed; inset: auto auto 24px 22px; transform: none; margin: 0; padding: 0; width: 410px; max-width: calc(100vw - 24px); max-height: min(760px, calc(100dvh - 48px)); overflow: auto; border: 1px solid #94b0a2; border-radius: 20px; background: #fffbed; color: #18383c; box-shadow: 0 18px 70px #071a2e6b; font-family: inherit; }
+#chat-panel::backdrop { background: #0b243021; backdrop-filter: none; }
+.chat-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px 14px; background: #193f43; color: #fff6d9; }
+.chat-head h2 { font-size: 1.55rem; line-height: 1.2; margin-top: 4px; }
+.chat-eyebrow { font-size: .62rem; letter-spacing: .14em; font-weight: 800; color: #a5e6cc; }
+.chat-close { font-size: 1.7rem; border: 1px solid #70978b; border-radius: 50%; width: 38px; height: 38px; background: transparent; line-height: 1; }
+.chat-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 13px 18px 5px; }
+.chat-toolbar label { display: flex; align-items: center; gap: 8px; font-size: .75rem; font-weight: 800; }
+#chat-panel select { background: #eef1dc; color: #1a3b3d; border: 1px solid #b9c7ac; border-radius: 8px; padding: 7px; font-size: .8rem; width: auto; max-width: 100%; }
+.chat-shield { border-radius: 20px; background: #deefce; color: #335937; font-size: .67rem; font-weight: 800; padding: 6px 9px; white-space: nowrap; }
+.chat-audience { padding: 4px 18px 12px; color: #536b65; font-size: .72rem; }
+.chat-log { min-height: 125px; height: min(27dvh, 230px); overflow: auto; overscroll-behavior: contain; padding: 0 18px; background: #f3f3e3; border-block: 1px solid #d8dec8; pointer-events: auto; }
+.chat-empty { color: #60736b; font-size: .84rem; line-height: 1.6; padding: 25px 12px; text-align: center; }
+.chat-message { padding: 10px 0; border-bottom: 1px solid #d6dec875; animation: chat-arrive .16s ease-out; }
+.chat-message-head { display: flex; align-items: center; gap: 8px; font-size: .73rem; }
+.chat-message-head span { font-size: .56rem; letter-spacing: .06em; opacity: .72; }
+.chat-message p { font-size: .85rem; line-height: 1.5; overflow-wrap: anywhere; margin-top: 3px; white-space: pre-wrap; }
+.chat-status { color: #805325; font-size: .75rem; line-height: 1.5; padding: 0 18px; }
+.chat-status:not(:empty) { padding-top: 10px; }
+.chat-compose { display: flex; gap: 8px; padding: 12px 16px 6px; }
+#chat-input { width: 100%; min-width: 0; border: 1px solid #aebea6; background: white; color: #193a3d; border-radius: 10px; padding: 12px 10px; font: inherit; font-size: 16px; }
+#chat-input::placeholder { font-size: .74rem; color: #688075; }
+.chat-send { background: #245a51; color: #fffbed; border-radius: 10px; padding: 0 15px; font-weight: 800; white-space: nowrap; }
+.chat-input-meta { display: flex; justify-content: space-between; gap: 12px; padding: 0 18px 12px; font-size: .62rem; color: #607366; }
+.chat-quick, .chat-safety { border-top: 1px solid #dce1ce; padding: 12px 18px; pointer-events: auto; }
+#chat-panel summary { cursor: pointer; font-size: .79rem; font-weight: 800; }
+.chat-quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding-top: 12px; }
+.chat-quick-grid button { font-size: .72rem; padding: 10px 5px; border-radius: 8px; background: #e5ecd7; }
+.chat-preference { display: flex; align-items: center; justify-content: space-between; font-size: .76rem; margin: 12px 0; }
+.chat-player { padding: 12px 0; border-top: 1px solid #d9dfcc; font-size: .85rem; }
+.chat-player-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px; }
+.chat-player-actions button, .chat-host-controls button, .chat-report button { background: #e1e9d3; border-radius: 7px; padding: 8px 12px; font-size: .71rem; }
+.chat-host-controls { margin: 12px 0; }
+.chat-report { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chat-fine { font-size: .68rem; line-height: 1.5; color: #5b7165; margin-top: 10px; }
+.chat-sr { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+#chat-panel button:disabled, #chat-panel input:disabled { opacity: .5; cursor: not-allowed; }
+@keyframes chat-arrive { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .chat-message { animation: none; } }
+@media (max-width: 600px) {
+  #chat-panel { inset: auto 12px max(12px, env(safe-area-inset-bottom)) 12px; width: auto; max-height: calc(100dvh - 24px); border-radius: 16px; }
+  .chat-toggle { left: 12px; bottom: 14px; padding: 10px 15px; }
+  .in-game .chat-toggle { left: 12px; bottom: 220px; }
+  .chat-peek { left: 12px; bottom: 269px; width: min(300px, calc(100vw - 24px)); }
+  .chat-log { height: 22dvh; }
 }
 .boot {
   margin: 20vh auto;
@@ -1452,5 +1505,8 @@ button:disabled { opacity: 0.55; cursor: default; }
 
 .royale-flight.airborne{top:154px;padding:9px 16px;width:min(390px,64vw)}
 .royale-flight.airborne .eyebrow{display:none}.royale-flight.airborne strong{font-size:16px;margin:0}.royale-flight.airborne p{font-size:11px;margin:5px 0}.royale-flight.airborne button{padding:9px;font-size:12px;min-height:35px}
+.in-royale .chat-toggle{bottom:178px}
+.in-royale .chat-peek{bottom:232px}
+@media(pointer:coarse){.in-royale .chat-toggle{left:160px;bottom:138px;padding:8px 10px;min-height:34px;font-size:11px}.in-royale .chat-peek{bottom:365px}}
 @media(pointer:coarse) and (max-width:600px){.royale-flight.airborne{top:227px;width:86vw}.royale-flight.airborne p{font-size:10px}}
 @media(pointer:coarse) and (max-width:600px) and (max-height:740px){.royale-flight.airborne{top:170px}}
