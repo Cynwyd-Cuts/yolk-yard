@@ -1,3 +1,7 @@
+# Current protected release
+
+Run `npm test`, `npm run build`, and `npm run test:access-browser`. See [HOSTING.md](HOSTING.md). The older scripts and notes below target the retired PeerJS transport and are retained as reference only.
+
 # Verification
 
 The current commit's GitHub Actions run is the authority for release status.

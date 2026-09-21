@@ -1,0 +1,27 @@
+# This creates paid infrastructure only when you explicitly deploy this Blueprint.
+services:
+  - type: web
+    name: yolk-yard
+    runtime: node
+    plan: 0.5c-512mb
+    numInstances: 1
+    region: virginia
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: "off"
+    disk:
+      name: yolk-access
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: DATA_FILE
+        value: /var/data/access.sqlite
+      - key: ADMIN_SECRET
+        generateValue: true
+      - key: APP_ORIGIN
+        sync: false

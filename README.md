@@ -1,3 +1,11 @@
+# Yolk Yard — protected multiplayer
+
+This branch adds browser approval, single-use activation codes, owner controls, public/private room discovery, and a server-authoritative match service. It requires a persistent Node 24 server. See [HOSTING.md](HOSTING.md) for setup, access behavior, tests, and the migration from GitHub Pages.
+
+The legacy instructions below describe the earlier static/PeerJS release and do not apply to this protected build.
+
+<details><summary>Legacy release documentation</summary>
+
 # Yolk Yard
 
 An original 3D multiplayer egg arena shooter built for GitHub Pages. JavaScript,
@@ -161,3 +169,5 @@ metadata, and peers can learn each other's network addresses through WebRTC.
 No analytics, advertisements, camera, microphone, or payment systems are used.
 
 See `THIRD_PARTY.md` for open-source notices. Original code is MIT licensed.
+
+</details>

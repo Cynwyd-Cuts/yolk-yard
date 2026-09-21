@@ -1341,3 +1341,9 @@ body.in-game {
 #spectate-panel[hidden] { display:none; }
 #spectate-info { margin:8px 0 12px; font-size:14px; }
 .spectating .hud-bottom, .spectating .mobile-controls { display:none; }
+
+.public-room-list { margin: 20px 0; }
+.public-room { display: flex; gap: 20px; align-items: center; justify-content: space-between; padding: 18px 0; border-top: 1px solid #49645a; }
+.public-room p { margin: 6px 0; }
+.public-room .secondary { width: auto; min-width: 85px; margin: 0; }
+.empty-rooms { padding: 28px 0; }
