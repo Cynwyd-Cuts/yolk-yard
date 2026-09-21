@@ -71,6 +71,24 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
     body = new THREE.Mesh(eggGeo, mat(profile.color || "#fff6da"));
   body.castShadow = true;
   group.add(body);
+  // Jagged paths follow the same lathed shell surface and reveal with damage.
+  const cracks = [];
+  for (let n = 0; n < 12; n++) {
+    const points = [];
+    for (let j = 0; j <= 14; j++) {
+      const t = 0.22 + j / 14 * 2.65;
+      const angle = n * Math.PI / 6 + Math.sin(j * 2.4 + n) * 0.085;
+      const r = Math.sin(t) * (0.55 - 0.1 * t / Math.PI) + 0.007;
+      points.push(new THREE.Vector3(Math.sin(angle)*r, 0.08+0.8*(1-Math.cos(t)), Math.cos(angle)*r));
+    }
+    const crack = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.LineBasicMaterial({color: 0x44332d}));
+    crack.visible = false;
+    group.add(crack);
+    cracks.push(crack);
+  }
+  group.userData.cracks = cracks;
+
   const trim = team < 0 ? 0xf2b933 : TEAM_COLORS[team];
   const band = new THREE.Mesh(
     new THREE.TorusGeometry(0.446, 0.064, 8, 30),
@@ -126,7 +144,7 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
   }
   return group;
 }
-function label(text, color = "#ffffff") {
+function label(text, color = "#ffffff", compact = false) {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 96;
@@ -137,7 +155,7 @@ function label(text, color = "#ffffff") {
   ctx.fillStyle = "rgba(23,43,57,.82)";
   ctx.beginPath();
   ctx.roundRect(10, 7, 492, 80, 24);
-  ctx.fill();
+  if (!compact) ctx.fill();
   ctx.fillStyle = color;
   ctx.fillText(text.slice(0, 22), 256, 49, 460);
   const texture = new THREE.CanvasTexture(c);
@@ -273,6 +291,7 @@ export class View {
   }
   disposeGroup(group) {
     group.traverse((o) => {
+      if (o.isLine) { o.geometry.dispose(); o.material.dispose(); }
       if (o.isSprite) {
         o.material.map?.dispose();
         o.material.dispose();
@@ -437,6 +456,14 @@ export class View {
     ball(this.gunGroup, -0.07, -0.14, -0.4, 0.08, 0.09, 0.11, p.color);
   }
   event(e, localId) {
+    if (e.type === "hit" && e.player === localId && Number.isFinite(e.x)) {
+      const mesh = label(String(e.amount) + (e.precision ? " CRIT" : ""), e.precision ? "#ffcf52" : "#ffffff", true);
+      mesh.scale.set(1.25, 0.24, 1);
+      mesh.position.set(e.x + (e.id % 3 - 1) * 0.16, e.y, e.z);
+      this.effects.add(mesh);
+      this.fx.push({mesh, life: 0.8, max: 0.8, damageText: true});
+    }
+
     if (e.type === "shot" || e.type === "launch") {
       if (e.player === localId) this.recoil = Math.min(1.6, this.recoil + 0.85);
       if (!e.popper)
@@ -616,13 +643,21 @@ export class View {
       this.camera.fov = 51;
       this.camera.updateProjectionMatrix();
     } else if (local) {
-      const p = predicted || local;
+      const killer = local.health <= 0 && state.players.find(p => p.id === local.killerId && p.health > 0);
+      const p = killer || (local.health <= 0 ? local : predicted || local);
       this.camera.position.set(
         p.x,
         p.y + EYE + (local.health <= 0 ? 0.8 : 0),
         p.z,
       );
       this.camera.rotation.set(p.pitch, p.yaw, 0, "YXZ");
+      if (killer) {
+        const back = new THREE.Vector3(Math.sin(p.yaw), 0.35, Math.cos(p.yaw)).normalize();
+        const origin = {x:p.x, y:p.y+1.6, z:p.z};
+        const distance = Math.max(0.1, wallDistance(getMap(state.options.map), origin, back, 3.5)-0.2);
+        this.camera.position.set(origin.x+back.x*distance, origin.y+back.y*distance, origin.z+back.z*distance);
+        this.camera.lookAt(p.x, p.y+1.05, p.z);
+      }
       const w = gun(local),
         scoped = w.optic === "scope" || w.optic === "prism";
       const aiming = aim && local.health > 0 && local.reloadEnd <= state.time;
@@ -675,7 +710,7 @@ export class View {
     if (state) {
       const seen = new Set();
       for (const p of state.players) {
-        if (p.id === local?.id) continue;
+        if (p.id === local?.id && p.health > 0) continue;
         seen.add(p.id);
         const sig =
           p.weapon +
@@ -707,7 +742,12 @@ export class View {
           this.models.set(p.id, model);
           model.position.set(p.x, p.y, p.z);
         }
-        model.visible = p.health > 0;
+        const deathAge = p.health <= 0 ? state.time - (p.respawnAt - 3) : 0;
+        model.visible = p.health > 0 || deathAge < 0.75;
+        model.userData.cracks.forEach((crack, i) => {
+          crack.visible = p.health < 100 && i < Math.ceil((1-p.health/100)*12);
+        });
+
         if (model.userData.blaster) model.userData.blaster.rotation.x = p.pitch;
         if (model.position.distanceTo(new THREE.Vector3(p.x, p.y, p.z)) > 8)
           model.position.set(p.x, p.y, p.z);
@@ -724,6 +764,11 @@ export class View {
             ? 1.03 + Math.sin(this.clock * 10) * 0.02
             : 1,
         );
+        if (p.health <= 0) {
+          const collapse = Math.min(1, Math.max(0, deathAge - 0.2) / 0.55);
+          model.scale.set(1 + collapse * 0.25, 1 - collapse * 0.95, 1 + collapse * 0.25);
+          model.rotation.z = collapse * 0.35;
+        } else model.rotation.z = 0;
       }
       for (const [id, model] of this.models)
         if (!seen.has(id)) {
@@ -838,6 +883,7 @@ export class View {
       f.life -= dt;
       if (f.life <= 0) {
         this.effects.remove(f.mesh);
+        if (f.mesh.isSprite) { f.mesh.material.map?.dispose(); f.mesh.material.dispose(); }
         if (f.ownedMaterial) f.mesh.material.dispose();
         if (f.ownedGeometry) f.mesh.geometry.dispose();
         if (f.mesh.isLine) {
@@ -845,6 +891,9 @@ export class View {
           f.mesh.material.dispose();
         }
         this.fx.splice(i, 1);
+      } else if (f.damageText) {
+        f.mesh.position.y += dt * 0.65;
+        f.mesh.material.opacity = Math.min(1, f.life / 0.3);
       } else if (f.v) {
         if (!f.noGravity) f.v.y -= 12 * dt;
         f.mesh.position.addScaledVector(f.v, dt);

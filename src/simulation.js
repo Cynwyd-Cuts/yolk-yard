@@ -17,6 +17,7 @@ import {
   direction,
   wallDistance,
   rayEgg,
+  isCenterHit,
   dist,
   EYE,
 } from "./physics.js";
@@ -99,6 +100,7 @@ export class Simulation {
       shieldUntil: 0,
       lastDamage: -100,
       respawnAt: 0,
+      killerId: null,
       crown: null,
       ack: 0,
       lastInput: 0,
@@ -230,6 +232,7 @@ export class Simulation {
       shieldUntil: this.time + 2.3,
       lastDamage: this.time,
       respawnAt: 0,
+      killerId: null,
       crown: null,
     });
     this.inputs.delete(p.id);
@@ -514,14 +517,14 @@ export class Simulation {
       if (victim || hit) {
         if (b.kind === "bolt") {
           if (victim) {
-            const precision = b.y > victim.y + 1.36,
+            const precision = isCenterHit(b, d, victim),
               w = weapon(b.weapon),
               falloff =
                 w.id === "scatter" ? Math.max(0.28, 1 - b.travelled / 42) : 1;
             this.damage(
               victim,
               attacker,
-              b.damage * falloff * (precision ? 1.3 : 1),
+              b.damage * falloff * (precision ? 1.15 : 1),
               w.name,
               precision,
             );
@@ -591,15 +594,18 @@ export class Simulation {
   }
   damage(victim, attacker, amount, source, precision = false) {
     if (victim.health <= 0 || this.time < victim.shieldUntil) return;
+    const applied = Math.min(victim.health, amount);
     victim.health = Math.max(0, victim.health - amount);
     victim.lastDamage = this.time;
     this.emit("hit", {
       player: attacker?.id,
       target: victim.id,
-      amount: Math.round(amount),
+      amount: Math.round(applied),
+      x: victim.x, y: victim.y + 2.35, z: victim.z,
       precision,
     });
     if (victim.health > 0) return;
+    victim.killerId = attacker && attacker !== victim ? attacker.id : null;
     victim.deaths++;
     victim.streak = 0;
     victim.respawnAt = this.time + 3;
@@ -857,6 +863,7 @@ export class Simulation {
       "poppers",
       "shieldUntil",
       "respawnAt",
+      "killerId",
       "crown",
       "ack",
       "aim",

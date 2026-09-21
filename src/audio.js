@@ -40,6 +40,11 @@ export class Sound {
     );
     this.tone(700, 0.045, "square", vol * 0.18, 120);
   }
+  death(distance = 0) {
+    const v = 0.22 / (1 + distance / 10);
+    this.tone(1100, 0.08, "square", v * 0.3, 150);
+    this.tone(300, 0.38, "triangle", v, 45);
+  }
   hit() {
     this.tone(780, 0.055, "sine", 0.15, 1250);
   }

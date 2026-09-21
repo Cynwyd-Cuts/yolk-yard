@@ -208,3 +208,11 @@ export function worldHit(map, o, d, max = 200, radius = 0) {
   }
   return result;
 }
+
+// Distance from the shot ray to the shell center in normalized egg space.
+export function isCenterHit(o, d, p) {
+  const a = [(o.x-p.x)/0.53, (o.y-p.y-0.87)/0.87, (o.z-p.z)/0.53];
+  const v = [d.x/0.53, d.y/0.87, d.z/0.53];
+  const t = -a.reduce((s,x,i)=>s+x*v[i],0)/v.reduce((s,x)=>s+x*x,0);
+  return t >= 0 && a.reduce((s,x,i)=>s+(x+t*v[i])**2,0) <= 0.32**2;
+}

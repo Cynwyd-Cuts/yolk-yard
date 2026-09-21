@@ -6,6 +6,7 @@ import {
   movePlayer,
   direction,
   rayEgg,
+  isCenterHit,
   wallDistance,
   sanitizeInput,
   muzzleOrigin,
@@ -120,10 +121,15 @@ test("server controls hit damage, ammunition, shielding, and respawn", () => {
   s.fire(a);
   assert.equal(b.health, 100, "Damage waits for the projectile to arrive");
   advance(s, 6);
+  assert.equal(b.health, 16);
+  s.time = 14;
+  s.fire(a);
+  advance(s, 6);
   assert.equal(b.health, 0);
+  assert.equal(b.killerId, a.id);
   assert.equal(a.kills, 1);
   assert.equal(b.deaths, 1);
-  assert.equal(a.ammo[0], 3);
+  assert.equal(a.ammo[0], 2);
   s.time = b.respawnAt;
   s.tick(1 / 60);
   assert.equal(b.health, 100);
@@ -373,4 +379,27 @@ test("expanded arenas have usable objectives and multi-level navigation", () => 
   assert.ok(path.some((p) => p.y >= 3.15));
   const pass = worldHit(map, { x: 0, y: 1.43, z: 5 }, direction(0), 10);
   assert.equal(pass, null, "Underpass remains clear");
+});
+
+test("center hits reward aim without rewarding the shell rim", () => {
+  const p = {x:0,y:0,z:0}, d = {x:0,y:0,z:-1};
+  assert.equal(isCenterHit({x:0,y:0.87,z:8},d,p),true);
+  assert.equal(isCenterHit({x:0.4,y:0.87,z:8},d,p),false);
+  assert.equal(isCenterHit({x:0,y:1.5,z:8},d,p),false);
+  const {s,a,b} = fixture();
+  a.weapon = "needle";
+  a.pitch = Math.atan2(0.87-1.43,8);
+  s.fire(a);
+  advance(s, 6);
+  assert.ok(Math.abs(b.health-3.4)<0.001);
+  const event=s.events.find(e=>e.type==="hit");
+  assert.equal(event.precision,true);
+  assert.equal(event.amount,97);
+});
+test("lethal damage reports remaining health and serializes the killer", () => {
+  const {s,a,b}=fixture();
+  b.health=9;
+  s.damage(b,a,100,"Test",true);
+  assert.equal(s.events.find(e=>e.type==="hit").amount,9);
+  assert.equal(s.snapshot().players.find(p=>p.id===b.id).killerId,a.id);
 });
