@@ -110,7 +110,15 @@ try {
       () => window.__yolkTest.read().state.players[0],
     );
     await host.keyboard.down("KeyW");
-    await host.waitForTimeout(500);
+    // Software-rendered CI can take longer than 500 ms to advance enough frames.
+    // Keep the real key pressed until the same movement threshold is observed.
+    await host.waitForFunction(
+      (origin) => {
+        const p = window.__yolkTest.read().state.players[0];
+        return Math.hypot(p.x - origin.x, p.z - origin.z) > 1;
+      },
+      { x: start.x, z: start.z },
+    );
     await host.keyboard.up("KeyW");
     const moved = await host.evaluate(
       () => window.__yolkTest.read().state.players[0],
