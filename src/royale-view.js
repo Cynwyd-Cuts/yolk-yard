@@ -113,7 +113,8 @@ export class RoyaleView{
  update(state,local,dt,playing){
   this.root.visible=playing&&!!state?.royale;if(!this.root.visible)return;
   const r=state.royale,t=this.view.clock,kit=this.kit;
-  if(this.round!==state.round){for(const group of [this.chests,this.loot,this.gliders,this.pads]){for(const mesh of group.values()){this.root.remove(mesh);this.view.disposeGroup(mesh);}group.clear();}this.round=state.round;}
+  const roundKey=r.matchId+':'+state.round;
+  if(this.round!==roundKey){for(const group of [this.chests,this.loot,this.gliders,this.pads]){for(const mesh of group.values()){this.root.remove(mesh);this.view.disposeGroup(mesh);}group.clear();}this.round=roundKey;}
   this.transport.visible=r.elapsed<=r.route.duration+5;
   const pos=transportAt(r.route,r.elapsed);this.transport.position.set(pos.x,pos.y+Math.sin(t)*.18,pos.z);this.transport.rotation.y=pos.yaw;this.transport.rotation.z=Math.sin(t*.4)*.015;this.rotors.forEach(m=>m.rotation.y+=dt*18);
   this.wall.visible=this.ring.visible=r.storm.active;this.wall.position.set(r.storm.x,85,r.storm.z);this.wall.scale.set(Math.max(.01,r.storm.radius),1,Math.max(.01,r.storm.radius));this.wall.material.opacity=.17+Math.sin(t*.5)*.035;this.ring.position.set(r.storm.x,.15,r.storm.z);this.ring.scale.setScalar(Math.max(.01,r.storm.radius));

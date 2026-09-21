@@ -7,7 +7,7 @@ import {ITEMS,ROYALE_GUN_IDS,ammoType,AMMO_CAPS,randomRarity,makeStorm,stormAt,m
 
 export class RoyaleSimulation extends Simulation {
  constructor(options={}){
-  super({...options,mode:'royale'});this.maxPlayers=this.options.capacity;
+  super({...options,mode:'royale'});this.matchId=globalThis.crypto.randomUUID();this.maxPlayers=this.options.capacity;
   this.loot=[];this.chests=[];this.pads=[];this.lootId=0;this.lootVersion=0;this.startedAt=0;this.elapsed=0;this.alive=0;this.placements=[];this.supplyAt=135;this.queueEnds=0;
  }
  addPlayer(id,profile,bot=false){
@@ -290,7 +290,7 @@ export class RoyaleSimulation extends Simulation {
  snapshot(){
   const state=super.snapshot();
   state.players=state.players.map(p=>{const source=this.players.get(p.id);return {...p,inventory:source.inventory?.map(i=>i?{...i}:null),bank:{...source.bank},shield:source.shield,stamina:source.stamina,sprinting:source.sprinting,exhausted:source.exhausted,sprintRest:source.sprintRest,flight:source.flight,flightLatch:source.flightLatch,eliminated:source.eliminated,eliminatedAt:source.eliminatedAt,place:source.place,use:source.use?{...source.use}:null,chestProgress:source.chestProgress||0};});
-  state.royale={elapsed:this.elapsed,alive:this.alive,route:this.route,storm:this.storm,lootVersion:this.lootVersion,loot:this.loot.map(i=>({...i})),chests:this.chests.map(c=>({...c})),pads:this.pads.map(p=>({...p})),winnerId:this.winnerId,placements:this.placements.map(p=>({...p})),queueEnds:this.queueEnds};
+  state.royale={matchId:this.matchId,elapsed:this.elapsed,alive:this.alive,route:this.route,storm:this.storm,lootVersion:this.lootVersion,loot:this.loot.map(i=>({...i})),chests:this.chests.map(c=>({...c})),pads:this.pads.map(p=>({...p})),winnerId:this.winnerId,placements:this.placements.map(p=>({...p})),queueEnds:this.queueEnds};
   return state;
  }
 }
