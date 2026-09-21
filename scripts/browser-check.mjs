@@ -352,7 +352,7 @@ try {
         Math.hypot(target.x - setup.x, target.z - setup.z) < 0.1
       );
     }, targetSetup);
-    await guest.mouse.move(720, 450);
+    // Mouse is locked: moving the cursor here would turn away from the target.
     await guest.mouse.down();
     await host.waitForFunction(({ id, after }) => window.__yolkTest.read().state.events.some(e => e.id > after && e.type === "shot" && e.player === id), { id: gid, after: targetSetup.eventId });
     await guest.mouse.up();
