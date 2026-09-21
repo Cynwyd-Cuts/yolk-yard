@@ -38,15 +38,18 @@ export function wallDistance(map, o, d, max = 200) {
   if (d.y < 0) t = Math.min(t, -o.y / d.y);
   return t;
 }
+// Small shell margin covers the centered waddle and bounded render smoothing.
+export const EGG_HIT = { radius: 0.62, height: 0.94, center: 0.9 };
 export function rayEgg(o, d, p) {
-  // An ellipsoid matching the rendered egg, not an oversized bounding box.
-  const r = [0.53, 0.87, 0.53],
-    a = [(o.x - p.x) / r[0], (o.y - p.y - 0.87) / r[1], (o.z - p.z) / r[2]],
+  const r = [EGG_HIT.radius, EGG_HIT.height, EGG_HIT.radius],
+    a = [(o.x - p.x) / r[0], (o.y - p.y - EGG_HIT.center) / r[1], (o.z - p.z) / r[2]],
     v = [d.x / r[0], d.y / r[1], d.z / r[2]];
   const A = v.reduce((s, x) => s + x * x, 0),
     B = 2 * a.reduce((s, x, i) => s + x * v[i], 0),
     C = a.reduce((s, x) => s + x * x, 0) - 1,
     D = B * B - 4 * A * C;
+  if (A < 1e-12) return Infinity;
+  if (C <= 0) return 0; // A segment starting inside the shell already overlaps it.
   if (D < 0) return Infinity;
   const t = (-B - Math.sqrt(D)) / (2 * A);
   return t >= 0 ? t : Infinity;
@@ -211,16 +214,25 @@ export function worldHit(map, o, d, max = 200, radius = 0) {
 
 // Distance from the shot ray to the shell center in normalized egg space.
 export function isCenterHit(o, d, p) {
-  const a = [(o.x-p.x)/0.53, (o.y-p.y-0.87)/0.87, (o.z-p.z)/0.53];
-  const v = [d.x/0.53, d.y/0.87, d.z/0.53];
+  const a = [(o.x-p.x)/EGG_HIT.radius, (o.y-p.y-EGG_HIT.center)/EGG_HIT.height, (o.z-p.z)/EGG_HIT.radius];
+  const v = [d.x/EGG_HIT.radius, d.y/EGG_HIT.height, d.z/EGG_HIT.radius];
   const t = -a.reduce((s,x,i)=>s+x*v[i],0)/v.reduce((s,x)=>s+x*x,0);
   return t >= 0 && a.reduce((s,x,i)=>s+(x+t*v[i])**2,0) <= 0.32**2;
 }
 
 // The reference damage curve depends on the incidence angle, not a flat bonus.
 export function shellDamageFactor(hit, direction, egg) {
-  const normal = [(hit.x - egg.x) / 0.53 ** 2,
-    (hit.y - egg.y - 0.87) / 0.87 ** 2, (hit.z - egg.z) / 0.53 ** 2];
+  const depth = ((hit.x - egg.x) / EGG_HIT.radius) ** 2
+    + ((hit.y - egg.y - EGG_HIT.center) / EGG_HIT.height) ** 2
+    + ((hit.z - egg.z) / EGG_HIT.radius) ** 2;
+  if (depth < 1 - 1e-7) {
+    // An overlapping spawn still scores the entry surface of its shot line.
+    const back = {x:hit.x-direction.x*2, y:hit.y-direction.y*2, z:hit.z-direction.z*2};
+    const entry = rayEgg(back, direction, egg);
+    if (Number.isFinite(entry)) hit = {x:back.x+direction.x*entry, y:back.y+direction.y*entry, z:back.z+direction.z*entry};
+  }
+  const normal = [(hit.x - egg.x) / EGG_HIT.radius ** 2,
+    (hit.y - egg.y - EGG_HIT.center) / EGG_HIT.height ** 2, (hit.z - egg.z) / EGG_HIT.radius ** 2];
   const length = Math.hypot(...normal) || 1;
   const incidence = clamp(-(normal[0] * direction.x + normal[1] * direction.y + normal[2] * direction.z) / length, 0, 1);
   const base = 0.2 + 0.8 * incidence;

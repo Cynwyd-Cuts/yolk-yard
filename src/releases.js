@@ -1,4 +1,5 @@
 export const RELEASE_NOTES = [
+  { number: "18", title: "More reliable shell hits", changes: ["Hitboxes cover the animated shell, with centered waddling and less visual lag on moving eggs.", "Clear shots over ledges retract the muzzle safely; close-range shots register even when starting inside a shell."] },
   { number: "17", title: "Plain shells and focused previews", changes: ["Choose No pattern, No headwear, or No eyewear; Reset appearance returns to a plain egg.", "Cosmetic image tiles show only their own category. The large preview keeps your complete outfit."] },
   { number: "16", title: "Your match, your rules", changes: ["One Create Match flow for public or private matches with configurable bots.", "Edit arena, mode, time limit, score target and bot difficulty in the lobby and before every rematch."] },
   { number: "15", title: "Open the yard", changes: ["Open the game directly without login, browser approval or activation codes.", "Restored invite-code multiplayer and local bot practice. Kept the public-match directory and public/private room controls without an access dashboard."] },

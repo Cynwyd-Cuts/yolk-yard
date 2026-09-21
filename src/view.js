@@ -56,7 +56,7 @@ function cylinder(parent, x, y, z, radius, height, color, segments = 16) {
   parent.add(m);
   return m;
 }
-function eggGeometry() {
+export function eggGeometry() {
   const pts = [];
   for (let i = 0; i <= 64; i++) {
     const t = (Math.PI * i) / 64,
@@ -794,13 +794,13 @@ export class View {
         });
 
         if (model.userData.blaster) model.userData.blaster.rotation.x = p.pitch;
-        if (model.position.distanceTo(new THREE.Vector3(p.x, p.y, p.z)) > 8)
-          model.position.set(p.x, p.y, p.z);
-        else
-          model.position.lerp(
-            new THREE.Vector3(p.x, p.y + bob, p.z),
-            Math.min(1, dt * 18),
-          );
+        // Do not let cosmetic smoothing leave a moving shell behind its hitbox.
+        const base = model.userData.basePosition ||= new THREE.Vector3(p.x, p.y, p.z);
+        const targetPosition = new THREE.Vector3(p.x, p.y, p.z);
+        base.lerp(targetPosition, Math.min(1, dt * 18));
+        const lag = base.clone().sub(targetPosition).clampLength(0, 0.04);
+        base.copy(targetPosition).add(lag);
+        model.position.copy(base);
         let delta = p.yaw - model.rotation.y;
         delta = Math.atan2(Math.sin(delta), Math.cos(delta));
         model.rotation.y += delta * Math.min(1, dt * 18);
@@ -816,6 +816,12 @@ export class View {
         } else {
           model.rotation.z = Math.sin(stride) * 0.19 * gait;
           model.rotation.x = Math.cos(stride * 2) * 0.015 * gait;
+          // Rotate around the shell center, not its feet: the wide waddle no
+          // longer swings the visible upper body outside the collision shell.
+          const pivot = new THREE.Vector3(0, 0.88, 0);
+          const rotatedPivot = pivot.clone().multiply(model.scale).applyEuler(model.rotation);
+          model.position.add(pivot).sub(rotatedPivot);
+          model.position.y += bob;
         }
       }
       for (const [id, model] of this.models)

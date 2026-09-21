@@ -424,8 +424,8 @@ export class Simulation {
       y: eye.y + aim.y * distance,
       z: eye.z + aim.z * distance,
     };
-    const origin = muzzleOrigin(p, w),
-      offset = {
+    let origin = muzzleOrigin(p, w);
+    const offset = {
         x: origin.x - eye.x,
         y: origin.y - eye.y,
         z: origin.z - eye.z,
@@ -437,16 +437,19 @@ export class Simulation {
       { x: offset.x / length, y: offset.y / length, z: offset.z / length },
       length,
     );
+    // Retract to the eye when a ledge obstructs the muzzle or the target is
+    // closer than the barrel. The eye ray still collides with actual cover.
+    if (blocked || distance <= length) origin = eye;
     const delta = {
         x: target.x - origin.x,
         y: target.y - origin.y,
         z: target.z - origin.z,
       },
-      len = Math.hypot(delta.x, delta.y, delta.z) || 1;
+      len = Math.hypot(delta.x, delta.y, delta.z);
     return {
       origin,
-      d: { x: delta.x / len, y: delta.y / len, z: delta.z / len },
-      blocked,
+      d: len > 1e-8 ? { x: delta.x / len, y: delta.y / len, z: delta.z / len } : aim,
+      blocked: null,
     };
   }
   fire(p, burst = false) {

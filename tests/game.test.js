@@ -313,18 +313,20 @@ test("bolts have finite travel, start at the muzzle, and keep a straight traject
   assert.equal(b.health, 100, "Target is beyond the 20-unit rifle range");
   assert.equal(s.projectiles.length, 0);
 });
-test("a low wall can block the muzzle even when the camera can see over it", () => {
+test("clear eye shots retract an obstructed muzzle without bypassing cover", () => {
   const { s, a, b } = fixture();
+  s.random = () => 0.5;
   s.map.boxes = [{ x: 0, y: 0, z: 7.1, w: 4, h: 1.3, d: 0.4 }];
-  assert.equal(
-    wallDistance(s.map, { x: 0, y: 1.43, z: 8 }, direction(0), 20),
-    20,
-  );
+  a.pitch = Math.atan2(0.9 - 1.43, 8);
   s.fire(a);
-  advance(s);
-  assert.equal(b.health, 100);
-  assert.equal(s.projectiles.length, 0);
-  assert.ok(s.events.some((e) => e.type === "shot" && e.blocked));
+  assert.equal(s.projectiles[0].y, a.y + 1.43);
+  advance(s, 30);
+  assert.ok(b.health < 100);
+  b.health = 100;
+  s.map.boxes[0].h = 3;
+  s.fire(a);
+  advance(s, 30);
+  assert.equal(b.health, 100, "Full-height cover still stops the shot");
 });
 test("swept bolt collision catches thin cover between simulation ticks", () => {
   const { s, a, b } = fixture();
@@ -490,4 +492,25 @@ test("human entrants wait safely for an explicit entry request, bots do not", ()
   s.startRound();
   assert.equal(p.health, 0);
   assert.equal(late.health, 0);
+});
+
+
+test("medium-range and elevated aimed shots hit across weapon classes", () => {
+  for (const id of ["sprinter", "scatter", "needle", "zipper", "anchor", "duet", "pip"]) {
+    for (const height of [0, 4, 8]) {
+      const { s, a, b } = fixture();
+      a.weapon = id; a.slot = 0; a.y = Math.min(height, weapon(id).range * 0.3); a.z = Math.min(10, weapon(id).range * 0.6);
+      a.ammo[0] = 100; a.pitch = Math.atan2(0.9 - (a.y + 1.43), a.z);
+      s.random = () => 0.5;
+      s.fire(a);
+      for (let i = 0; i < 120; i++) s.updateProjectiles(1 / 120);
+      assert.ok(b.health < 100, `${id} from height ${height}`);
+    }
+  }
+});
+test("inside-shell segments register immediately and outside misses stay misses", () => {
+  const p = {x:0, y:0, z:0};
+  assert.equal(rayEgg({x:0,y:0.9,z:0}, {x:0,y:-1,z:0}, p), 0);
+  assert.equal(rayEgg({x:0.8,y:0.9,z:10}, {x:0,y:0,z:-1}, p), Infinity);
+  assert.ok(Number.isFinite(rayEgg({x:0,y:10,z:0}, {x:0,y:-1,z:0}, p)));
 });

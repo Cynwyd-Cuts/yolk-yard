@@ -90,8 +90,8 @@ test('rocket only explodes after arming and uses the configured damage', () => {
 });
 test('center damage never exceeds the reference maximum; glancing damage is lower', () => {
   const egg={x:0,y:0,z:0}, direction={x:0,y:0,z:-1};
-  assert.equal(shellDamageFactor({x:0,y:0.87,z:0.53},direction,egg),1);
-  const rim=shellDamageFactor({x:0.5,y:0.87,z:Math.sqrt(0.53**2-0.5**2)},direction,egg);
+  assert.equal(shellDamageFactor({x:0,y:0.9,z:0.62},direction,egg),1);
+  const rim=shellDamageFactor({x:0.55,y:0.9,z:Math.sqrt(0.62**2-0.55**2)},direction,egg);
   assert.ok(rim>0 && rim<0.2);
 });
 
