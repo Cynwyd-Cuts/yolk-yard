@@ -1,4 +1,5 @@
 export const RELEASE_NOTES = [
+  { number: "15", title: "Open the yard", changes: ["Open the game directly without login, browser approval or activation codes.", "Restored invite-code multiplayer and local bot practice. Kept the public-match directory and public/private room controls without an access dashboard."] },
   { number: "14", title: "Steady scoped accuracy", changes: ["Moving and jumping no longer reduce accuracy while aiming through a sight or scope.", "Scoping immediately removes movement spread; firing spread still follows each blaster’s stats."] },
 
   { number: "13", title: "Your controls, your way", changes: ["Customize keyboard and mouse bindings with two bindings per action, or restore the defaults.", "Control hints follow your saved bindings."] },
@@ -7,11 +8,7 @@ export const RELEASE_NOTES = [
     "24 shell colors, 20 headwear styles, 10 patterns, 4 finishes and 6 eyewear styles—all unlocked.",
     "Choose an accent color, shuffle your look or reset it. Styles save and appear in multiplayer."
   ] },
-  { number: "11", title: "Your yard, on the same link", changes: [
-    "Browser approval, single-use activation codes, and the owner dashboard now work on the GitHub Pages address.",
-    "Browse public matches or keep a room private, with access and matches managed by the game service."
-
-  ] },
+  { number: "11", title: "Your yard, on the same link", changes: ["Added public-match browsing and room visibility controls on the GitHub Pages address."] },
   { number: "10", title: "Crosshairs that show your accuracy", changes: [
     "Crosshair arms widen with movement and firing spread, then settle as accuracy recovers.",
     "The indicator uses the match host’s actual weapon spread in practice and multiplayer."

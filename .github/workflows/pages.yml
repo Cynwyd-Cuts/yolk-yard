@@ -1,7 +1,7 @@
 name: Test and publish Yolk Yard
 on:
   push:
-    branches: [main, feature/browser-access-public-matches]
+    branches: [main, remove-cloudflare-access]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -9,7 +9,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: protected-game-${{ github.event_name }}-${{ github.ref }}
+  group: yolk-game-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   test:
@@ -24,15 +24,12 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: npm run check:cloudflare
-      - run: npm run test:cloudflare
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:access-browser
-      - run: npm run test:pages
+      - run: npm run test:browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: protected-game-checks
+          name: yolk-game-checks
           path: test-results
           retention-days: 7
       - uses: actions/configure-pages@v5
@@ -54,4 +51,3 @@ jobs:
     steps:
       - uses: actions/deploy-pages@v4
         id: deployment
-# Cloudflare builds the protected branch; Pages publishes main after verification.

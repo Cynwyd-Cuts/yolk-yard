@@ -2,11 +2,3 @@ node_modules/
 dist/
 test-results/
 .DS_Store
-data/
-.env
-.env.*
-*.sqlite*
-
-.wrangler/
-.worker-build/
-.dev.vars*

@@ -1,12 +1,10 @@
-# Yolk Yard — protected multiplayer
+# Yolk Yard
 
-This branch adds browser approval, single-use activation codes, owner controls, public/private room discovery, and a server-authoritative match service. It runs on Cloudflare Workers Free with a SQLite Durable Object. See [HOSTING.md](HOSTING.md) for setup, access behavior, tests, and the GitHub Pages frontend with a Cloudflare backend.
+Play at https://zl-2.github.io/yolk-yard/. Opens directly without accounts or an access server. Invite-code multiplayer and the public-match directory use PeerJS; practice runs locally.
 
-Play at https://zl-2.github.io/yolk-yard/ — owner dashboard at https://zl-2.github.io/yolk-yard/admin.html.
+Public hosts publish temporary listings through a browser-coordinated directory. A new coordinator is elected when the previous browser leaves; listings may take a few seconds to return. Switching a room to private removes its listing. Hosts must keep their tabs open. Multiplayer and discovery require a network that permits PeerJS and WebRTC. No paid relay is configured.
 
-The legacy instructions below describe the earlier static/PeerJS release and do not apply to this protected build.
-
-<details><summary>Legacy release documentation</summary>
+The instructions below describe local development and gameplay.
 
 # Yolk Yard
 
@@ -121,12 +119,11 @@ still needs to be permitted by the network. TURN credentials in static files
 are public, so use short-lived credentials from your own service.
 
 The host must keep the tab in front. Background throttling or the host losing
-connectivity can pause or end a match. Rooms are ephemeral. No public lobby,
-central accounts, cross-device progression, ranked service, voice, or text chat.
+connectivity can pause or end a match. Rooms and public listings are ephemeral. No central accounts, cross-device progression, ranked service, voice, or text chat.
 
 ## Develop and test
 
-Node.js 22 or later:
+Node.js 24 or later:
 
 ```sh
 npm ci
@@ -172,4 +169,4 @@ No analytics, advertisements, camera, microphone, or payment systems are used.
 
 See `THIRD_PARTY.md` for open-source notices. Original code is MIT licensed.
 
-</details>
+

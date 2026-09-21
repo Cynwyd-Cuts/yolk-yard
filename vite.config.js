@@ -13,11 +13,11 @@ export default defineConfig(async ({ command }) => {
   const history = nextReleaseHistory(build, RELEASE_NOTES, previous);
   const version = JSON.stringify({ build, release: history.releases[0].number });
   return {
-    server: { proxy: { "/api": "http://localhost:3000", "/session": { target: "ws://localhost:3000", ws: true } } },
     base: "./",
     define: { __BUILD_ID__: JSON.stringify(build), __RELEASE_HISTORY__: JSON.stringify(history.releases) },
     plugins: [{
       name: "yolk-build-version",
+      transformIndexHtml(html) { return command === "serve" ? html.replace("https://0.peerjs.com wss://0.peerjs.com", "https://0.peerjs.com wss://0.peerjs.com http://127.0.0.1:9000 ws://127.0.0.1:9000") : html; },
       configureServer(server) {
         server.middlewares.use("/version.json", (_req, res) => {
           res.setHeader("Content-Type", "application/json");
