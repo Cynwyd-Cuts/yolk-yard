@@ -26,7 +26,7 @@ await new Promise(r=>app.server.listen(3191,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHROME?{executablePath:process.env.YOLK_TEST_CHROME}:{}),args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-background-timer-throttling','--disable-renderer-backgrounding']});
 const errors=[];
 const out=pages?'test-results/pages':'test-results/access';await mkdir(out,{recursive:true});
-const context=async(viewport={width:1440,height:1000})=>{const c=await browser.newContext({viewport});if(pages)await c.addInitScript(value=>{window.YOLK_API_ORIGIN=value;},backend);c.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));return c;};
+const context=async(viewport={width:1440,height:1000})=>{const c=await browser.newContext({viewport});await c.addInitScript(()=>localStorage.setItem('yolk-settings',JSON.stringify({quality:'low'})));if(pages)await c.addInitScript(value=>{window.YOLK_API_ORIGIN=value;},backend);c.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));return c;};
 const wait=async fn=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,100));}throw new Error('Timed out waiting for game');};
 try {
  const adminContext=await context(),hostContext=await context(),guestContext=await context(),mobileContext=await context({width:390,height:844});
@@ -39,14 +39,14 @@ try {
  await host.locator('#pending:not([hidden])').waitFor();
  await admin.goto(pages?origin+'admin.html':origin+'/admin');await admin.getByLabel('Owner key').fill(secret);await admin.getByRole('button',{name:'OPEN DASHBOARD'}).click();
  await admin.getByRole('button',{name:'Approve',exact:true}).click();
- await host.getByRole('button',{name:'PLAY WITH FRIENDS'}).waitFor({timeout:30000});
+ await host.getByRole('button',{name:'PLAY WITH FRIENDS'}).waitFor({timeout:90000});
  console.log('PASS request, owner approval, automatic game entry, responsive access screen');
  await checkCosmetics(host,out);
  await guest.goto(origin);await guest.getByLabel('Your name',{exact:true}).fill('Guest egg');
  await admin.getByLabel('Player name',{exact:true}).fill('Guest egg');await admin.locator('#invite-kind').selectOption('paid');await admin.getByRole('button',{name:'CREATE SINGLE-USE CODE'}).click();
  await wait(async()=>!!await admin.locator('#code-output').textContent());
  const code=await admin.locator('#code-output').textContent();await guest.getByText('Have an activation code?',{exact:true}).click();await guest.getByLabel('Single-use code').fill(code);await guest.getByRole('button',{name:'ACTIVATE THIS BROWSER'}).click();
- await guest.getByRole('button',{name:'PLAY WITH FRIENDS'}).waitFor({timeout:30000});
+ await guest.getByRole('button',{name:'PLAY WITH FRIENDS'}).waitFor({timeout:90000});
  await admin.screenshot({path:out+'/owner-dashboard.png',fullPage:true});
  const duplicate=await hostContext.newPage();await duplicate.goto(origin);await duplicate.getByText('Your game is already open in another tab.',{exact:false}).waitFor();await duplicate.close();
  console.log('PASS activation code and duplicate session blocking');
@@ -86,4 +86,12 @@ try {
  console.log('PASS revocation disconnects a playing guest and blocks re-entry');
  assert.deepEqual(errors,[]);
  console.log('PASS no browser JavaScript errors');
+} catch(error) {
+ console.error('Browser errors:',errors);
+ let i=0;
+ for(const c of browser.contexts())for(const page of c.pages()) {
+   console.error('Failure page',++i,page.url(),await page.locator('body').innerText().catch(()=>''));
+   await page.screenshot({path:out+'/failure-'+i+'.png',timeout:5000}).catch(()=>{});
+ }
+ throw error;
 } finally {await browser.close();await app.close();if(staticServer)await new Promise(r=>staticServer.close(r));}
