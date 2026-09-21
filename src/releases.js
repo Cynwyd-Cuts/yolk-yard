@@ -1,4 +1,5 @@
 export const RELEASE_NOTES = [
+  { number: "17", title: "Plain shells and focused previews", changes: ["Choose No pattern, No headwear, or No eyewear; Reset appearance returns to a plain egg.", "Cosmetic image tiles show only their own category. The large preview keeps your complete outfit."] },
   { number: "16", title: "Your match, your rules", changes: ["One Create Match flow for public or private matches with configurable bots.", "Edit arena, mode, time limit, score target and bot difficulty in the lobby and before every rematch."] },
   { number: "15", title: "Open the yard", changes: ["Open the game directly without login, browser approval or activation codes.", "Restored invite-code multiplayer and local bot practice. Kept the public-match directory and public/private room controls without an access dashboard."] },
   { number: "14", title: "Steady scoped accuracy", changes: ["Moving and jumping no longer reduce accuracy while aiming through a sight or scope.", "Scoping immediately removes movement spread; firing spread still follows each blaster’s stats."] },

@@ -313,10 +313,12 @@ export const COLORS = [
   "#45b979", "#21796d", "#80eacb", "#3d8ce8", "#464eb3", "#8c54c9",
   "#efb4df", "#bd728b", "#946344", "#b9ccd4",
 ];
-export const HATS = ["Bare shell", "Headphones", "Cap", "Crown", "Sprout", "Top hat", "Beanie", "Wizard", "Cowboy", "Party hat", "Halo", "Bunny ears", "Cat ears", "Chef", "Beret", "Antenna", "Flower", "Viking", "Pirate", "Propeller"];
-export const PATTERNS = ["Solid", "Stripes", "Polka dots", "Checkerboard", "Confetti", "Lightning", "Stars", "Two tone", "Waves", "Diamond"];
+export const HATS = ["No headwear", "Headphones", "Cap", "Crown", "Sprout", "Top hat", "Beanie", "Wizard", "Cowboy", "Party hat", "Halo", "Bunny ears", "Cat ears", "Chef", "Beret", "Antenna", "Flower", "Viking", "Pirate", "Propeller"];
+export const PATTERNS = ["No pattern", "Stripes", "Polka dots", "Checkerboard", "Confetti", "Lightning", "Stars", "Two tone", "Waves", "Diamond"];
 export const FINISHES = ["Classic", "Matte", "Gloss", "Metallic"];
-export const EYEWEAR = ["Classic visor", "Round goggles", "Sunglasses", "Cyclops", "Square glasses", "Star shades"];
+export const EYEWEAR = ["Classic visor", "Round goggles", "Sunglasses", "Cyclops", "Square glasses", "Star shades", "No eyewear"];
+// Append the plain option so existing saved eyewear IDs keep their meaning.
+export const NO_EYEWEAR = 6;
 const cosmeticIndex = (value, options) => Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) < options.length ? Number(value) : 0;
 export const TEAM_COLORS = [0x47c5e0, 0xfb7f70];
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));

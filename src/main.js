@@ -7,7 +7,7 @@ import {
   WEAPONS,
   MODES,
   COLORS,
-  HATS, PATTERNS, FINISHES, EYEWEAR,
+  HATS, PATTERNS, FINISHES, EYEWEAR, NO_EYEWEAR,
   gun,
   weapon,
   mode,
@@ -225,7 +225,7 @@ function loadoutMenu() {
 }
 let customTab = "shell";
 function customizeMenu() {
-  const choices = (key, items) => `<div class="cosmetic-grid">${items.map((name, i) => `<button class="cosmetic-tile ${profile[key] === i ? "active" : ""}" data-cosmetic="${key}" data-value="${i}" aria-label="${name}" title="${name}" aria-pressed="${profile[key] === i}"><img src="${view.eggOptionPortrait(key, i)}" alt="" width="140" height="140"><span class="cosmetic-check" aria-hidden="true">✓</span></button>`).join("")}</div>`;
+  const choices = (key, items) => `<div class="cosmetic-grid">${items.map((name, i) => ({name, i})).sort((a, b) => key === "eyewear" ? Number(b.i === NO_EYEWEAR) - Number(a.i === NO_EYEWEAR) : a.i - b.i).map(({name, i}) => `<button class="cosmetic-tile ${profile[key] === i ? "active" : ""}" data-cosmetic="${key}" data-value="${i}" aria-label="${name}" title="${name}" aria-pressed="${profile[key] === i}"><img src="${view.eggOptionPortrait(key, i)}" alt="" width="140" height="140"><span class="cosmetic-check" aria-hidden="true">✓</span></button>`).join("")}</div>`;
   const colors = (key) => `<div class="swatches">${COLORS.map((c, i) => `<button class="swatch ${c === profile[key] ? "active" : ""}" style="background:${c}" data-cosmetic="${key}" data-value="${c}" aria-label="${key === "color" ? "Shell" : "Accent"} color ${i + 1}" aria-pressed="${c === profile[key]}"></button>`).join("")}</div>`;
   const sections = {
     shell: () => `<h3>Shell color <small>24 colors</small></h3>${colors("color")}<h3>Finish</h3>${choices("finish", FINISHES)}`,
@@ -798,7 +798,7 @@ const actions = {
     remember(); customizeMenu();
   },
   "reset-egg": () => {
-    profile = safeProfile({name: profile.name, weapon: profile.weapon});
+    profile = safeProfile({name: profile.name, weapon: profile.weapon, eyewear: NO_EYEWEAR});
     remember(); customizeMenu();
   },
   settings: settingsMenu,

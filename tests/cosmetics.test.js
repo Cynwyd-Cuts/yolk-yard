@@ -22,3 +22,20 @@ test("old profiles retain their appearance and malformed cosmetics fall back saf
     assert.equal(p.accent,COLORS[1]);
   }
 });
+
+test("plain eyewear is saved without shifting existing eyewear IDs", async () => {
+  const {NO_EYEWEAR}=await import('../src/data.js');
+  const {optionProfile,addEyewear}=await import('../src/cosmetics.js');
+  const {Group}=await import('three');
+  assert.equal(safeProfile({eyewear:NO_EYEWEAR}).eyewear,NO_EYEWEAR);
+  for(let i=0;i<6;i++) assert.equal(safeProfile({eyewear:i}).eyewear,i);
+  const group=new Group();addEyewear(group,{eyewear:NO_EYEWEAR},{});
+  assert.equal(group.children.length,0);
+  for(const [key,values] of Object.entries({hat:HATS,pattern:PATTERNS,finish:FINISHES,eyewear:EYEWEAR})) {
+    values.forEach((_,i)=>{
+      const profile=optionProfile(key,i);
+      assert.equal(profile[key],i);
+      for(const [other,plain] of Object.entries({hat:0,pattern:0,finish:0,eyewear:NO_EYEWEAR})) if(other!==key) assert.equal(profile[other],plain);
+    });
+  }
+});

@@ -1,4 +1,9 @@
 import * as THREE from "three";
+import { NO_EYEWEAR } from "./data.js";
+
+export function optionProfile(key, value) {
+  return {color: "#fff6da", accent: "#3d8ce8", hat: 0, pattern: 0, finish: 0, eyewear: NO_EYEWEAR, [key]: value};
+}
 
 export function patternedShell(profile) {
   const finish = profile.finish || 0;
@@ -55,6 +60,7 @@ export function addHeadwear(group, profile, {ball, block, cylinder, mat}) {
 }
 
 export function addEyewear(group, profile, {block, ball, mat}) {
+  if (profile.eyewear === NO_EYEWEAR) return;
   const style=profile.eyewear||0, c=profile.accent||"#f9b74a", dark=0x263e4c;
   if(style===0){block(group,0,1.04,-.403,.66,.22,.13,dark);block(group,0,1.065,-.48,.54,.11,.025,0x62d5e3);block(group,-.2,1.095,-.501,.13,.021,.011,0xeafff1);return;}
   if(style===3){block(group,0,1.04,-.43,.61,.2,.10,c);block(group,0,1.055,-.49,.49,.07,.025,0xff637e);return;}

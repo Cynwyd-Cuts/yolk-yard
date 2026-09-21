@@ -39,6 +39,22 @@ try{
  assert.equal(requests.some(u=>/workers\.dev|\/api\/(access|request)|\/session/.test(u)),false);
  assert.equal(await host.locator('a[href*="admin"]').count(),0);
  console.log('PASS direct startup without access service or external connection');
+ await host.getByRole('button',{name:'Customize egg',exact:true}).click();
+ await host.getByRole('button',{name:'Patterns',exact:true}).click();
+ await host.getByRole('button',{name:'Stars',exact:true}).click();
+ await host.screenshot({path:'test-results/plain-pattern-previews.png'});
+ await host.getByRole('button',{name:'No pattern',exact:true}).click();
+ await host.getByRole('button',{name:'Headwear',exact:true}).click();
+ await host.getByRole('button',{name:'No headwear',exact:true}).click();
+ await host.getByRole('button',{name:'Eyewear',exact:true}).click();
+ assert.equal(await host.locator('.cosmetic-tile').first().getAttribute('aria-label'),'No eyewear');
+ await host.getByRole('button',{name:'No eyewear',exact:true}).click();
+ const plain=await host.evaluate(()=>JSON.parse(localStorage.getItem('yolk-profile')));
+ assert.equal(plain.hat,0);assert.equal(plain.pattern,0);assert.equal(plain.eyewear,6);
+ await host.screenshot({path:'test-results/plain-egg.png'});
+ await host.getByRole('button',{name:'Looking good',exact:true}).click();
+ console.log('PASS plain cosmetic choices save and category previews render');
+
  assert.equal(await host.getByRole('button',{name:/practice with bots/i}).count(),0);
  await host.locator('[data-action="setup"]').click();assert.equal(await host.locator('#setup-bots').inputValue(),'0');
  await host.locator('#setup-visibility').selectOption('public');await host.locator('#setup-minutes').fill('9');await host.locator('#setup-scoreLimit').fill('12');await host.locator('[data-action="create-room"]').click();
@@ -55,7 +71,8 @@ try{
  await listing(guest,code,true);
  await guest.locator(`[data-join-room="${code}"]`).click();await guest.locator('.room-code').waitFor();
  await host.waitForFunction(()=>window.__yolkTest.read().state.players.length===2);
- console.log('PASS privacy removes listings and public-list Join connects through WebRTC');
+ await guest.waitForFunction(()=>window.__yolkTest.read().state.players.some(p=>p.eyewear===6&&p.hat===0&&p.pattern===0));
+ console.log('PASS privacy removes listings, plain appearance replicates, and public-list Join connects through WebRTC');
  assert.equal(await guest.locator('[data-action="match-settings"]').count(),0);
  await host.locator('[data-action="match-settings"]').click();
  assert.equal(await host.locator('#setup-minutes').inputValue(),'9');

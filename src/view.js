@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { patternedShell, addHeadwear, addEyewear } from "./cosmetics.js";
+import { patternedShell, addHeadwear, addEyewear, optionProfile } from "./cosmetics.js";
 import { getMap } from "./maps.js";
-import { gun, weapon, TEAM_COLORS, mode, clamp } from "./data.js";
+import { gun, weapon, TEAM_COLORS, mode, clamp, NO_EYEWEAR } from "./data.js";
 import { EYE, VIEWMODEL, direction, wallDistance } from "./physics.js";
 import { makeBlaster, weaponPortrait } from "./weapons.js";
 import { buildArena } from "./arenas.js";
@@ -98,6 +98,7 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
   );
   band.position.y = 1.02;
   band.rotation.x = Math.PI / 2;
+  band.visible = team >= 0 || profile.eyewear !== NO_EYEWEAR;
   group.add(band);
   addEyewear(group, profile, {block, ball, mat});
 
@@ -431,7 +432,7 @@ export class View {
     this.cosmeticPortraits ||= new Map();
     const id = `${key}:${value}`;
     if (!this.cosmeticPortraits.has(id)) {
-      this.cosmeticPortraits.set(id, this.eggPortrait({color: "#fff6da", accent: "#3d8ce8", hat: 0, pattern: 0, finish: 0, eyewear: 0, [key]: value}, 160));
+      this.cosmeticPortraits.set(id, this.eggPortrait(optionProfile(key, value), 160));
     }
     return this.cosmeticPortraits.get(id);
   }
