@@ -103,6 +103,8 @@ try {
     await host
       .getByRole("button", { name: "START PRACTICE", exact: true })
       .click();
+    await host.getByRole("button", { name: "Enter the Yard", exact: true }).click();
+    await host.waitForFunction(() => { const q=window.__yolkTest.read(); return q.state.players.find(p=>p.id===q.localId)?.health > 0; });
     await host.waitForFunction(
       () => window.__yolkTest.read().screen === "game",
     );
@@ -195,8 +197,8 @@ try {
     await host.locator("#spectate-panel").waitFor({state:"visible"});
     assert.match(await host.locator("#spectate-info").innerText(), /Waiting/);
     await host.evaluate(() => window.__yolkTest.fixture(s => {
-      s.addPlayer("viewer-target", {name:"Watched Egg"});
-      s.addPlayer("viewer-target-2", {name:"Second Egg"});
+      s.spawn(s.addPlayer("viewer-target", {name:"Watched Egg"}));
+      s.spawn(s.addPlayer("viewer-target-2", {name:"Second Egg"}));
     }));
     await host.waitForFunction(() => document.querySelector("#spectate-info").textContent.includes("Watched Egg"));
     await host.getByRole("button", {name:"Next →",exact:true}).click();
@@ -245,11 +247,13 @@ try {
     await host
       .getByRole("button", { name: "START MATCH", exact: true })
       .click();
+    await host.getByRole("button", { name: "Enter the Yard", exact: true }).click();
+    await host.waitForFunction(() => { const q=window.__yolkTest.read(); return q.state.players.find(p=>p.id===q.localId)?.health > 0; });
     await guest
-      .getByRole("button", { name: "ENTER ARENA", exact: true })
+      .getByRole("button", { name: "Enter the Yard", exact: true })
       .waitFor();
     await guest
-      .getByRole("button", { name: "ENTER ARENA", exact: true })
+      .getByRole("button", { name: "Enter the Yard", exact: true })
       .click();
     await guest.waitForTimeout(200);
     const guestState = await guest.evaluate(() => window.__yolkTest.read());
@@ -292,9 +296,11 @@ try {
           const p = s.players.get(id);
           p.health = 0;
           p.respawnAt = s.time + 0.1;
+          p.spawnRequested = false;
         }),
       gid,
     );
+    await guest.locator("#spawn-button").click();
     await guest.waitForFunction(
       () =>
         document.querySelector("#gun-name").textContent.toLowerCase() ===
@@ -399,7 +405,7 @@ try {
     pass("Both players receive the same round result");
     await host.getByRole("button", { name: "PLAY AGAIN", exact: true }).click();
     await guest
-      .getByRole("button", { name: "ENTER ARENA", exact: true })
+      .getByRole("button", { name: "Enter the Yard", exact: true })
       .waitFor();
     pass("Host rematch resets scores and returns guests to play");
     await host.getByRole("button", { name: "Pause menu", exact: true }).click();
@@ -426,6 +432,8 @@ try {
     await host
       .getByRole("button", { name: "START PRACTICE", exact: true })
       .click();
+    await host.getByRole("button", { name: "Enter the Yard", exact: true }).click();
+    await host.waitForFunction(() => { const q=window.__yolkTest.read(); return q.state.players.find(p=>p.id===q.localId)?.health > 0; });
     await host.waitForTimeout(200);
     await host.screenshot({ path: new URL(`arena-${map}.png`, out).pathname });
     assert.equal(
@@ -448,6 +456,8 @@ try {
   await mobile
     .getByRole("button", { name: "START PRACTICE", exact: true })
     .click();
+    await mobile.getByRole("button", { name: "Enter the Yard", exact: true }).click();
+    await mobile.waitForFunction(() => { const q=window.__yolkTest.read(); return q.state.players.find(p=>p.id===q.localId)?.health > 0; });
   assert.ok(await mobile.locator(".touch-stick").isVisible());
   await mobile.screenshot({ path: new URL("06-touch-game.png", out).pathname });
   pass("Touch controls appear on touch devices");
@@ -498,3 +508,4 @@ try {
   signalServer?.close();
   setTimeout(() => process.exit(process.exitCode || 0), 100).unref();
 }
+

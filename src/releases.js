@@ -1,0 +1,29 @@
+export const RELEASE = "06";
+export const RELEASES = [
+  { number: "06", title: "A smoother yard, on your terms", changes: [
+    "Automatic update refresh in the menu and lobby; active matches wait until you leave.",
+    "Click the quality update button to read numbered release notes.",
+    "Smooth egg shells and a slower, wider, continuous waddle.",
+    "Adjust scope sensitivity separately in Settings, for mouse and touch aiming.",
+    "Choose Enter the Yard to spawn, and Respawn after each elimination."
+  ] },
+  { number: "05", title: "Weapon tuning and spectating", changes: [
+    "Revised weapon stats, accuracy, ammunition and reload behavior.",
+    "Pause-menu respawn and spectator mode with player switching.",
+    "Improved floating damage numbers and critical-hit feedback."
+  ] },
+  { number: "04", title: "Egg movement and weapon polish", changes: [
+    "Full ammo reserves leave ammo pickups available.",
+    "Distinct projectile shapes and trails for each weapon.",
+    "Compact, closed Thumper model and legless egg movement."
+  ] },
+  { number: "03", title: "Shell damage and hit feedback", changes: [
+    "Shell cracks show damage, with a defeat animation and sound.",
+    "Watch your opponent after an elimination and see their stats.",
+    "Center hits receive a modest bonus with floating damage feedback."
+  ] },
+  { number: "02", title: "Quality update", changes: [
+    "Improved weapon models, model previews and working optic views.",
+    "Expanded arenas and traveling projectiles fired from weapon muzzles."
+  ] }
+];

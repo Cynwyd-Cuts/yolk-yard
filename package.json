@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test tests/*.test.js",
-    "test:browser": "node scripts/browser-check.mjs",
+    "test:browser": "node scripts/update-check.mjs && node scripts/browser-check.mjs",
     "test:quality": "node scripts/quality-check.mjs"
   },
   "dependencies": {

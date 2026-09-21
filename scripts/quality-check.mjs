@@ -74,6 +74,8 @@ try {
   await page
     .getByRole("button", { name: "START PRACTICE", exact: true })
     .click();
+    await page.getByRole("button", { name: "Enter the Yard", exact: true }).click();
+    await page.waitForFunction(() => { const q=window.__yolkTest.read(); return q.state.players.find(p=>p.id===q.localId)?.health > 0; });
   for (const id of [
     "sprinter",
     "scatter",
@@ -195,6 +197,8 @@ try {
     await page
       .getByRole("button", { name: "START PRACTICE", exact: true })
       .click();
+    await page.getByRole("button", { name: "Enter the Yard", exact: true }).click();
+    await page.waitForFunction(() => { const q=window.__yolkTest.read(); return q.state.players.find(p=>p.id===q.localId)?.health > 0; });
     if (map === "yard") {
       await page
         .getByRole("button", { name: "Pause menu", exact: true })
@@ -255,3 +259,4 @@ try {
   await browser.close();
   await server.close();
 }
+

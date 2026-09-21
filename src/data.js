@@ -1,4 +1,4 @@
-export const VERSION = 3;
+export const VERSION = 4;
 export const WEAPONS = [
   {
     id: "sprinter",
@@ -338,3 +338,4 @@ export function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+

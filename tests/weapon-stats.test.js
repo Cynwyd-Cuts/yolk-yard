@@ -7,6 +7,7 @@ function arena(id) {
   const sim = new Simulation({ bots: 0, seed: 11 });
   const player = sim.addPlayer('test', { weapon: id });
   sim.startRound();
+  sim.spawn(player);
   sim.time = 10;
   sim.map = { ...sim.map, boxes: [] };
   Object.assign(player, { x: 0, y: 0, z: 0, nextShot: 0, shieldUntil: 0 });
@@ -93,3 +94,4 @@ test('center damage never exceeds the reference maximum; glancing damage is lowe
   const rim=shellDamageFactor({x:0.5,y:0.87,z:Math.sqrt(0.53**2-0.5**2)},direction,egg);
   assert.ok(rim>0 && rim<0.2);
 });
+
