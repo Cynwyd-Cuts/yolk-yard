@@ -86,3 +86,9 @@ test('impulses rise physically, respect ceilings and glide safely without roof t
  p.flight='launch';p.vy=38;p.x=20;high=0;for(let i=0;i<600;i++){movePlayer(p,{},map,1/60);high=Math.max(high,p.y);}
  assert.ok(high>30);assert.equal(p.y,0);assert.equal(p.flight,'ground');
 });
+test('inventory commands survive intervening movement packets and reject invalid or eliminated requests',()=>{
+ const s=make(),p=ground(s.players.get('host'));s.takeLoot(p,s.dropWeapon(p,'pip'));s.takeLoot(p,s.dropLoot(p,{id:'mini',count:2,rarity:1}));
+ s.playerAction('host','inventory-swap-0-1');s.setInput('host',{seq:3,slot:0});s.tick(1/60);assert.equal(p.inventory[0].id,'mini');assert.equal(p.inventory[1].id,'pip');
+ s.playerAction('host','inventory-swap-0-999');assert.equal(p.inventory.length,5);s.playerAction('host','inventory-drop-0');assert.equal(p.inventory[0],null);
+ s.playerAction('host','inventory-select-1');assert.equal(p.slot,1);s.damage(p,null,1000,'Storm');const before=s.loot.length;s.playerAction('host','inventory-drop-1');assert.equal(s.loot.length,before);
+});

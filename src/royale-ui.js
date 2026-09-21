@@ -51,6 +51,8 @@ export class RoyaleUI{
   this.drawMap($('royale-mini'),state,p);this.drawMap($('royale-fullmap'),state,p,true);
   $('royale-shield').textContent=Math.ceil(p.shield||0);$('royale-shield-fill').style.width=(p.shield||0)+'%';$('royale-stamina').textContent=Math.ceil(p.stamina||0);$('royale-stamina-fill').style.width=(p.stamina||0)+'%';
   const key=JSON.stringify([p.inventory,p.slot]);if(key!==this.lastKey){$('royale-hotbar').innerHTML=this.slotMarkup(p);this.lastKey=key;}
+  const grid=document.querySelector('.royale-inventory-grid');
+  if(grid&&this.inventoryKey!==key){grid.innerHTML=this.slotMarkup(local,true);this.inventoryKey=key;const bank=document.querySelector('.ammo-bank');if(bank)bank.innerHTML=Object.entries(local.bank||{}).map(([k,v])=>`<span>${escape(k)} <b>${v}</b></span>`).join('');}
   const flight=['transport','dive','glide','launch'].includes(local.flight)&&local.health>0;
   $('royale-flight').hidden=!flight;
   $('royale-flight-title').textContent=local.flight==='transport'?`${r.elapsed<3?'Doors open in '+Math.ceil(3-r.elapsed):'Choose your landing spot'}${r.elapsed>=3?' · '+Math.ceil(35-r.elapsed)+'s':''}`:local.flight==='dive'?'Freefall':'Shell glider deployed';

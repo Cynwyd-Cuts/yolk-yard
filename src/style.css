@@ -1406,3 +1406,46 @@ button:disabled { opacity: 0.55; cursor: default; }
 .royale-fullmap{display:block;width:min(100%,650px,60vh);height:auto;aspect-ratio:1;border-radius:14px;margin:12px auto;cursor:crosshair}.map-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:20px;font-size:12px;margin:10px 0 20px}.royale-inventory-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:24px 0 12px}.royale-inventory-grid .royale-slot{height:125px}.royale-inventory-grid img{height:62px}.royale-inventory-grid small{font-size:9px;margin-top:5px;color:#dbd0bd}.royale-swap-row{display:flex;gap:8px;flex-wrap:wrap}.royale-swap-row button{font-size:11px;padding:7px}.ammo-bank{display:flex;flex-wrap:wrap;gap:15px;text-transform:capitalize;font-size:13px;margin:20px 0}.ammo-bank b{margin-left:4px}.royale-mobile{display:none}.royale-queue{background:#edf2db;border-radius:10px;padding:12px;margin:12px 0;font-weight:700}
 @media(max-width:800px){.royale-hotbar{grid-template-columns:repeat(5,64px);gap:4px;right:14px;bottom:16px}.royale-slot{height:66px}.royale-tools{bottom:93px;right:14px}.royale-minimap{width:143px;right:12px;top:73px}.royale-vitals{left:16px;width:160px;bottom:107px}.in-royale .health-card{width:160px}.royale-compass{top:76px;font-size:10px}.royale-storm-warning{top:111px;font-size:9px}.royale-flight{top:29%;padding:12px 18px}.royale-flight strong{font-size:19px}.royale-flight p{font-size:11px}.in-royale #spectate-panel{bottom:154px}.in-royale .match-label strong{font-size:12px}}
 @media(pointer:coarse){.royale-mobile{display:flex;position:absolute;right:20px;bottom:260px;gap:8px;pointer-events:auto}.royale-mobile button{background:#1a3b4edc;color:#ffedc5;border:1px solid #fff3;border-radius:30px;width:70px;height:47px;font-size:10px;touch-action:none}.in-royale [data-touch="popper"]{display:none}.in-royale .touch-buttons{bottom:130px}.in-royale .touch-stick{bottom:145px}.in-royale .royale-hotbar{bottom:17px}.in-royale .royale-vitals{bottom:110px}.in-royale .health-card{margin-bottom:0}.in-royale .hud-bottom{bottom:52px}.in-royale .royale-hotbar{right:10px;left:10px;grid-template-columns:repeat(5,1fr)}.in-royale .health-card{width:130px}.in-royale .royale-vitals{width:130px;bottom:118px;left:15px}.royale-tools{bottom:92px}.royale-flight{top:26%;width:80vw}.royale-minimap{width:116px;top:84px}.royale-compass{left:26%;top:90px}.royale-storm-warning{left:30%;top:128px;max-width:55vw;white-space:normal;text-align:center}.royale-inventory-grid{gap:4px}.royale-inventory-grid .royale-slot{height:106px}.royale-inventory-grid .slot-name{font-size:8px}}
+
+/* Royale spectator and portrait-touch layouts keep controls out of each other's hit areas. */
+.in-royale .spectating .hud-bottom{display:flex}
+.in-royale #spectate-panel button{background:#365767;color:#fff7df;border:1px solid #cbded966;padding:9px;border-radius:8px}
+.in-royale .spectating .royale-mobile{display:none}
+.in-royale .results h2{animation:royale-result .55s ease-out both}
+@keyframes royale-result{from{opacity:0;transform:translateY(12px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(pointer:coarse) and (max-width:600px){
+ .in-royale .match-label{width:99px;padding:8px;font-size:9px;max-height:75px}
+ .in-royale .match-label strong{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .in-royale #hud-network{display:none}
+ .in-royale .match-center{max-width:40%;padding:8px 5px;font-size:10px}
+ .in-royale .match-center #objective{font-size:8px}
+ .in-royale .royale-compass{left:18px;top:89px;transform:none;font-size:9px;padding:5px 9px}
+ .in-royale .royale-minimap{top:83px;width:110px}
+ .in-royale .royale-minimap span{font-size:8px;gap:3px;white-space:nowrap}
+ .in-royale .royale-flight{top:228px;width:86vw;padding:12px 16px}
+ .in-royale .royale-flight strong{font-size:18px}
+ .in-royale .royale-flight .eyebrow{font-size:10px}
+ .in-royale .royale-flight p{font-size:10px}
+ .in-royale .royale-flight button{display:none}
+ .in-royale .hud-bottom{bottom:120px;left:15px;right:auto}
+ .in-royale .health-card{width:130px;padding:9px 12px;min-height:60px}
+ .in-royale .health-label{font-size:9px}.in-royale .health-label b{font-size:22px}
+ .in-royale #streak{display:none}
+ .in-royale .royale-vitals{bottom:186px;left:15px;width:130px}
+ .in-royale .royale-tools{bottom:92px;right:10px}
+ .in-royale .royale-slot{height:64px}
+ .in-royale .touch-stick{bottom:256px;left:20px;width:102px;height:102px}
+ .in-royale .touch-buttons{bottom:246px;right:16px;grid-template-columns:57px 67px;gap:7px}
+ .in-royale .touch-buttons button{height:54px;font-size:11px}
+ .in-royale .touch-buttons button[data-touch="fire"]{height:66px}
+ .in-royale .royale-mobile{bottom:178px;right:15px;gap:8px}
+ .in-royale .royale-mobile button{height:39px;width:64px;font-size:9px}
+ .in-royale .royale-prompt{top:51%;font-size:10px;max-width:240px}
+ .in-royale #spectate-panel{bottom:263px;padding:12px;width:92vw}
+ .in-royale .royale-storm-warning{top:122px;left:16px;transform:none;max-width:58vw}
+}
+@media(pointer:coarse) and (max-width:600px) and (max-height:740px){
+ .in-royale .royale-flight{top:170px}.in-royale .royale-flight p{display:none}
+ .in-royale .royale-mobile{bottom:178px}.in-royale .touch-stick{bottom:235px}
+ .in-royale .touch-buttons{bottom:230px}
+}

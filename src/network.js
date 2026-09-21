@@ -169,7 +169,7 @@ export class Network {
       }
       if (!accepted) return;
       if (msg.type === "input") this.callbacks.onInput?.(conn.peer, msg.input);
-      else if (msg.type === "player-action" && ["respawn", "spectate", "rejoin"].includes(msg.action))
+      else if (msg.type === "player-action" && (["respawn", "spectate", "rejoin"].includes(msg.action)||/^inventory-(select-[0-4]|drop-[0-4]|swap-[0-4]-[0-4])$/.test(msg.action)))
         this.callbacks.onPlayerAction?.(conn.peer, msg.action);
       else if (msg.type === "profile")
         this.callbacks.onProfile?.(conn.peer, safeProfile(msg.profile));
@@ -196,7 +196,7 @@ export class Network {
       this.rejectOpen = reject;
       const conn = this.peer.connect(PREFIX + this.code, {
         reliable: true,
-        serialization: "json",
+        serialization: "binary",
       });
       this.hostConnection = conn;
       const timer = setTimeout(

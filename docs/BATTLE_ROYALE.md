@@ -104,3 +104,10 @@ Approximately 41 times the ground area of The Yard. North is negative Z. Sea sur
 ## Sound expansion — added before implementation
 
 User requested extensive sound coverage for every game part. Original Web Audio synthesis and seeded noise, no copied audio clips. Layered sound families cover UI hover/select/back/error, queue/countdown/start, transport engine/rotor/horn, dive wind, glider deploy/flap/cut, jump/land, walk/sprint steps on grass/stone/wood/metal/water, stamina exhaustion/recovery, each weapon's shot/tail/casing/empty/swap and magazine-out/in/bolt, distant shots, projectile flyby/impact/ricochet, shield hit/break, health hit, chest hum/open, rarity pickup/ammo/drop, every consumable/use/cancel, gadget impulse/launch, supply incoming/canopy/landing, storm reveal/closing/entry/exit/ticks/ambience, elimination/spectator switch/top-ten/final-duel/victory/defeat. Persistent loops crossfade by player state and stop on leaving. Spatial effects attenuate and pan relative to the listener, with voice caps and cooldowns to prevent a loud overlapping wall of sound. Master/effects/ambience/music volumes and mute are saved settings. Browser audio starts only after a user gesture. Unit checks use a fake AudioContext to verify every cue remains finite, loop cleanup, gain limits and mute behavior; browser checks verify unlock and no AudioContext exceptions.
+
+## Verification refinements
+
+- Match transport uses PeerJS binary serialization, which fragments large snapshots; the JSON serializer rejects messages over approximately 16 KB and cannot carry the full island. World loot is versioned and sent again only when it changes.
+- Inventory panel operations are ordered host commands, so a movement packet cannot overwrite a one-frame swap/drop.
+- Airborne motion uses world collision and launch impulses rise physically before gliding. Decorative solid landmarks have authored collision footprints.
+- Original sound inventory: 79 named cues, eleven blaster palettes and five environment loops.

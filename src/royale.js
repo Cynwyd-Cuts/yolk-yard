@@ -43,10 +43,11 @@ export class RoyaleSimulation extends Simulation {
   this.maxPlayers=this.options.capacity;const savedBots=this.options.bots;this.options.bots=Math.max(0,count);this.addBots();this.options.bots=savedBots;
   this.phase='playing';this.round++;this.startedAt=this.time;this.elapsed=0;this.winner='';this.winnerId=null;this.placements=[];this.projectiles=[];this.events=[];this.inputs.clear();this.loot=[];this.lootId=0;this.lootVersion++;this.pads=[];this.supplyAt=135;this.queueEnds=0;
   this.route=makeFlight(this.random);this.stormSteps=makeStorm(this.random,this.options.storm);this.storm=stormAt(this.stormSteps,0);this.remaining=this.stormSteps.at(-1).end+15;
+  const landingSpots=this.map.floorLoot.filter((point,index)=>index%3===0&&point.y===0);
   const seats=[...this.players.values()].sort((a,b)=>Number(a.bot)-Number(b.bot));
   for(const [index,p] of seats.entries()){
    const contestant=index<this.options.capacity;
-   Object.assign(p,{health:contestant?100:0,shield:0,stamina:100,sprintRest:0,exhausted:false,sprinting:false,flight:contestant?'transport':'out',flightLatch:false,grounded:false,eliminated:!contestant,spectating:!contestant,awaitingEntry:false,spawnRequested:false,place:0,eliminatedAt:null,kills:0,deaths:0,points:0,streak:0,slot:0,poppers:0,reloadEnd:0,burstLeft:0,nextShot:0,fireLatch:false,shieldUntil:0,lastDamage:-100,respawnAt:0,killerId:null,crown:null,inventory:Array(5).fill(null),ammo:Array(5).fill(0),reserve:Array(5).fill(0),accuracyState:Array.from({length:5},()=>({})),bank:{light:0,medium:0,shells:0,heavy:0,rockets:0},use:null,chestId:null,chestProgress:0,interactLatch:false,dropLatch:false,useLatch:false,botThink:0,botPath:[],botDrop:4+this.random()*27,botLand:this.map.districts[index%this.map.districts.length]});
+   Object.assign(p,{health:contestant?100:0,shield:0,stamina:100,sprintRest:0,exhausted:false,sprinting:false,flight:contestant?'transport':'out',flightLatch:false,grounded:false,eliminated:!contestant,spectating:!contestant,awaitingEntry:false,spawnRequested:false,place:0,eliminatedAt:null,kills:0,deaths:0,points:0,streak:0,slot:0,poppers:0,reloadEnd:0,burstLeft:0,nextShot:0,fireLatch:false,shieldUntil:0,lastDamage:-100,respawnAt:0,killerId:null,crown:null,inventory:Array(5).fill(null),ammo:Array(5).fill(0),reserve:Array(5).fill(0),accuracyState:Array.from({length:5},()=>({})),bank:{light:0,medium:0,shells:0,heavy:0,rockets:0},use:null,chestId:null,chestProgress:0,interactLatch:false,dropLatch:false,useLatch:false,botThink:0,botPath:[],botDrop:4+this.random()*27,botLand:landingSpots[Math.floor(index*landingSpots.length/this.options.capacity)%landingSpots.length]});
    Object.assign(p,transportAt(this.route,0));p.pitch=0;p.vy=0;
   }
   this.alive=seats.filter(p=>p.health>0).length;
@@ -171,6 +172,14 @@ export class RoyaleSimulation extends Simulation {
  removePlayer(id){const p=this.players.get(id);if(p&&this.phase==='playing'&&p.health>0){p.health=0;this.eliminate(p);}super.removePlayer(id);}
  playerAction(id,action){
   const p=this.players.get(id);if(!p||this.phase!=='playing')return;
+  const change=/^inventory-(select|drop|swap)-([0-4])(?:-([0-4]))?$/.exec(action);
+  if(change&&p.health>0&&!p.spectating&&p.flight==='ground'){
+   const from=Number(change[2]),to=Number(change[3]);
+   if(change[1]==='select'){p.slot=from;beginEquip(p,this.time,true);}
+   else if(change[1]==='drop')this.dropSlot(p,from);
+   else if(Number.isInteger(to)&&to>=0&&to<5){[p.inventory[from],p.inventory[to]]=[p.inventory[to],p.inventory[from]];beginEquip(p,this.time,true);}
+   this.cancelUse(p);p.reloadEnd=0;p.burstLeft=0;this.syncInventory(p);this.emit('royale-cue',{player:p.id,cue:'weapon-swap'});return;
+  }
   if(action==='spectate'&&p.health>0){this.damage(p,null,p.health+p.shield+1,'Left round');if(p.flight==='transport'){p.health=0;this.eliminate(p);}}
  }
  tick(dt){
@@ -257,12 +266,12 @@ export class RoyaleSimulation extends Simulation {
   else if(enemy)goal=enemy;
   else goal={x:this.storm.nextX,z:this.storm.nextZ};
   if(p.botThink<=this.time){p.botPath=this.nav.path(p,goal);p.botThink=this.time+.8+this.random()*.3;}
-  while(p.botPath?.length&&dist(p,p.botPath[0])<.7)p.botPath.shift();
+  while(p.botPath?.length&&dist(p,p.botPath[0])<1.05)p.botPath.shift();
   const toward={x:goal.x-p.x,y:0,z:goal.z-p.z},glen=Math.hypot(toward.x,toward.z)||1;
   const clear=wallDistance(this.map,{x:p.x,y:p.y+.7,z:p.z},{x:toward.x/glen,y:0,z:toward.z/glen},glen)>=glen-.1;
   let step=clear?goal:p.botPath?.[0]||goal;
   let dx=step.x-p.x,dz=step.z-p.z,len=Math.hypot(dx,dz)||1;
-  input.yaw=Math.atan2(-dx,-dz);input.forward=len>.8?1:0;input.sprint=(danger||len>12)&&!needGun;
+  input.yaw=Math.atan2(-dx,-dz);input.forward=len>.5?1:0;input.sprint=(danger||len>12)&&!needGun;
   input.jump=this.time%2<.025;
   if(chest&&this.accessible(p,chest,3.3))input.interact=true;
   else if(items[0]&&this.accessible(p,items[0]))input.interact=!p.interactLatch;

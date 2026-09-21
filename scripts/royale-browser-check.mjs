@@ -6,13 +6,13 @@ import {mkdir,writeFile} from 'node:fs/promises';
 const vite=await createServer({server:{port:5182,host:'127.0.0.1',strictPort:true,watch:null}});await vite.listen();
 let signaling;PeerServer({port:9002,path:'/peer',host:'127.0.0.1'},server=>signaling=server);
 const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHROME?{executablePath:process.env.YOLK_TEST_CHROME}:{}),args:['--no-sandbox','--allow-loopback-in-peer-connection','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-background-timer-throttling','--disable-renderer-backgrounding']});
-const errors=[],checks=[];await mkdir('test-results',{recursive:true});
+const pages=[],errors=[],checks=[];await mkdir('test-results',{recursive:true});
 const pass=s=>{checks.push(s);console.log('PASS',s);};
 async function make(name,mobile=false){
  const ctx=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1280,height:800},isMobile:mobile,hasTouch:mobile});
  await ctx.addInitScript(name=>{if(location.origin==='null')return;localStorage.setItem('yolk-profile',JSON.stringify({name}));localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:.15}));},name);
  await ctx.route('**/network-config.js',route=>route.fulfill({contentType:'application/javascript',body:"window.YOLK_NETWORK={peer:{host:'127.0.0.1',port:9002,path:'/peer',secure:false},iceServers:[]};"}));
- const page=await ctx.newPage();page.setDefaultTimeout(60000);page.on('pageerror',e=>errors.push(e.message));
+ const page=await ctx.newPage();pages.push(page);page.setDefaultTimeout(60000);page.on('pageerror',e=>{errors.push(e.message);console.error('BROWSER',e.message);});
  await page.goto('http://127.0.0.1:5182/?qa=1');await page.locator('[data-action="royale-home"]').waitFor();return page;
 }
 try{
@@ -24,7 +24,7 @@ try{
  const guest=await make('Scout Egg');await guest.locator('[data-action="royale-home"]').click();await guest.locator('[data-action="royale-queue"]').click();await guest.locator('.room-code').waitFor();assert.equal((await guest.locator('.room-code').innerText()).replace('-','').trim(),code);pass('Public matchmaking joins the waiting Royale lobby');
  await host.screenshot({path:'test-results/royale-lobby.png'});
  await host.locator('[data-action="start-match"]').click();await guest.locator('#royale-hud').waitFor();
- await guest.waitForFunction(()=>window.__yolkTest.read().state.players.length===4);assert.equal(await guest.locator('#spawn-button').isVisible(),false);
+ await guest.waitForFunction(()=>window.__yolkTest.read().state.players.length===4);assert.ok(await guest.evaluate(()=>window.__yolkTest.read().state.royale.loot.length>200));assert.equal(await guest.locator('#spawn-button').isVisible(),false);
  await host.screenshot({path:'test-results/royale-flight.png'});pass('Four contestants share the empty starting inventory and Eggspress flight');
  await guest.keyboard.press('KeyM');await guest.locator('#royale-fullmap').click({position:{x:160,y:220}});await guest.screenshot({path:'test-results/royale-map.png'});await guest.locator('[data-action="resume"]').click();
  await guest.locator('#royale-compass').filter({hasText:'m'}).waitFor();pass('Island map sets a visible distance waypoint');
@@ -61,4 +61,7 @@ try{
  const overflow=await mobile.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert.equal(overflow,false);assert.equal(await mobile.locator('[data-touch="sprint"]').isVisible(),true);assert.equal(await mobile.locator('[data-touch="interact"]').isVisible(),true);pass('Mobile Royale HUD and touch sprint/search controls fit the viewport');
  assert.deepEqual(errors,[]);pass('No uncaught browser or audio exceptions');
  await writeFile('test-results/royale-report.json',JSON.stringify({checks,errors},null,2));
+}catch(error){
+ for(const [i,p]of pages.entries()){try{console.log('DIAGNOSTICS',i,await p.evaluate(()=>{const q=window.__yolkTest.read();return {screen:q.screen,paused:q.paused,localId:q.localId,phase:q.state?.phase,players:q.state?.players.map(p=>({id:p.id,health:p.health,flight:p.flight})),dialog:document.querySelector('#dialog')?.innerText,network:window.__yolkTest.network()};}));await p.screenshot({path:`test-results/royale-failure-${i}.png`});}catch{}}
+ console.error('BROWSER ERRORS',errors);throw error;
 }finally{await browser.close();await vite.close();await new Promise(resolve=>signaling?.close(resolve)||resolve());}

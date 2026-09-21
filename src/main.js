@@ -773,7 +773,7 @@ function hud() {
   $("#hud").classList.toggle("spectating", watching);
   const target = state.players.find(k => k.id === spectateTarget);
   $("#spectate-info").textContent = target && watching
-    ? `${target.name} · Shell ${Math.ceil(target.health)} · ${gun(target).name} · ${target.kills} K / ${target.deaths} D`
+    ? `${target.name} · Shell ${Math.ceil(target.health)} · ${state.royale?itemInfo(target.inventory?.[target.slot]).name:gun(target).name} · ${target.kills} K / ${target.deaths} D`
     : "Waiting for a player to spawn…";
   const delay = Math.max(0, Math.ceil(p.respawnAt - state.time));
   $("#spawn-heading").textContent = p.awaitingEntry ? "READY TO HATCH" : "SHELL DOWN";
@@ -845,15 +845,11 @@ function royaleMap(){if(!state?.royale)return;modal('Sunnybreak Island',royaleUI
 function royaleInventory(){if(!state?.royale)return;const p=state.players.find(p=>p.id===localId);modal('Your inventory',royaleUI.inventoryHTML(p),'royale-inventory');}
 function inventoryAction(action,index){
  const p=state?.players.find(p=>p.id===localId);if(!state?.royale||!p||p.health<=0)return;
+ const selected=input.slot;
  if(action==='slot')input.slot=index;
- else if(action==='swap')swapSlot=index;
- else queuedActions.add('drop');
- if(dialogType==='royale-inventory'){
-  // Inventory edits are still host-validated inputs; briefly send while the panel stays open.
-  const i={seq:++seq,yaw:p.yaw,pitch:p.pitch,slot:input.slot,swapSlot:action==='swap'?index:-1,drop:action==='drop'};
-  if(sim){p.dropLatch=false;p.swapLatch=false;sim.setInput(localId,i);sim.tick(1/60);sim.setInput(localId,{...i,drop:false,swapSlot:-1});state=sim.snapshot();}else net?.input(i);
-  queuedActions.delete('drop');swapSlot=-1;royaleInventory();
- }
+ const command=action==='slot'?`inventory-select-${index}`:action==='swap'?`inventory-swap-${selected}-${index}`:`inventory-drop-${selected}`;
+ if(sim){sim.playerAction(localId,command);state=sim.snapshot();}else net?.send({type:'player-action',action:command});
+ if(dialogType==='royale-inventory')royaleInventory();
 }
 const actions = {
  'royale-home':royaleHome,
@@ -1011,7 +1007,7 @@ function pressControl(code) {
     for(let i=3;i<=5;i++)if(settings.keybinds['slot'+i].includes(code))input.slot=i-1;
     if(settings.keybinds.map.includes(code))royaleMap();
     if(settings.keybinds.inventory.includes(code))royaleInventory();
-    if(settings.keybinds.drop.includes(code))queuedActions.add('drop');
+    if(settings.keybinds.drop.includes(code))inventoryAction('drop');
   }
   scoreHeld = actionDown('scores');
 }
