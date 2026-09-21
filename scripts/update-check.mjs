@@ -8,7 +8,7 @@ const browser=await chromium.launch({headless:true, ...(process.env.YOLK_TEST_CH
 const page=await browser.newPage({viewport:{width:1280,height:800}});
 const errors=[];
 page.on('pageerror',e=>errors.push(e.message));
-await page.addInitScript(()=>localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',dragLook:true,volume:0})));
+await page.addInitScript(()=>{if(!localStorage.getItem('yolk-settings')) localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',dragLook:true,volume:0}));});
 await mkdir('test-results/update',{recursive:true});
 try {
   await page.goto('http://127.0.0.1:5176/?qa=1');
