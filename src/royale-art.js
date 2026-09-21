@@ -156,9 +156,9 @@ export function gliderModel(raw,color=0xf4c454){
   mesh(g,geometry,k.mat(j%2?0xffecc0:color),0,0,0);
   const x=-2.25+j*.5;for(let z=0;z<6;z++){const za=-1.4+z*2.8/6,zb=za+2.8/6;beam(g,[x,3.62-(x/2.25)**2*.65+.16*Math.cos(za*Math.PI/2.8),za],[x,3.62-(x/2.25)**2*.65+.16*Math.cos(zb*Math.PI/2.8),zb],.015,0xf5e2b0);}
  }
- for(const x of [-1.7,1.7])for(const z of [-.9,.9])beam(g,[x,3.05,z],[Math.sign(x)*.43,.76,.1],.018,0xf5ead2);
- rounded(g,0,.65,.12,1.02,.19,.3,0x476c73,.06);
- for(const x of [-.37,.37])rounded(g,x,.58,.12,.18,.18,.4,0x2b4f5a,.035);
+ for(const x of [-1.7,1.7])for(const z of [-.9,.9])beam(g,[x,3.2,z],[Math.sign(x)*.72,2.3,.1],.018,0xf5ead2);
+ rounded(g,0,2.18,.12,1.8,.19,.3,0x476c73,.06);
+ for(const x of [-.73,.73])rounded(g,x,2.11,.12,.18,.18,.4,0x2b4f5a,.035);
  return g;
 }
 export function chestModel(raw,supply=false){

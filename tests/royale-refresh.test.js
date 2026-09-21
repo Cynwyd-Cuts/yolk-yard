@@ -11,6 +11,11 @@ import {WEAPONS,weapon} from '../src/data.js';
 import {ITEMS,ROYALE_GUN_IDS} from '../src/royale-data.js';
 import {lootModel,chestModel,gliderModel,launchpadModel,treeModel,dressBuilding} from '../src/royale-art.js';
 import {bake} from '../src/royale-view.js';
+import {VERSION} from '../src/data.js';
+import {DIRECTORY_ID} from '../src/directory.js';
+test('new terrain clients cannot discover or join legacy-physics rooms',()=>{
+ assert.ok(VERSION>8);assert.equal(DIRECTORY_ID,`yolk-yard-public-directory-v${VERSION}`);
+});
 test('each slider resets independently and reset-all preserves unrelated preferences',()=>{
  const settings={...SLIDER_DEFAULTS,musicVolume:.9,sensitivity:2.5,chatMode:'off',keybinds:{map:['KeyP']}};
  resetSliders(settings,'musicVolume');assert.equal(settings.musicVolume,.3);assert.equal(settings.sensitivity,2.5);

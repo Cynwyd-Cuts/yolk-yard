@@ -30,3 +30,4 @@ Implementation plan, agreed scope: retain existing public/private matchmaking, a
 - 91 unit/regression tests passed, including a complete seeded 16-contestant bot round: 12 contestants found weapons and the round finished with valid placements.
 - Visual gallery covers all nine districts, every collectible family and the transport. Static district views measured 31–132 draw calls after vertex-color/spatial batching (the first unoptimized port view exceeded 1,100). This is a rendering-work measurement, not a device FPS guarantee.
 - Production compilation succeeds. The automated local/browser and CI checks remain release gates; final results are recorded in their test reports.
+- Network protocol 9 and a protocol-scoped directory prevent older island/collision clients from mixing into new matches. Private invites retain the existing explicit refresh/version-mismatch response.

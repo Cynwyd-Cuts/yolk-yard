@@ -1,8 +1,9 @@
 import Peer from 'peerjs';
 import { safeName } from './moderation.js';
+import { VERSION } from './data.js';
 // A live browser coordinates the directory. Other browsers re-elect it on disconnect.
 // Only public-room metadata is shared; private room codes never enter this channel.
-const DIRECTORY_ID = 'yolk-yard-public-directory-v4';
+export const DIRECTORY_ID = `yolk-yard-public-directory-v${VERSION}`;
 const TTL = 20000;
 export function cleanListing(room) {
   if (!room || !/^[A-Z2-9]{8}$/.test(room.code) || typeof room.host !== 'string' ||
