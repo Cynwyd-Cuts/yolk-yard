@@ -147,8 +147,9 @@ try {
     assert.ok(aim.input.pitch > 0);
     assert.ok(aim.camera[0] > 0);
     pass("Mouse look and camera pitch match the shot direction");
+    const ammoBefore = Number(await host.locator("#ammo").innerText());
     await host.mouse.down();
-    await host.waitForTimeout(500);
+    await host.waitForFunction(before => Number(document.querySelector("#ammo").textContent) < before, ammoBefore);
     await host.mouse.up();
     assert.ok(Number(await host.locator("#ammo").innerText()) < 30);
     pass("Fire consumes real ammunition");
