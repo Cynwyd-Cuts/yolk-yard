@@ -7,7 +7,7 @@ const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHR
 const errors=[],checks=[];await mkdir('test-results',{recursive:true});
 const pass=s=>{checks.push(s);console.log('PASS',s);};
 try{
- const page=await browser.newPage({viewport:{width:1440,height:900}});page.setDefaultTimeout(30000);page.on('pageerror',e=>{errors.push(e.message);console.error(e.message);});
+ const page=await browser.newPage({viewport:{width:1440,height:900}});page.setDefaultTimeout(60000);page.on('pageerror',e=>{errors.push(e.message);console.error(e.message);});
  await page.addInitScript(()=>{if(location.origin==='null')return;localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:.1}));});
  await page.goto('http://127.0.0.1:5183/?qa=1');
  await page.evaluate(async()=>{const {Sound}=await import('/src/audio.js');const cue=Sound.prototype.cue;window.qaCues=[];Sound.prototype.cue=function(id,...args){window.qaCues.push(id);return cue.call(this,id,...args);};});

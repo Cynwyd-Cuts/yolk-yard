@@ -12,9 +12,9 @@ concurrency:
   group: yolk-game-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,17 +24,59 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yolk-build
+          path: dist
+          retention-days: 7
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: arena
+            command: npm run test:browser
+          - suite: royale
+            command: npm run test:royale
+          - suite: visual
+            command: node scripts/royale-solo-check.mjs && node scripts/royale-art-check.mjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
-      - run: npm run test:royale
-      - run: node scripts/royale-solo-check.mjs
-      - run: node scripts/royale-art-check.mjs
+      - run: ${{ matrix.command }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: yolk-game-checks
+          name: yolk-game-checks-${{ matrix.suite }}
           path: test-results
           retention-days: 7
+  # Keep the existing required check as an explicit all-suites gate. A failed,
+  # cancelled or skipped suite must never produce a green release check.
+  test:
+    if: always()
+    needs: [build, browser]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every test suite
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          test "$BUILD_RESULT" = success
+          test "$BROWSER_RESULT" = success
+      - uses: actions/download-artifact@v4
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          name: yolk-build
+          path: dist
       - uses: actions/configure-pages@v5
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3
