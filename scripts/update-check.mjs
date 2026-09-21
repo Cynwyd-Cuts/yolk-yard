@@ -57,10 +57,8 @@ try {
   await page.getByRole('button',{name:'Respawn',exact:true}).click();
   await page.waitForFunction(()=>window.__yolkTest.read().state.players[0].health===100);
   console.log('PASS mouse-lock respawn');
-  let versionRequests=0;
   await page.route('**/version.json?*',async route=>{
-    versionRequests++;
-    if(versionRequests===1) await route.fulfill({json:{build:'simulated-next-release'}});
+    if(!page.url().includes('build=simulated-next-release')) await route.fulfill({json:{build:'simulated-next-release'}});
     else await route.continue();
   });
   const oldUrl=page.url();
@@ -73,9 +71,8 @@ try {
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('yolk-settings')).scopeSensitivity),0.35);
   // A second update while in the menu refreshes without starting a match.
   await page.unroute('**/version.json?*');
-  let sent=false;
   await page.route('**/version.json?*',async route=>{
-    if(!sent){sent=true;await route.fulfill({json:{build:'menu-update'}});}else await route.continue();
+    if(!page.url().includes('build=menu-update')){await route.fulfill({json:{build:'menu-update'}});}else await route.continue();
   });
   await page.evaluate(()=>{void window.__yolkTest.checkUpdate();});
   await page.waitForURL('**build=menu-update**');
