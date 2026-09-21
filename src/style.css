@@ -789,10 +789,14 @@ body.in-game #hud {
   width: 22px;
   height: 2px;
 }
-.crosshair.hit::before,
-.crosshair.hit::after {
-  background: var(--gold);
-}
+/* The center dot and hit indicator are independently selectable. */
+.crosshair::before { background: linear-gradient(white 0 7px, transparent 7px 15px, white 15px); }
+.crosshair::after { background: linear-gradient(90deg, white 0 7px, transparent 7px 15px, white 15px); }
+.center-dot { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: white; left: 9.5px; top: 9.5px; }
+.hit-marker { position: absolute; z-index: 5; left: 50%; top: 50%; width: 30px; height: 30px; transform: translate(-50%, -50%) rotate(45deg); filter: drop-shadow(0 1px 1px #172b39); pointer-events: none; }
+.hit-marker::before, .hit-marker::after { content: ""; position: absolute; }
+.hit-marker::before { left: 14px; top: 0; width: 2px; height: 30px; background: linear-gradient(white 0 9px, transparent 9px 21px, white 21px); }
+.hit-marker::after { left: 0; top: 14px; width: 30px; height: 2px; background: linear-gradient(90deg, white 0 9px, transparent 9px 21px, white 21px); }
 .scope {
   display: none;
   position: absolute;
