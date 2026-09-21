@@ -316,6 +316,18 @@ try {
       gid,
       { timeout: 10000 },
     );
+    await guest.waitForFunction(() => !!document.pointerLockElement);
+    // Settle the mouse input after UI clicks and respawn before placing a target.
+    await guest.evaluate(() => {
+      const i = window.__yolkTest.read().input;
+      document.dispatchEvent(new MouseEvent("mousemove", {
+        movementX: i.yaw / 0.002, movementY: i.pitch / 0.002,
+      }));
+    });
+    await host.waitForFunction(id => {
+      const p = window.__yolkTest.read().state.players.find(p => p.id === id);
+      return Math.abs(p.yaw) < 0.005 && Math.abs(p.pitch) < 0.005;
+    }, gid);
     const targetSetup = await host.evaluate(
       (id) =>
         window.__yolkTest.fixture((s) => {
