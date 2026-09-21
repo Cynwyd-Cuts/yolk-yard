@@ -1,7 +1,7 @@
 import Peer from "peerjs";
 import { directory } from "./directory.js";
 import { VERSION, safeProfile } from "./data.js";
-const PREFIX = "yolk-yard-v2-";
+const PREFIX = "yolk-yard-v3-";
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomCode = () =>
   Array.from(
@@ -35,6 +35,7 @@ export class Network {
   constructor(callbacks = {}) {
     this.callbacks = callbacks;
     this.visibility = "private";
+    this.maxConnections=7;
     this.peer = null;
     this.connections = new Map();
     this.isHost = false;
@@ -100,9 +101,9 @@ export class Network {
     return this.code;
   }
   accept(conn) {
-    if (this.closed || this.connections.size >= 7) {
+    if (this.closed || this.connections.size >= this.maxConnections) {
       conn.on("open", () => {
-        conn.send({ type: "reject", reason: "This room is full (8 players)." });
+        conn.send({ type: "reject", reason: "This room has no open seats." });
         setTimeout(() => conn.close(), 150);
       });
       return;
@@ -133,7 +134,7 @@ export class Network {
         return;
       }
       if (msg.type === "hello" && !accepted) {
-        if (msg.version !== VERSION || this.connections.size >= 7) {
+        if (msg.version !== VERSION || this.connections.size >= this.maxConnections) {
           conn.send({
             type: "reject",
             reason:
@@ -233,7 +234,7 @@ export class Network {
             !s ||
             s.version !== VERSION ||
             !Array.isArray(s.players) ||
-            s.players.length > 8
+            s.players.length > 20
           )
             return;
           this.lastState = performance.now();
@@ -294,15 +295,24 @@ export class Network {
   }
   publishRoom() {
     const s = this.snapshot;
-    directory.publish(this.visibility === "public" && s ? {code:this.code,host:s.players.find(p=>p.id === "host")?.name || "Egg",map:s.options.map,mode:s.options.mode,players:s.players.filter(p=>!p.bot).length,capacity:8,phase:s.phase} : null);
+    const humans=s?.players.filter(p=>!p.bot)||[];
+    const capacity=s?.options.mode==='royale' ? s.phase==='playing' ? humans.filter(p=>!p.spectating||p.place>0).length+4 : s.options.capacity : 8;
+    directory.publish(this.visibility === "public" && s ? {code:this.code,host:s.players.find(p=>p.id === "host")?.name || "Egg",map:s.options.map,mode:s.options.mode,players:humans.length,capacity,phase:s.phase} : null);
   }
   broadcast(state) {
     this.snapshot = state;
     if (performance.now() - (this.lastPublish || 0) > 2000) { this.lastPublish = performance.now(); this.publishRoom(); }
     state = {...state, visibility:this.visibility};
-    for (const conn of this.connections.values())
-      if (conn.open && (conn.dataChannel?.bufferedAmount || 0) < 65536)
-        conn.send({ type: "state", state });
+    for (const conn of this.connections.values()) {
+      if (!conn.open || (conn.dataChannel?.bufferedAmount || 0) >= 131072) continue;
+      let outgoing=state;
+      if(state.royale){
+        const version=state.round+':'+state.royale.lootVersion;
+        if(conn.royaleVersion===version){const {loot,chests,...royale}=state.royale;outgoing={...state,royale};}
+        conn.royaleVersion=version;
+      }
+      conn.send({type:'state',state:outgoing});
+    }
   }
   kick(id) {
     const conn = this.connections.get(id);

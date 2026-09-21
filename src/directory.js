@@ -1,14 +1,14 @@
 import Peer from 'peerjs';
 // A live browser coordinates the directory. Other browsers re-elect it on disconnect.
 // Only public-room metadata is shared; private room codes never enter this channel.
-const DIRECTORY_ID = 'yolk-yard-public-directory-v3';
+const DIRECTORY_ID = 'yolk-yard-public-directory-v4';
 const TTL = 20000;
 export function cleanListing(room) {
   if (!room || !/^[A-Z2-9]{8}$/.test(room.code) || typeof room.host !== 'string' ||
       typeof room.map !== 'string' || typeof room.mode !== 'string' ||
-      !Number.isInteger(room.players) || room.players < 1 || room.players > 8 ||
+      !Number.isInteger(room.players) || room.players < 1 || room.players > 20 ||
       !['lobby','playing','results'].includes(room.phase)) return null;
-  return {code:room.code,host:room.host.slice(0,18),map:room.map.slice(0,24),mode:room.mode.slice(0,24),players:room.players,capacity:8,phase:room.phase};
+  return {code:room.code,host:room.host.slice(0,18),map:room.map.slice(0,24),mode:room.mode.slice(0,24),players:room.players,capacity:room.mode==='royale'?Math.max(2,Math.min(20,Number(room.capacity)||16)):8,phase:room.phase};
 }
 class Directory {
   constructor() { this.room=null; this.clients=new Map(); this.waiters=new Map(); this.sequence=0; }

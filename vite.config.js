@@ -17,7 +17,7 @@ export default defineConfig(async ({ command }) => {
     define: { __BUILD_ID__: JSON.stringify(build), __RELEASE_HISTORY__: JSON.stringify(history.releases) },
     plugins: [{
       name: "yolk-build-version",
-      transformIndexHtml(html) { return command === "serve" ? html.replace("https://0.peerjs.com wss://0.peerjs.com", "https://0.peerjs.com wss://0.peerjs.com http://127.0.0.1:9000 ws://127.0.0.1:9000") : html; },
+      transformIndexHtml(html) { return command === "serve" ? html.replace("https://0.peerjs.com wss://0.peerjs.com", "https://0.peerjs.com wss://0.peerjs.com http://127.0.0.1:9000 ws://127.0.0.1:9000 http://127.0.0.1:9002 ws://127.0.0.1:9002") : html; },
       configureServer(server) {
         server.middlewares.use("/version.json", (_req, res) => {
           res.setHeader("Content-Type", "application/json");

@@ -63,7 +63,7 @@ export class Simulation {
   }
   addPlayer(id, profile, bot = false) {
     if (this.players.has(id)) return this.players.get(id);
-    if (this.players.size >= 8) return null;
+    if (this.players.size >= (this.maxPlayers || 8)) return null;
     const count = [0, 0];
     for (const p of this.players.values()) count[p.team]++;
     const p = {
@@ -143,7 +143,7 @@ export class Simulation {
     while (
       [...this.players.values()].filter((p) => p.bot).length <
         this.options.bots &&
-      this.players.size < 8
+      this.players.size < (this.maxPlayers || 8)
     ) {
       const id = "bot-" + i++;
       if (this.players.has(id)) continue;
@@ -305,7 +305,7 @@ export class Simulation {
       if (!input || (!p.bot && this.time - p.lastInput > 0.4))
         input = { yaw: p.yaw, pitch: p.pitch, slot: p.slot };
       if (input.slot !== undefined && input.slot !== p.slot) {
-        p.slot = input.slot;
+        p.slot = input.slot === 1 ? 1 : 0;
         p.reloadEnd = 0;
         p.burstLeft = 0;
         beginEquip(p,this.time,true);
@@ -498,6 +498,7 @@ export class Simulation {
         vz: path.d.z * w.boltSpeed,
         gravity: w.gravity,
         damage: w.damage,
+        range: w.range,
         born: this.time,
         fuse: w.range / w.boltSpeed,
         travelled: 0,
@@ -542,6 +543,8 @@ export class Simulation {
       vy: d.y * speed + (popper ? 4 : 0),
       vz: d.z * speed,
       gravity: popper ? 13 : w.gravity,
+      damage: popper ? 150 : w.damage,
+      range: w.range,
       born: this.time,
       fuse: popper ? 2.5 : w.range / w.boltSpeed,
       travelled: 0,
@@ -562,7 +565,7 @@ export class Simulation {
       if (b.resting) continue;
       const dy = b.vy * dt - 0.5 * b.gravity * dt * dt;
       b.vy -= b.gravity * dt;
-      const remaining = b.popper ? Infinity : Math.max(0, weapon(b.weapon).range - (b.travelled || 0)),
+      const remaining = b.popper ? Infinity : Math.max(0, (b.range ?? weapon(b.weapon).range) - (b.travelled || 0)),
         fraction = Math.min(1, remaining / (Math.hypot(b.vx * dt, dy, b.vz * dt) || 1)),
         delta = { x: b.vx * dt * fraction, y: dy * fraction, z: b.vz * dt * fraction },
         length = Math.hypot(delta.x, delta.y, delta.z);
@@ -677,7 +680,7 @@ export class Simulation {
       this.damage(
         p,
         attacker,
-        (b.popper ? 150 : weapon(b.weapon).damage) *
+        (b.popper ? 150 : (b.damage ?? weapon(b.weapon).damage)) *
           (1 - distance / (radius * 1.2)) *
           (p === attacker ? 0.55 : 1),
         b.popper ? "Popper" : "Thumper",
@@ -987,7 +990,7 @@ export class Simulation {
       zone: { ...this.zone },
       players: [...this.players.values()].map((p) => ({
         ...Object.fromEntries(keys.map((k) => [k, Array.isArray(p[k]) ? [...p[k]] : p[k]])),
-        shotSpread: p.accuracyState[p.slot].spread ?? gun(p).spread * (p.aim ? gun(p).aimSpread : 1),
+        shotSpread: p.accuracyState[p.slot]?.spread ?? gun(p).spread * (p.aim ? gun(p).aimSpread : 1),
       })),
       projectiles: this.projectiles.map((b) => ({
         id: b.id,

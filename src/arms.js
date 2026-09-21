@@ -20,6 +20,9 @@ export const ARM_POSES = {
   scatter:  {right:[.11,-.25,.17],  left:[-.13,-.15,-.47], socket:[-.13,-.16,.04], drop:[-.42,-.35,-.15], tilt:[-.26,.1,-.36]},
   thumper:  {right:[.11,-.25,.17],  left:[-.14,-.20,-.32], socket:[-.13,-.20,-.30],drop:[-.48,-.36,-.3],tilt:[-.1,.2,-.46]},
 };
+ARM_POSES.peeper = ARM_POSES.needle;
+ARM_POSES.doubleyolk = ARM_POSES.scatter;
+ARM_POSES.comet = ARM_POSES.sprinter;
 const smooth = t => {t=clamp(t,0,1);return t*t*(3-2*t);};
 function path(points, t) {
   if(t<=points[0][0]) return [...points[0][1]];

@@ -12,6 +12,9 @@ export const DRAW_POSES={
  scatter:{duration:.32,offset:[.18,-.92,.20],rotation:[-.52,-.12,-.38]},
  thumper:{duration:.37,offset:[.12,-1.02,.22],rotation:[-.62,.24,-.31]},
 };
+DRAW_POSES.peeper = DRAW_POSES.needle;
+DRAW_POSES.doubleyolk = DRAW_POSES.scatter;
+DRAW_POSES.comet = DRAW_POSES.sprinter;
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 export function beginEquip(player,time,holster=false){
  player.equipStarted=time;

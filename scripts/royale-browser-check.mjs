@@ -1,0 +1,64 @@
+import {chromium} from 'playwright';
+import {createServer} from 'vite';
+import {PeerServer} from 'peer';
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+const vite=await createServer({server:{port:5182,host:'127.0.0.1',strictPort:true,watch:null}});await vite.listen();
+let signaling;PeerServer({port:9002,path:'/peer',host:'127.0.0.1'},server=>signaling=server);
+const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHROME?{executablePath:process.env.YOLK_TEST_CHROME}:{}),args:['--no-sandbox','--allow-loopback-in-peer-connection','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-background-timer-throttling','--disable-renderer-backgrounding']});
+const errors=[],checks=[];await mkdir('test-results',{recursive:true});
+const pass=s=>{checks.push(s);console.log('PASS',s);};
+async function make(name,mobile=false){
+ const ctx=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1280,height:800},isMobile:mobile,hasTouch:mobile});
+ await ctx.addInitScript(name=>{if(location.origin==='null')return;localStorage.setItem('yolk-profile',JSON.stringify({name}));localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:.15}));},name);
+ await ctx.route('**/network-config.js',route=>route.fulfill({contentType:'application/javascript',body:"window.YOLK_NETWORK={peer:{host:'127.0.0.1',port:9002,path:'/peer',secure:false},iceServers:[]};"}));
+ const page=await ctx.newPage();page.setDefaultTimeout(60000);page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:5182/?qa=1');await page.locator('[data-action="royale-home"]').waitFor();return page;
+}
+try{
+ const host=await make('Captain Sunny');
+ await host.locator('[data-action="royale-home"]').click();await host.locator('[data-action="royale-custom"]').click();
+ assert.equal(await host.locator('#setup-map').inputValue(),'sunnybreak');assert.equal(await host.locator('#setup-minutes').isVisible(),false);
+ await host.locator('#setup-visibility').selectOption('public');await host.locator('#setup-capacity').selectOption('4');await host.locator('#setup-bots').selectOption('2');await host.locator('[data-action="create-room"]').click();await host.locator('.room-code').waitFor();
+ const code=(await host.locator('.room-code').innerText()).replace('-','').trim();
+ const guest=await make('Scout Egg');await guest.locator('[data-action="royale-home"]').click();await guest.locator('[data-action="royale-queue"]').click();await guest.locator('.room-code').waitFor();assert.equal((await guest.locator('.room-code').innerText()).replace('-','').trim(),code);pass('Public matchmaking joins the waiting Royale lobby');
+ await host.screenshot({path:'test-results/royale-lobby.png'});
+ await host.locator('[data-action="start-match"]').click();await guest.locator('#royale-hud').waitFor();
+ await guest.waitForFunction(()=>window.__yolkTest.read().state.players.length===4);assert.equal(await guest.locator('#spawn-button').isVisible(),false);
+ await host.screenshot({path:'test-results/royale-flight.png'});pass('Four contestants share the empty starting inventory and Eggspress flight');
+ await guest.keyboard.press('KeyM');await guest.locator('#royale-fullmap').click({position:{x:160,y:220}});await guest.screenshot({path:'test-results/royale-map.png'});await guest.locator('[data-action="resume"]').click();
+ await guest.locator('#royale-compass').filter({hasText:'m'}).waitFor();pass('Island map sets a visible distance waypoint');
+ await host.evaluate(()=>window.__yolkTest.fixture(s=>{s.time=s.startedAt+4;for(const p of s.players.values())if(p.bot)p.botDrop=30;}));
+ await guest.keyboard.press('Space');await guest.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId).flight==='dive';});
+ await guest.keyboard.press('Space');await guest.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId).flight==='glide';});await guest.screenshot({path:'test-results/royale-glider.png'});pass('Guest exit and manual glider deployment are host-authoritative');
+ await host.evaluate(()=>window.__yolkTest.fixture(s=>{
+   s.loot=[];s.lootVersion++;s.chests=[{id:'qa-chest',x:70,y:0,z:-1.8,opened:false}];
+   for(const [i,p]of [...s.players.values()].entries()){Object.assign(p,{x:70+i*7,y:0,z:0,flight:'ground',grounded:true,health:100,shield:0,yaw:0,pitch:0});p.bot=false;}
+ }));
+ await host.keyboard.press('Escape');if(await host.locator('[data-action="resume"]').isVisible())await host.locator('[data-action="resume"]').click();
+ await host.keyboard.down('KeyF');await host.waitForFunction(()=>window.__yolkTest.read().state.royale.chests[0].opened);await host.keyboard.up('KeyF');
+ await guest.waitForFunction(()=>window.__yolkTest.read().state.royale.chests[0].opened);pass('Chest opening and generated loot replicate to the guest');
+ await host.evaluate(()=>window.__yolkTest.fixture(s=>{
+  const p=s.players.get('host');s.loot=[];s.lootVersion++;s.chests=[];
+  for(const item of [{id:'comet',weapon:true,rarity:3,ammo:24,count:1},{id:'mini',rarity:1,count:2},{id:'medkit',rarity:1,count:1},{id:'impulse',rarity:3,count:2},{id:'launchpad',rarity:2,count:1}])s.takeLoot(p,s.dropLoot(p,item));
+  p.bank.medium=70;p.slot=0;s.syncInventory(p);
+ }));
+ await host.locator('#royale-hotbar .royale-slot').filter({hasText:'Comet'}).waitFor();await host.screenshot({path:'test-results/royale-ground.png'});
+ await host.keyboard.press('KeyI');await host.locator('[data-royale-swap="4"]').click();await host.locator('[data-action="resume"]').click();
+ await host.waitForFunction(()=>window.__yolkTest.read().state.players.find(p=>p.id==='host').inventory[0]?.id==='launchpad');
+ await host.keyboard.press('Digit2');
+ await host.mouse.click(630,400);await host.waitForFunction(()=>window.__yolkTest.read().state.players.find(p=>p.id==='host').shield===25);pass('Five-slot inventory swaps and a timed shield item complete in the live game');
+ await host.keyboard.press('Digit5');await host.waitForFunction(()=>{const s=window.__yolkTest.read().state,p=s.players.find(p=>p.id==='host');return p.slot===4&&s.time>p.equipUntil;});await host.mouse.down();await host.waitForFunction(()=>window.__yolkTest.read().state.players.find(p=>p.id==='host').inventory[4].ammo<24);await host.mouse.up();await host.keyboard.press('KeyR');
+ await host.waitForFunction(()=>window.__yolkTest.read().state.players.find(p=>p.id==='host').reloadEnd>0);pass('Selected inventory weapon fires and reloads using reserve ammunition');
+ const late=await make('Late Watcher');await late.locator('[data-action="join"]').click();await late.locator('#join-code').fill(code);await late.locator('[data-action="join-room"]').click();await late.locator('#spectate-panel').waitFor();assert.equal(await late.locator('#spawn-button').isVisible(),false);pass('A late invite joins as a spectator with no respawn control');
+ await host.evaluate(()=>window.__yolkTest.fixture(s=>{const p=s.players.get('host'),guest=[...s.players.values()].find(p=>p.id!=='host'&&!p.bot&&!p.spectating);s.damage(p,guest,1000,'Peeper');}));
+ await host.locator('#spectate-panel').waitFor();await host.locator('[data-action="spectate-next"]').click();await host.screenshot({path:'test-results/royale-spectator.png'});pass('Elimination follows a living opponent and supports target switching');
+ await host.evaluate(()=>window.__yolkTest.fixture(s=>{s.time=s.startedAt+150;}));await guest.locator('#royale-storm-warning').filter({hasText:'STORM'}).waitFor();await guest.screenshot({path:'test-results/royale-storm.png'});pass('Storm phase, map circles and warning render on the guest');
+ await host.evaluate(()=>window.__yolkTest.fixture(s=>{const living=[...s.players.values()].filter(p=>p.health>0);for(const p of living.slice(1))s.damage(p,living[0],1000,'Comet');s.tick(1/60);}));await host.locator('[data-action="rematch"]').waitFor();await guest.locator('.results').waitFor();await host.screenshot({path:'test-results/royale-results.png'});
+ await host.locator('[data-action="rematch"]').click();await host.locator('[data-action="apply-rematch"]').click();await late.waitForFunction(()=>{const q=window.__yolkTest.read();const p=q.state.players.find(p=>p.id===q.localId);return q.state.round===2&&p.health===100&&p.inventory.every(i=>i===null);});pass('Results and rematch reset storm, placement, inventory and spectator participation');
+ await host.keyboard.press('Escape');await host.locator('[data-action="leave-confirm"]').click();await host.locator('[data-action="leave"]').click();await guest.getByText('Connection ended',{exact:true}).waitFor();pass('Host departure ends the room clearly');
+ const mobile=await make('Pocket Egg',true);await mobile.locator('[data-action="royale-home"]').click();await mobile.locator('[data-action="royale-local"]').click();await mobile.locator('#royale-hud').waitFor();await mobile.screenshot({path:'test-results/royale-mobile.png'});
+ const overflow=await mobile.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert.equal(overflow,false);assert.equal(await mobile.locator('[data-touch="sprint"]').isVisible(),true);assert.equal(await mobile.locator('[data-touch="interact"]').isVisible(),true);pass('Mobile Royale HUD and touch sprint/search controls fit the viewport');
+ assert.deepEqual(errors,[]);pass('No uncaught browser or audio exceptions');
+ await writeFile('test-results/royale-report.json',JSON.stringify({checks,errors},null,2));
+}finally{await browser.close();await vite.close();await new Promise(resolve=>signaling?.close(resolve)||resolve());}

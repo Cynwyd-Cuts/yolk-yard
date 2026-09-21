@@ -1,3 +1,4 @@
+import {buildIsland,RoyaleView} from './royale-view.js';
 import * as THREE from "three";
 import {equipPose} from "./equip.js";
 import { makeArms, updateArms, reloadProgress, armAppearance } from "./arms.js";
@@ -280,6 +281,7 @@ export class View {
     this.camera.add(this.gunGroup);
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    this.royaleView = new RoyaleView(this, {block,ball,cylinder,mat,palette});
     this.loadMap("yard");
     canvas.addEventListener("webglcontextlost", (e) => {
       e.preventDefault();
@@ -335,8 +337,11 @@ export class View {
     const map = getMap(id);
     this.disposeGroup(this.world);
     this.scene.background = new THREE.Color(map.sky);
-    this.scene.fog = new THREE.Fog(map.sky, 72, 175);
-    buildArena(this.world, map, { block, ball, cylinder, mat, palette });
+    this.scene.fog = new THREE.Fog(map.sky, map.theme==='royale'?330:72, map.theme==='royale'?1000:175);
+    this.camera.far=this.scopeCamera.far=map.theme==='royale'?1400:260;
+    this.camera.near=map.theme==='royale'?.15:.025;
+    this.camera.updateProjectionMatrix();this.scopeCamera.updateProjectionMatrix();
+    (map.theme==='royale'?buildIsland:buildArena)(this.world, map, { block, ball, cylinder, mat, palette });
     for (let i = 0; i < 2; i++) {
       const [x, z] = map.bases[i];
       const ring = new THREE.Mesh(
@@ -502,6 +507,7 @@ export class View {
     this.armStyle = appearance;
     this.localWeapon = id;
     this.disposeGroup(this.gunGroup);
+    this.heldItem=null;this.heldItemKey=null;
     const model = makeBlaster(id);
     this.gunGroup.add(model);
     this.localModel = model;
@@ -527,6 +533,7 @@ export class View {
     this.gunGroup.add(this.localArms);
   }
   event(e, localId) {
+    this.royaleView.event(e);
     if (e.type === "hit" && e.player === localId && Number.isFinite(e.x)) {
       const mesh = label(String(e.amount) + (e.precision ? "!" : ""), e.precision ? "#ffcf52" : "#ffffff", true, e.precision);
       mesh.material.sizeAttenuation = false;
@@ -710,7 +717,7 @@ export class View {
     if (this.menuEgg) this.menuEgg.visible = !playing;
     this.actors.visible = playing;
     this.effects.visible = playing;
-    this.gunGroup.visible = playing && local?.health > 0;
+    this.gunGroup.visible = playing && local?.health > 0 && (!local.inventory || local.flight==='ground');
     if (!playing) {
       this.clearOutgoing(this);
       this.preview(profile);
@@ -743,7 +750,7 @@ export class View {
       this.gunGroup.visible=this.gunGroup.visible&&draw.visible;
       const w = gun(local),
         scoped = w.optic === "scope" || w.optic === "prism";
-      const aiming = aim && local.health > 0 && local.reloadEnd <= state.time && !draw.active;
+      const aiming = aim && (!local.inventory||local.flight==='ground'&&local.inventory[local.slot]?.weapon) && local.health > 0 && local.reloadEnd <= state.time && !draw.active;
       this.aimBlend += (Number(aiming) - this.aimBlend) * Math.min(1, dt * 14);
       const fov = aiming
         ? scoped
@@ -782,12 +789,31 @@ export class View {
         hands.rotation[1] + draw.rotation[1],
         hands.rotation[2] + draw.rotation[2],
       );
-      this.scopeActive = aiming && scoped && this.aimBlend > 0.1;
+      this.scopeActive = aiming && scoped && this.aimBlend > 0.1 && (!local.inventory||!!local.inventory[local.slot]?.weapon);
+      if(local.inventory){
+        const heldItem=local.inventory[local.slot];
+        this.localModel.visible=!!heldItem?.weapon;
+        const itemKey=heldItem&&!heldItem.weapon?heldItem.id:null;
+        if(this.heldItemKey!==itemKey){
+          if(this.heldItem){this.heldItem.removeFromParent();this.disposeGroup(this.heldItem);}
+          this.heldItem=null;this.heldItemKey=itemKey;
+          if(itemKey){this.heldItem=this.royaleView.itemModel(heldItem);this.heldItem.scale.setScalar(.4);this.heldItem.position.set(-.05,-.08,-.28);this.gunGroup.add(this.heldItem);}
+        }
+        if(this.heldItem)this.heldItem.rotation.z=local.use?Math.sin(this.clock*8)*.15:0;
+        if(this.localArms){this.localArms.rotation.x=local.use ? -.35+Math.sin(this.clock*6)*.06 : 0;}
+        this.gunGroup.rotation.z+=local.sprinting?.35:0;
+        if(local.use){this.gunGroup.position.y+=.08+Math.sin(this.clock*8)*.015;this.gunGroup.rotation.x=-.3;}
+        if(local.flight==='transport'){
+          this.camera.position.set(p.x+Math.sin(p.yaw)*24,p.y+16,p.z+Math.cos(p.yaw)*24);this.camera.lookAt(p.x,p.y+3,p.z);this.camera.fov=80;this.camera.updateProjectionMatrix();
+        }else if(local.health>0&&local.flight!=='ground'){
+          this.camera.position.set(p.x+Math.sin(p.yaw)*6,p.y+3.5,p.z+Math.cos(p.yaw)*6);this.camera.rotation.set(Math.min(p.pitch,-.18),p.yaw,0,'YXZ');
+        }
+      }
     }
     if (state) {
       const seen = new Set();
       for (const p of state.players) {
-        if (p.spectating || p.awaitingEntry || (p.id === local?.id && p.health > 0)) continue;
+        if ((p.spectating && (!p.eliminatedAt || state.time-p.eliminatedAt>.75)) || p.awaitingEntry || (p.id === local?.id && p.health > 0 && (!p.inventory || p.flight==='ground'||p.flight==='transport'))) continue;
         seen.add(p.id);
         const sig =
           p.color +
@@ -812,6 +838,7 @@ export class View {
               : "#ffffff",
           );
           name.position.y = 2.08;
+          name.visible = !state.royale;
           model.add(name);
           this.actors.add(model);
           this.models.set(p.id, model);
@@ -837,7 +864,7 @@ export class View {
           model.userData.gait || 0, walking ? 1 : 0, 1 - Math.exp(-dt * 6));
         const stride = model.userData.stride = (model.userData.stride || 0) + dt * 5.2 * gait;
         const bob = (1 - Math.cos(stride * 2)) * 0.014 * gait;
-        const deathAge = p.health <= 0 ? state.time - (p.respawnAt - 3) : 0;
+        const deathAge = p.health <= 0 ? state.time - (p.eliminatedAt ?? p.respawnAt - 3) : 0;
         model.visible = p.health > 0 || deathAge < 0.75;
         model.userData.cracks.forEach((crack, i) => {
           crack.visible = p.health < 100 && i < Math.ceil((1-p.health/100)*12);
@@ -879,6 +906,7 @@ export class View {
           model.position.add(pivot).sub(rotatedPivot);
           model.position.y += bob;
         }
+        if(p.inventory)this.royaleView.animateActor(model,p,this.clock);
       }
       for (const [id, model] of this.models)
         if (!seen.has(id)) {
@@ -1049,6 +1077,7 @@ export class View {
       this.renderer.setRenderTarget(null);
       this.gunGroup.visible = true;
     }
+    this.royaleView.update(state,local,dt,playing);
     this.renderer.render(this.scene, this.camera);
   }
 }
