@@ -1,4 +1,5 @@
 export const RELEASE_NOTES = [
+  { number: "14", title: "Steady scoped accuracy", changes: ["Moving and jumping no longer reduce accuracy while aiming through a sight or scope.", "Scoping immediately removes movement spread; firing spread still follows each blaster’s stats."] },
 
   { number: "13", title: "Your controls, your way", changes: ["Customize keyboard and mouse bindings with two bindings per action, or restore the defaults.", "Control hints follow your saved bindings."] },
   { number: "12", title: "The egg studio", changes: [

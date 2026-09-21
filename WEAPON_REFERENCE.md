@@ -51,3 +51,7 @@ recoil animations and scope transitions are not copied.
 
 Protocol version is raised to 3 so clients using the earlier balance cannot join
 updated hosts. The existing main-branch workflow tests and deploys GitHub Pages.
+
+Yolk Yard intentionally removes movement and jumping bloom while aiming, including
+accumulated movement bloom when entering a scope. Firing bloom and reload instability
+remain. This scoped movement rule is a custom gameplay choice.

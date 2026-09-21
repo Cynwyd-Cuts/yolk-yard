@@ -388,7 +388,11 @@ export class Simulation {
     const planar = Math.hypot(p.x - previous.x, p.z - previous.z) / Math.max(dt, 1e-9);
     const vertical = Math.abs(p.y - previous.y) / Math.max(dt, 1e-9);
     const moving = Math.min(1, planar / w.speed) + Math.min(1, vertical / w.speed);
-    const target = (moving + (p.reloadEnd && w.id !== "needle" ? 1 : 0)) * w.spreadMax;
+    const target = ((p.aim ? 0 : moving) + (p.reloadEnd && w.id !== "needle" ? 1 : 0)) * w.spreadMax;
+    // Scoping immediately removes accumulated movement bloom, including jumps.
+    // Reload instability and firing bloom retain their normal behavior.
+    if (p.aim && !a.wasAiming) a.movement = target;
+    a.wasAiming = p.aim;
     const ads = p.aim ? w.aimSpread : 1;
     while (a.clock + 1e-9 >= 1 / 30) {
       a.clock -= 1 / 30;

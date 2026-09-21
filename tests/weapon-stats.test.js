@@ -110,3 +110,23 @@ test('replicated crosshair spread widens on movement and recovers at rest', () =
   hold(sim, player, 180, false);
   assert.ok(Math.abs(readSpread() - idle) < 1e-9);
 });
+
+test('scoped movement and jumping match stationary accuracy for every blaster', () => {
+  for (const id of ['sprinter','scatter','needle','zipper','thumper','anchor','duet','pip']) {
+    const { sim, player } = arena(id);
+    const moving = structuredClone(player), still = structuredClone(player);
+    moving.aim = still.aim = true;
+    // Include bloom inherited from moving before entering the scope.
+    moving.accuracyState[moving.slot].movement = 0.8;
+    for (let i = 0; i < 45; i++) {
+      const previous = {x:moving.x,y:moving.y,z:moving.z};
+      moving.x += 0.2; moving.y += 0.1;
+      sim.updateAccuracy(moving, previous, 1/60);
+      sim.updateAccuracy(still, still, 1/60);
+      assert.equal(moving.accuracyState[moving.slot].spread, still.accuracyState[still.slot].spread, id);
+    }
+    moving.aim = false;
+    sim.updateAccuracy(moving, {...moving, x:moving.x-0.2}, 1/30);
+    assert.ok(moving.accuracyState[moving.slot].spread > still.accuracyState[still.slot].spread, id);
+  }
+});
