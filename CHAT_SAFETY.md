@@ -11,6 +11,7 @@
 ## Policy
 
 - Obscenity 0.4.6 provides the English phrase dataset, allowlists and normalization for profanity/slurs; additional family-friendly terms and harassment rules extend it.
+- `src/profanity-terms.js` contains all 1,598 rows of the user-supplied `archive.zip/profanity_en.csv`, including all nonempty canonical-form columns (1,667 unique terms). Every severity/category is included. The second pasted list adds 2,050 unique terms from 2,487 supplied entries, giving 3,717 combined terms. Source checksums are recorded in the file. Entries are escaped literal data, with additional normalized separator/leet matching and word boundaries to avoid blocking innocent substrings. Some supplied terms are ambiguous ordinary words; explicit list matches remain blocked.
 - Unicode normalization, invisible-character removal, confusable folding, compact forms and repeated-letter/leet handling address disguised words. Encoded markup, unsupported scripts, excessive length and malformed values fail closed.
 - Privacy patterns detect email/handles/links, contact services, long numeric and spelled-number sequences, addresses, coordinates, account/financial identifiers, ages and personal-information disclosures or requests. Compromise’s local English entity recognizer adds common people and places, including camel-case names.
 - A short recent-message window checks disclosures or words split across consecutive messages from one sender. It contains approved text only, not rejected originals.
@@ -23,7 +24,7 @@
 - Reports use three fixed reasons, verify both participants, deduplicate reporter/target pairs and notify the current host. Reporting also mutes locally. No central moderation queue is implied.
 - Messages are capped at sixty per recipient, live only in memory, and clear when leaving. No history is sent to late joiners. Preferences are saved locally, while mutes and reports are room-scoped. Same-room rematches keep the conversation.
 - Opening chat clears pressed keys, pending actions and touch controls, then releases the pointer. The world keeps running in multiplayer while gameplay input is neutral. Closing chat resumes pointer capture when appropriate. Keybinds are configurable; touch users have a visible button.
-- Protocol 6 prevents old unfiltered clients from joining current hosts. Existing update refresh behavior updates lobby users and defers active-match refreshes.
+- Game protocol 8 and filter protocol 2 prevent older clients with the previous word list from joining current hosts or sending accepted chat. Existing update refresh behavior updates lobby users and defers active-match refreshes.
 
 ## Accuracy and authority limits
 

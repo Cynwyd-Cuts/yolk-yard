@@ -3,6 +3,7 @@ import {createServer} from 'vite';
 import {PeerServer} from 'peer';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
+import {FILTER_VERSION} from '../src/moderation.js';
 
 const vite=await createServer({server:{port:5173,host:'127.0.0.1',strictPort:true}});await vite.listen();
 let signal;
@@ -38,9 +39,9 @@ try{
   await send(guest,'user@example.com');assert.match(await guest.locator('.chat-status').innerText(),/private/);
   assert.equal((await rows(host)).some(r=>r.text.includes('@')),false);
   const before=(await rows(host)).length;
-  await guest.evaluate(()=>window.__yolkTest.chatPacket({type:'chat-send',version:1,channel:'room',text:'user@example.com',sender:'host',name:'Host egg'}));
+  await guest.evaluate(version=>window.__yolkTest.chatPacket({type:'chat-send',version,channel:'room',text:'user@example.com',sender:'host',name:'Host egg'}),FILTER_VERSION);
   await guest.waitForTimeout(500);assert.equal((await rows(host)).length,before);
-  await host.evaluate(()=>window.__yolkTest.chatInject({version:1,id:999,sender:'host',name:'Fake',channel:'room',text:'user@example.com'}));
+  await host.evaluate(version=>window.__yolkTest.chatInject({version,id:999,sender:'host',name:'Fake',channel:'room',text:'user@example.com'}),FILTER_VERSION);
   await guest.waitForTimeout(500);assert.equal((await rows(guest)).some(r=>r.text.includes('@')),false);
   // Rejoining must start a fresh chat history and restore normal delivery.
   await close(guest);await guest.locator('[data-action="leave"]').click();
