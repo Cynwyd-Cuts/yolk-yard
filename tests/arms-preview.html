@@ -1,13 +1,14 @@
-<!doctype html><html><head><meta charset="UTF-8"><style>body{background:#e7eadf;color:#263e4c;font:16px Arial;margin:12px}main{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.tile img{width:100%;display:block}.tile{background:#fff;border-radius:8px;overflow:hidden}.tile strong{display:block;padding:8px}</style></head><body><main id="gallery"></main><script type="module">
+<!doctype html><html><head><meta charset="UTF-8"><style>body{background:#e7eadf;color:#263e4c;font:16px Arial;margin:12px}main{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.tile img{width:100%;display:block}.tile{background:#fff;border-radius:8px;overflow:hidden}.tile strong{display:block;padding:8px}</style></head><body><main id="gallery"></main><script type="module">
 import * as THREE from 'three';
 import {makeArms,updateArms} from '../src/arms.js';
 import {makeBlaster} from '../src/weapons.js';
 import {makeEgg} from '../src/view.js';
 import {WEAPONS} from '../src/data.js';
+import {DRAW_POSES,beginEquip,equipPose} from '../src/equip.js';
 import {VIEWMODEL} from '../src/physics.js';
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(400,280);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(800,560);
 window.checks=[];
-for(const w of WEAPONS) for(const kind of ['Idle','Reload','Aim','Other player']) {
+for(const w of WEAPONS) for(const kind of ['Idle','Reload','Aim','Other player','Draw']) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#c9d6d6');
  scene.add(new THREE.HemisphereLight(0xffffff,0x657785,2.6));
  const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(-2,4,3);scene.add(light);
@@ -24,7 +25,12 @@ for(const w of WEAPONS) for(const kind of ['Idle','Reload','Aim','Other player']
   if(kind==='Aim') {group.position.set(0,-w.sightY*VIEWMODEL.scale,VIEWMODEL.z);camera.fov=65;camera.updateProjectionMatrix();}
   if(kind==='Reload'){const pose=updateArms(rig,.45,model);group.position.y-=pose.dip;group.rotation.set(...pose.rotation);}
  }
- if(kind!=='Reload')updateArms(rig,-1,model);
+ if(kind==='Draw'){
+  const p={weapon:w.id,slot:0,health:100};beginEquip(p,0);
+  const draw=equipPose(p,DRAW_POSES[w.id].duration*.55),g=model.parent;
+  g.position.add(new THREE.Vector3(...draw.position));g.rotation.set(...draw.rotation);
+  updateArms(rig,-1,model,0,draw.progress);
+ }else if(kind!=='Reload')updateArms(rig,-1,model);
  renderer.render(scene,camera);
  window.checks.push({weapon:w.id,kind,hands:rig.userData.limbs.map(l=>l.hand.position.toArray())});
  const tile=document.createElement('div');tile.className='tile';

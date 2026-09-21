@@ -88,6 +88,7 @@ try{
  await guest.keyboard.down('KeyW');
  await host.waitForFunction(({id,x,z})=>{const p=window.__yolkTest.read().state.players.find(p=>p.id===id);return Math.hypot(p.x-x,p.z-z)>.5;},before);
  await guest.keyboard.up('KeyW');
+ await guest.waitForFunction(()=>window.__yolkTest.read().presentation.draw?.active===false);
  const idleHands=await guest.evaluate(()=>window.__yolkTest.read().presentation.arms.hands);
  await guest.locator('#world').dispatchEvent('mousedown',{button:0});
  await guest.waitForFunction(()=>{const q=window.__yolkTest.read(),p=q.state.players.find(p=>p.id===q.localId);return p.ammo[0]<30;});
@@ -97,9 +98,21 @@ try{
  assert.notDeepEqual(await guest.evaluate(()=>window.__yolkTest.read().presentation.arms.hands),idleHands);
  await host.waitForFunction(()=>window.__yolkTest.read().presentation.remoteArms.some(r=>r.progress>.1));
  await guest.screenshot({path:'test-results/arms/in-game-reload.png'});
+ await guest.evaluate(()=>{
+  window.switchSamples=[];
+  window.sampleSwitch=()=>{const p=window.__yolkTest.read().presentation;window.switchSamples.push({weapon:p.arms?.weapon,draw:p.draw?.progress,outgoing:p.outgoing});if(window.switchSamples.length<180)requestAnimationFrame(window.sampleSwitch);};
+  requestAnimationFrame(window.sampleSwitch);
+ });
  await guest.keyboard.press('Digit2');
  await guest.waitForFunction(()=>{const arms=window.__yolkTest.read().presentation.arms;return arms.weapon==='pip'&&arms.progress===-1;});
+ await guest.waitForFunction(()=>window.__yolkTest.read().presentation.draw?.active===false);
+ const switchSamples=await guest.evaluate(()=>window.switchSamples);
+ assert.ok(switchSamples.some(p=>p.outgoing),'old blaster lowers out of view');
+ assert.ok(switchSamples.some(p=>p.weapon==='pip'&&p.draw>0&&p.draw<1),'next blaster visibly draws');
+ assert.equal(await guest.evaluate(()=>window.__yolkTest.read().presentation.outgoing),false);
  await guest.keyboard.press('Digit1');
+ await guest.waitForFunction(()=>{const p=window.__yolkTest.read().presentation;return p.arms.weapon==='sprinter'&&!p.draw.active;});
+ console.log('PASS draw and holster motion finishes cleanly for both weapon slots');
  console.log('PASS live reload hand movement, remote reload animation, and weapon-swap cancellation');
 
  await host.keyboard.press('Escape');await host.locator('[data-action="toggle-visibility"]:visible').click();

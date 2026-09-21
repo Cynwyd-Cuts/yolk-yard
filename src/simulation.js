@@ -1,3 +1,4 @@
+import {beginEquip} from './equip.js';
 import {matchOptions} from "./match-options.js";
 import {
   VERSION,
@@ -282,6 +283,7 @@ export class Simulation {
       killerId: null,
       crown: null,
     });
+    beginEquip(p,this.time);
     this.inputs.delete(p.id);
     p.botPath = [];
     p.botThink = 0;
@@ -306,7 +308,7 @@ export class Simulation {
         p.slot = input.slot;
         p.reloadEnd = 0;
         p.burstLeft = 0;
-        p.nextShot = Math.max(p.nextShot, this.time + 0.2);
+        beginEquip(p,this.time,true);
       }
       const previousPosition = { x: p.x, y: p.y, z: p.z };
       movePlayer(p, input, this.map, dt);
@@ -325,7 +327,7 @@ export class Simulation {
         p.reserve[p.slot] -= add;
         p.reloadEnd = 0;
       }
-      if (input.reload || (input.fire && p.ammo[p.slot] === 0)) this.reload(p);
+      if (this.time >= (p.equipUntil || 0) && (input.reload || (input.fire && p.ammo[p.slot] === 0))) this.reload(p);
       if (p.burstLeft && this.time >= p.burstTime) {
         this.fire(p, true);
         p.burstLeft--;
@@ -347,7 +349,7 @@ export class Simulation {
           p.burstTime = this.time + w.burstInterval;
         }
       }
-      p.fireLatch = !!input.fire;
+      p.fireLatch = !!input.fire && this.time >= (p.equipUntil || 0);
       if (
         input.popper &&
         !p.popperLatch &&
@@ -958,6 +960,9 @@ export class Simulation {
       "ammo",
       "reserve",
       "reloadEnd",
+      "equipStarted",
+      "equipHolster",
+      "equipUntil",
       "poppers",
       "shieldUntil",
       "respawnAt",
