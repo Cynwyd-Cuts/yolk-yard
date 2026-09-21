@@ -1,7 +1,9 @@
 import { clamp, weapon } from "./data.js";
+import {groundAt,terrainHit} from './terrain.js';
 export const RADIUS = 0.46,
   HEIGHT = 1.75,
   EYE = 1.43;
+export const ROYALE_MOVEMENT = Object.freeze({walk:5, sprint:7.4});
 export const dist = (a, b) =>
   Math.hypot(a.x - b.x, (a.y || 0) - (b.y || 0), a.z - b.z);
 export function direction(yaw, pitch = 0) {
@@ -45,7 +47,7 @@ function candidates(map,o,d=null,max=0,radius=0){
 export function wallDistance(map, o, d, max = 200) {
   let t = max;
   for (const b of candidates(map,o,d,max)) t = Math.min(t, rayBox(o, d, b, t));
-  if (d.y < 0) t = Math.min(t, -o.y / d.y);
+  const ground=terrainHit(map,o,d,t);if(ground)t=Math.min(t,ground.distance);
   return t;
 }
 // Small shell margin covers the centered waddle and bounded render smoothing.
@@ -89,6 +91,10 @@ function pushAxis(p, map, axis, delta) {
 }
 export function movePlayer(p, input, map, dt) {
   if (p.health <= 0) return;
+  if ((input.jumpPress || 0) > (p.lastJumpPress || 0)) {
+    p.lastJumpPress = input.jumpPress;
+    p.jumpLatch = p.flightLatch = false;
+  }
   p.yaw = Number.isFinite(input.yaw) ? input.yaw : p.yaw;
   p.pitch = clamp(
     Number.isFinite(input.pitch) ? input.pitch : p.pitch,
@@ -103,7 +109,7 @@ export function movePlayer(p, input, map, dt) {
     pushAxis(p,map,'x',(-Math.sin(p.yaw)*f+Math.cos(p.yaw)*s)/length*speed*dt);
     pushAxis(p,map,'z',(-Math.cos(p.yaw)*f-Math.sin(p.yaw)*s)/length*speed*dt);
     p.x=clamp(p.x,-map.size+.5,map.size-.5);p.z=clamp(p.z,-map.size+.5,map.size-.5);
-    let floor=0;for(const b of candidates(map,p))if(b.y+b.h<=p.y+.045&&Math.abs(p.x-b.x)<b.w/2+RADIUS-.015&&Math.abs(p.z-b.z)<b.d/2+RADIUS-.015)floor=Math.max(floor,b.y+b.h);
+    let floor=groundAt(map,p.x,p.z);for(const b of candidates(map,p))if(b.y+b.h<=p.y+.045&&Math.abs(p.x-b.x)<b.w/2+RADIUS-.015&&Math.abs(p.z-b.z)<b.d/2+RADIUS-.015)floor=Math.max(floor,b.y+b.h);
     if(toggle){if(p.flight==='dive')p.flight='glide';else if(p.flight==='glide'&&p.y-floor>32)p.flight='dive';}
     if(p.flight==='launch'){
       p.vy-=20*dt;
@@ -129,7 +135,7 @@ export function movePlayer(p, input, map, dt) {
     s /= len;
   }
   const speed =
-    (p.inventory ? 10.5 * (p.sprinting ? 1.75 : 1) : weapon(p.weapon).speed) *
+    (p.inventory ? ROYALE_MOVEMENT[p.sprinting ? 'sprint' : 'walk'] : weapon(p.weapon).speed) *
     (input.aim ? 0.7 : 1) *
     (p.crown !== null ? 0.88 : 1);
   const dx = (-Math.sin(p.yaw) * f + Math.cos(p.yaw) * s) * speed * dt,
@@ -139,8 +145,11 @@ export function movePlayer(p, input, map, dt) {
     p.grounded = false;
   }
   p.jumpLatch = !!input.jump;
+  const oldSurfaceY=p.y, followedGround=!!map.terrain&&p.grounded&&p.vy<=0&&Math.abs(p.y-groundAt(map,p.x,p.z))<.1;
   pushAxis(p, map, "x", dx);
   pushAxis(p, map, "z", dz);
+  const ground=groundAt(map,p.x,p.z);
+  if(followedGround&&Math.abs(p.y-oldSurfaceY)<.05)p.y=ground;
   const oldY = p.y;
   p.vy -= 24 * dt;
   p.y += p.vy * dt;
@@ -160,8 +169,8 @@ export function movePlayer(p, input, map, dt) {
       p.vy = 0;
     }
   }
-  if (p.y <= 0) {
-    p.y = 0;
+  if (p.y <= ground) {
+    p.y = ground;
     p.vy = 0;
     p.grounded = true;
   }
@@ -238,15 +247,7 @@ export function worldHit(map, o, d, max = 200, radius = 0) {
     best = t;
     result = { distance: t, point: hit, normal };
   }
-  if (d.y < 0) {
-    const t = (radius - o.y) / d.y;
-    if (t >= 0 && t <= best)
-      result = {
-        distance: t,
-        point: { x: o.x + d.x * t, y: radius, z: o.z + d.z * t },
-        normal: { x: 0, y: 1, z: 0 },
-      };
-  }
+  const ground=terrainHit(map,o,d,best,radius);if(ground)result=ground;
   return result;
 }
 

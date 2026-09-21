@@ -797,7 +797,7 @@ export class View {
         if(this.heldItemKey!==itemKey){
           if(this.heldItem){this.heldItem.removeFromParent();this.disposeGroup(this.heldItem);}
           this.heldItem=null;this.heldItemKey=itemKey;
-          if(itemKey){this.heldItem=this.royaleView.itemModel(heldItem);this.heldItem.scale.setScalar(.4);this.heldItem.position.set(-.05,-.08,-.28);this.gunGroup.add(this.heldItem);}
+          if(itemKey){this.heldItem=this.royaleView.itemModel(heldItem,false);this.heldItem.scale.setScalar(.4);this.heldItem.position.set(-.05,-.08,-.28);this.gunGroup.add(this.heldItem);}
         }
         if(!heldItem?.weapon&&this.localArms)utilityArms(this.localArms,heldItem?.id,local.use?(state.time-local.use.start)/(local.use.end-local.use.start):-1,this.clock);
         if(this.heldItem)this.heldItem.rotation.z=local.use?Math.sin(this.clock*8)*.15:0;
@@ -1082,5 +1082,4 @@ export class View {
     this.renderer.render(this.scene, this.camera);
   }
 }
-
 

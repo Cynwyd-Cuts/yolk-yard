@@ -3,6 +3,7 @@ import {Simulation} from './simulation.js';
 import {gun,weapon,clamp} from './data.js';
 import {movePlayer,dist,direction,wallDistance,EYE} from './physics.js';
 import {surfaceAt} from './maps.js';
+import {groundAt} from './terrain.js';
 import {ITEMS,ROYALE_GUN_IDS,ammoType,AMMO_CAPS,randomRarity,makeStorm,stormAt,makeFlight,transportAt} from './royale-data.js';
 
 export class RoyaleSimulation extends Simulation {
@@ -43,7 +44,7 @@ export class RoyaleSimulation extends Simulation {
   this.maxPlayers=this.options.capacity;const savedBots=this.options.bots;this.options.bots=Math.max(0,count);this.addBots();this.options.bots=savedBots;
   this.phase='playing';this.round++;this.startedAt=this.time;this.elapsed=0;this.winner='';this.winnerId=null;this.placements=[];this.projectiles=[];this.events=[];this.inputs.clear();this.loot=[];this.lootId=0;this.lootVersion++;this.pads=[];this.supplyAt=135;this.queueEnds=0;
   this.route=makeFlight(this.random);this.stormSteps=makeStorm(this.random,this.options.storm);this.storm=stormAt(this.stormSteps,0);this.remaining=this.stormSteps.at(-1).end+15;
-  const landingSpots=this.map.floorLoot.filter((point,index)=>index%3===0&&point.y===0);
+  const landingSpots=this.map.floorLoot.filter((point,index)=>index%3===0&&!point.roof);
   const seats=[...this.players.values()].sort((a,b)=>Number(a.bot)-Number(b.bot));
   for(const [index,p] of seats.entries()){
    const contestant=index<this.options.capacity;
@@ -61,8 +62,10 @@ export class RoyaleSimulation extends Simulation {
  }
  randomGun(){return ROYALE_GUN_IDS[Math.floor(this.random()*ROYALE_GUN_IDS.length)];}
  dropLoot(point,item){
-  if(this.loot.length>=700)return null;
-  const drop={...item,uid:++this.lootId,x:point.x,y:point.y||0,z:point.z};this.loot.push(drop);this.lootVersion++;return drop;
+  // Covers every authored floor spawn + chest, supply drops and all death drops.
+  // Rendering remains distance-limited and unchanged world loot is not re-sent.
+  if(this.loot.length>=1400)return null;
+  const drop={...item,uid:++this.lootId,x:point.x,y:Math.max(point.y||0,groundAt(this.map,point.x,point.z)),z:point.z};this.loot.push(drop);this.lootVersion++;return drop;
  }
  dropWeapon(point,id,rarity=0,ammo=weapon(id).magazine){return this.dropLoot(point,{id,weapon:true,rarity,count:1,ammo});}
  dropAmmo(point,type,count){return this.dropLoot(point,{id:type,ammoType:type,count,rarity:0});}
@@ -99,10 +102,11 @@ export class RoyaleSimulation extends Simulation {
   if(chest.opened||!this.accessible(p,chest,3.3))return false;
   chest.opened=true;this.lootVersion++;
   const id=this.randomGun(),rarity=randomRarity(this.random(),chest.supply?2:0);
-  this.dropWeapon({x:chest.x-1,y:chest.y,z:chest.z+1.4},id,rarity);
-  this.dropAmmo({x:chest.x+1,y:chest.y,z:chest.z+1.4},ammoType(id),ammoType(id)==='rockets'?4:ammoType(id)==='heavy'?12:36);
+  const point=(dx,dz)=>({x:chest.x+dx,z:chest.z+dz,y:chest.y-groundAt(this.map,chest.x,chest.z)<.15?groundAt(this.map,chest.x+dx,chest.z+dz):chest.y});
+  this.dropWeapon(point(-1,1.4),id,rarity);
+  this.dropAmmo(point(1,1.4),ammoType(id),ammoType(id)==='rockets'?4:ammoType(id)==='heavy'?12:36);
   const list=['mini','flask','medkit','splash','impulse','launchpad'];
-  this.dropLoot({x:chest.x,y:chest.y,z:chest.z+2.2},{id:list[Math.floor(this.random()*list.length)],count:chest.supply?2:1,rarity:1});
+  this.dropLoot(point(0,2.2),{id:list[Math.floor(this.random()*list.length)],count:chest.supply?2:1,rarity:1});
   this.emit('royale-cue',{cue:'chest-open',player:p.id,x:chest.x,y:chest.y,z:chest.z});return true;
  }
  interact(p,input,dt){
@@ -198,6 +202,7 @@ export class RoyaleSimulation extends Simulation {
    if(p.flight==='transport'){
     Object.assign(p,transportAt(this.route,this.elapsed));
     if(this.elapsed>=3&&(input.jump||this.elapsed>=this.route.duration)){
+     p.lastJumpPress=Math.max(p.lastJumpPress||0,input.jumpPress||0);
      p.flight='dive';p.flightLatch=true;p.yaw=input.yaw||p.yaw;p.pitch=0;this.emit('royale-cue',{player:p.id,cue:'transport-exit'});
     }
     continue;

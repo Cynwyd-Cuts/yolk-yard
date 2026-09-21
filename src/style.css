@@ -542,6 +542,11 @@ dialog::backdrop {
   width: 100%;
   accent-color: #2c7083;
 }
+.slider-controls { display:flex; align-items:center; gap:10px; min-width:0; }
+.slider-controls input { min-width:0; flex:1; }
+.slider-reset,.slider-reset-all { border:1px solid #b8c8c2; border-radius:8px; background:#e7eee7; font-weight:650; }
+.slider-reset { padding:8px 10px; font-size:12px; min-height:36px; }
+.slider-reset-all { margin:0 0 10px; padding:9px 13px; font-size:13px; }
 .setting-row select {
   padding: 8px;
   border: 1px solid #b9c3be;

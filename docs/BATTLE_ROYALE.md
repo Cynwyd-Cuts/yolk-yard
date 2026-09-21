@@ -111,3 +111,9 @@ User requested extensive sound coverage for every game part. Original Web Audio 
 - Inventory panel operations are ordered host commands, so a movement packet cannot overwrite a one-frame swap/drop.
 - Airborne motion uses world collision and launch impulses rise physically before gliding. Decorative solid landmarks have authored collision footprints.
 - Original sound inventory: 79 named cues, eleven blaster palettes and five environment loops.
+
+## Sunnybreak refresh (release 25)
+
+The subsequent user-requested refresh supersedes the original movement and sound choices: walking is 5.0 units/sec, sprinting is 7.4 (arena movement speed), footsteps and hover cues are removed, and the remaining bank contains 73 cues. Seven sliders have individual resets plus reset-all. I/M and customized panel bindings toggle their panel closed or switch between map and inventory.
+
+The expanded island has 92 buildings, 560 trees across five vegetation families, over 200 authored props and real heightfield terrain. Eight architectural families across nine districts include timber/gabled buildings, industrial sawtooth roofs, villas, shopfronts and greenhouse frames. Rendering, collision, projectile intersections, navigation and map shading share the terrain. Collectibles use full blaster models and distinct utility models; the airship, glider, chests and supply crates are rebuilt. See `ROYALE_ART_REFRESH.md` for the scoped plan and verification requirements.

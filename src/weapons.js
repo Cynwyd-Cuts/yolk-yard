@@ -218,7 +218,32 @@ export function makeBlaster(id) {
     g = new THREE.Group(),
     c = w.color;
   g.name = `${w.name} blaster`;
-  if (id === "pip") {
+  if (id === 'comet') {
+    // A toy-like energy projector: open horseshoe emitter, turbine and luminous fins.
+    box(g,0,0,.05,.31,.29,.55,c,.07);grip(g,.17);stock(g,0x506986,.33);
+    tube(g,0,0,-.48,.17,.45,0x536681);tube(g,0,0,-.72,.10,.06,0xaff5f2);
+    for(const z of [-.3,-.46,-.62])ring(g,0,0,z,.185,.025,0x8de5e7);
+    for(const x of [-.2,.2]){box(g,x,0,-.47,.08,.22,.56,c,.035);box(g,x,.02,-.79,.09,.15,.17,0xdbe9d1,.025);}
+    g.userData.reloadPart=box(g,0,-.24,-.05,.21,.25,.27,0x80d9e2,.055);
+    for(let j=0;j<3;j++)box(g,0,-.19-j*.06,-.196,.13,.025,.013,0xdcffed,.005);
+    optic(g,'reflex');
+  } else if (id === 'doubleyolk') {
+    // Compact over-under oval muzzles and a scalloped break-action body.
+    box(g,0,.01,.05,.35,.37,.4,c,.07);grip(g,.17);stock(g,0x92704b,.28);
+    for(const y of [-.095,.095]){tube(g,0,y,-.48,.105,.78,0x6a7380);ring(g,0,y,-.887,.106,.026,0xf7d488);tube(g,0,y,-.902,.067,.018,black);}
+    box(g,0,-.21,-.43,.24,.1,.36,0x92704b,.04);
+    for(const x of [-.19,.19]){box(g,x,.02,.03,.06,.2,.32,0xf4ce7e,.035);for(let j=0;j<3;j++)box(g,x*1.13,.02,-.06+j*.08,.016,.09,.024,c,.005);}
+    optic(g,'iron');
+  } else if (id === 'peeper') {
+    // Small precision scout with a raised scope, skeleton stock and fluted nose.
+    plate(g,[[.29,-.13],[-.34,-.11],[-.48,.04],[-.3,.14],[.27,.12]],.25,c);
+    grip(g,.13);box(g,0,.04,.46,.11,.11,.42,0x776d69,.025);box(g,0,-.12,.63,.24,.4,.09,c,.04);
+    tube(g,0,0,-.57,.068,.51,0x626e77);tube(g,0,0,-.91,.078,.21,c);ring(g,0,0,-1.028,.077,.018,0xf7dd99);
+    for(const z of [-.37,-.46,-.55,-.64])ring(g,0,0,z,.078,.012,0xe3bd75);
+    g.userData.reloadPart=box(g,0,-.22,-.12,.18,.2,.23,0x596976,.035);
+    tube(g,.17,.055,.1,.045,.11,0xe5bc76);box(g,.22,.04,.15,.08,.09,.09,0x4a5a65,.025);
+    optic(g,'scope');
+  } else if (id === "pip") {
     box(g, 0, 0.02, -0.04, 0.19, 0.17, 0.54, c);
     box(g, 0, -0.05, 0.01, 0.17, 0.13, 0.36, dark);
     grip(g, 0.12);
@@ -228,7 +253,7 @@ export function makeBlaster(id) {
       box(g, 0.101, 0.04, 0.07 + i * 0.025, 0.009, 0.085, 0.009, dark, 0.002);
     g.userData.reloadPart = box(g, 0, -.405, .12, .13, .13, .14, steel);
     optic(g, "iron", -0.24);
-  } else if ((id === "scatter" || id === "doubleyolk")) {
+  } else if (id === "scatter") {
     box(g, 0, 0, 0.08, 0.3, 0.23, 0.46, c);
     grip(g, 0.17);
     stock(g, c, 0.31);
@@ -243,7 +268,7 @@ export function makeBlaster(id) {
     for (let i = 0; i < 3; i++)
       tube(g, 0.19, -0.02, -0.02 + i * 0.085, 0.034, 0.065, cream);
     optic(g, "iron");
-  } else if ((id === "needle" || id === "peeper")) {
+  } else if (id === "needle") {
     plate(
       g,
       [
@@ -394,9 +419,6 @@ export function makeBlaster(id) {
     ring(g, 0, 0, -0.895, 0.063, 0.02, c);
     optic(g, "reflex");
   }
-  if(id==='comet'){
-    for(let j=0;j<5;j++){box(g,.14,.07,-.1-j*.1,.04,.11,.06,0x9ff1ff,.008);box(g,-.14,.07,-.1-j*.1,.04,.11,.06,0x9ff1ff,.008);}
-  }
   if (id === "scatter" || id === "doubleyolk" || id === "thumper") {
     const token = tube(g, 0, 0, 0, id === "thumper" ? .085 : .05, id === "thumper" ? .28 : .15, c);
     token.visible = false;
@@ -520,4 +542,3 @@ export function weaponPortrait(renderer, id) {
   disposeBlaster(model);
   return result;
 }
-

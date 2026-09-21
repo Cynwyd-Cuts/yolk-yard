@@ -1,4 +1,5 @@
 import {ROYALE_MAP} from './royale-map.js';
+import {groundAt} from './terrain.js';
 const box = (x, z, w, d, h, color = "sand", y = 0, kind = "wall") => ({
   x,
   z,
@@ -313,7 +314,7 @@ for (const map of MAPS)
     }
 export const getMap = (id) => id === "sunnybreak" ? ROYALE_MAP : MAPS.find((m) => m.id === id) || MAPS[0];
 export function surfaceAt(map, x, z) {
-  let y = 0;
+  let y = groundAt(map,x,z);
   for (const b of map.boxes)
     if (Math.abs(x - b.x) < b.w / 2 && Math.abs(z - b.z) < b.d / 2)
       y = Math.max(y, b.y + b.h);
@@ -338,7 +339,7 @@ export function navigation(map) {
           Math.abs(px - b.x) < b.w / 2 + 0.48 &&
           Math.abs(pz - b.z) < b.d / 2 + 0.48,
       );
-      const levels = new Set([0]);
+      const ground=groundAt(map,px,pz), levels = new Set([ground]);
       for (const b of overlapping)
         if (Math.abs(px - b.x) < b.w / 2 && Math.abs(pz - b.z) < b.d / 2)
           levels.add(b.y + b.h);
@@ -352,6 +353,7 @@ export function navigation(map) {
           id: nodes.length,
           x: px,
           y,
+          terrain: y===ground,
           z: pz,
           cx: x,
           cz: z,
@@ -372,7 +374,7 @@ export function navigation(map) {
         z = a.cz + dz;
       if (x < 0 || z < 0 || x >= n || z >= n) continue;
       for (const b of cells[z * n + x])
-        if (b.y - a.y <= 0.43 && a.y - b.y <= 3.7) a.edges.push(b.id);
+        if (b.y - a.y <= (a.terrain&&b.terrain ? cell*.8 : .43) && a.y - b.y <= 3.7) a.edges.push(b.id);
     }
   const nearest = (p) => {
     let best = nodes[0],

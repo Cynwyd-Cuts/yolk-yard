@@ -131,6 +131,10 @@ export class Simulation {
     const safe = sanitizeInput(input),
       previous = this.inputs.get(id);
     if (safe.seq <= Math.max(p.ack, previous?.seq || 0)) return;
+    // Track the raw edge before coalescing. A release followed by another tap
+    // can share one host tick; OR-ing the buttons alone would erase that edge.
+    safe.jumpHeld = safe.jump;
+    safe.jumpPress = safe.jump && !previous?.jumpHeld ? safe.seq : previous?.jumpPress || 0;
     // Preserve brief button presses when several packets arrive before a simulation tick.
     if (previous && previous.seq > p.ack)
       for (const key of ["reload", "popper", "jump", "fire"])
@@ -1011,5 +1015,4 @@ export class Simulation {
     };
   }
 }
-
 
