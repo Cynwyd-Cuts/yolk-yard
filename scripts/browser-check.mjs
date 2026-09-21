@@ -333,6 +333,8 @@ try {
         window.__yolkTest.fixture((s) => {
           const guest = s.players.get(id),
             target = s.players.get("host");
+          // Use a clear lane; random spawns can place the target inside scenery.
+          Object.assign(guest, { x: 35, y: 0, z: 35, vy: 0 });
           Object.assign(target, {
             x: guest.x - Math.sin(guest.yaw) * 5,
             y: guest.y,

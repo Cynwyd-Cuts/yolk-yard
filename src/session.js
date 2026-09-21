@@ -1,9 +1,9 @@
 class Session {
   constructor(){this.listeners=new Set();this.socket=null;this.ready=null;}
-  open(){
+  async open(){
     if(this.ready)return this.ready;
+    const url=await window.YolkClient.socketURL();
     this.ready=new Promise((resolve,reject)=>{
-      const url=new URL('/session',location.origin);url.protocol=location.protocol==='https:'?'wss:':'ws:';
       const socket=new WebSocket(url);this.socket=socket;
       let accepted=false;
       const timer=setTimeout(()=>{reject(new Error('The game service did not respond. Please reload.'));socket.close();},12000);
@@ -12,7 +12,7 @@ class Session {
         if(msg.type==='session-ping'){this.send({type:'session-pong'});return;}
         if(msg.type==='session'){accepted=true;clearTimeout(timer);resolve();}
         if(msg.type==='reject'&&!accepted){clearTimeout(timer);reject(new Error(msg.reason));}
-        if(msg.type==='revoked'){location.replace('/access');return;}
+        if(msg.type==='revoked'){location.replace(window.YolkClient.page('access.html'));return;}
         for(const fn of this.listeners)fn(msg);
       };
       socket.onclose=()=>{

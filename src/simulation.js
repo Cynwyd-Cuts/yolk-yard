@@ -964,11 +964,10 @@ export class Simulation {
       scores: this.scores.map((v) => Math.floor(v)),
       winner: this.winner,
       zone: { ...this.zone },
-      players: [...this.players.values()].map((p) =>
-        Object.fromEntries(
-          keys.map((k) => [k, Array.isArray(p[k]) ? [...p[k]] : p[k]]),
-        ),
-      ),
+      players: [...this.players.values()].map((p) => ({
+        ...Object.fromEntries(keys.map((k) => [k, Array.isArray(p[k]) ? [...p[k]] : p[k]])),
+        shotSpread: p.accuracyState[p.slot].spread ?? gun(p).spread * (p.aim ? gun(p).aimSpread : 1),
+      })),
       projectiles: this.projectiles.map((b) => ({
         id: b.id,
         x: b.x,

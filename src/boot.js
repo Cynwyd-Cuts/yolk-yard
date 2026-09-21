@@ -1,9 +1,7 @@
 import {session} from './session.js';
 try {
- const response=await fetch('/api/access');
- if(!response.ok)throw new Error('The access service is unavailable.');
- const access=await response.json();
- if(access.status!=='approved')location.replace('/access'+location.search);
+ const access=await window.YolkClient.api('/api/access');
+ if(access.status!=='approved')location.replace(window.YolkClient.page('access.html')+location.search);
  else {
    await session.open();
    try { if (!localStorage.getItem('yolk-profile')) localStorage.setItem('yolk-profile', JSON.stringify({name:access.name})); } catch {}

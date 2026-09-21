@@ -11,7 +11,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const cookie = (req, name) => (req.headers.cookie || '').split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1);
 const fail = (message, status=400) => Object.assign(new Error(message), {status});
 const text = (value, max=80) => String(value || '').trim().slice(0,max);
-export function createApp({origin, adminSecret, database, dist=resolve(root,'dist'), secure=true, trustProxy=false}={}) {
+export function createApp({origin, adminSecret, database, dist=resolve(root,'dist'), secure=true, trustProxy=false, clientOrigins=[]}={}) {
   if (!origin || new URL(origin).origin !== origin) throw new Error('Set APP_ORIGIN to the exact public origin without a trailing slash.');
   if (!adminSecret || adminSecret.length < 32) throw new Error('ADMIN_SECRET must contain at least 32 characters.');
   if (secure && !origin.startsWith('https://')) throw new Error('Production requires HTTPS.');
@@ -24,13 +24,13 @@ export function createApp({origin, adminSecret, database, dist=resolve(root,'dis
     res.writeHead(200,{'Content-Type':({'.json':'application/json','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'})[extname(file)]||'application/octet-stream'});
     res.end(content);
   }
-  const {handler,requirePlayer,limit}=createService({origin,adminSecret,store,rooms,serve,secure,trustProxy,limits});
+  const {handler,socketPlayer,limit}=createService({origin,adminSecret,store,rooms,serve,secure,trustProxy,limits,clientOrigins});
   const server=createServer(handler);
   const wss=new WebSocketServer({noServer:true,maxPayload:4096});
   server.on('upgrade',(req,socket,head)=>{
     try {
-      if (req.url!=='/session' || req.headers.origin!==origin) throw fail('Forbidden',403);
-      limit(req,'socket',30); const b=requirePlayer(req);
+      if (new URL(req.url,origin).pathname!=='/session') throw fail('Forbidden',403);
+      limit(req,'socket',30); const b=socketPlayer(req);
       wss.handleUpgrade(req,socket,head,ws=>rooms.connect(ws,b));
     } catch {socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');socket.destroy();}
   });

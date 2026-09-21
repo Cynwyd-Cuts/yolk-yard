@@ -95,3 +95,18 @@ test('center damage never exceeds the reference maximum; glancing damage is lowe
   assert.ok(rim>0 && rim<0.2);
 });
 
+
+test('replicated crosshair spread widens on movement and recovers at rest', () => {
+  const { sim, player } = arena('sprinter');
+  const readSpread = () => sim.snapshot().players.find(p => p.id === player.id).shotSpread;
+  hold(sim, player, 10, false);
+  const idle = readSpread();
+  for (let i = 0; i < 20; i++) {
+    sim.setInput(player.id, {seq: player.ack + 1, forward: 1});
+    sim.tick(1 / 60);
+  }
+  assert.ok(readSpread() > idle);
+  assert.equal(readSpread(), player.accuracyState[player.slot].spread);
+  hold(sim, player, 180, false);
+  assert.ok(Math.abs(readSpread() - idle) < 1e-9);
+});

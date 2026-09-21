@@ -5,6 +5,7 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "vars": { "CLIENT_ORIGINS": "https://zl-2.github.io" },
   "preview_urls": false,
   "assets": {
     "directory": "./dist",

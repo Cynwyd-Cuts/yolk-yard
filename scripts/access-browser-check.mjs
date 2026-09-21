@@ -1,15 +1,31 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { resolve, extname } from 'node:path';
 import { createApp } from '../server/index.js';
 import { token } from '../server/store.js';
-const origin='http://127.0.0.1:3191',secret=token();
-const app=createApp({origin,adminSecret:secret,database:':memory:',secure:false});
+const backend='http://127.0.0.1:3191',pages=process.env.YOLK_TEST_PAGES==='1';
+const origin=pages?'http://localhost:3193/yolk-yard/':backend,secret=token();
+const app=createApp({origin:backend,adminSecret:secret,database:':memory:',secure:false,clientOrigins:pages?['http://localhost:3193']:[]});
+const staticServer=pages?createServer(async(req,res)=>{
+  try {
+    const path=new URL(req.url,'http://localhost').pathname;
+    if (!path.startsWith('/yolk-yard/')) {res.writeHead(404);return res.end();}
+    const file=resolve('dist',path.slice('/yolk-yard/'.length)||'index.html');
+    if (!file.startsWith(resolve('dist')+'/')) throw new Error();
+    res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json'})[extname(file)]||'application/octet-stream');
+    let content=await readFile(file);
+    if (extname(file)==='.html') content=Buffer.from(content.toString().replace("connect-src 'self'", "connect-src 'self' http://127.0.0.1:3191 ws://127.0.0.1:3191"));
+    res.end(content);
+  }catch {res.writeHead(404);res.end();}
+}):null;
+if(staticServer)await new Promise(r=>staticServer.listen(3193,r));
 await new Promise(r=>app.server.listen(3191,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHROME?{executablePath:process.env.YOLK_TEST_CHROME}:{}),args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-background-timer-throttling','--disable-renderer-backgrounding']});
 const errors=[];
-const out='test-results/access';await mkdir(out,{recursive:true});
-const context=async(viewport={width:1440,height:1000})=>{const c=await browser.newContext({viewport});c.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));return c;};
+const out=pages?'test-results/pages':'test-results/access';await mkdir(out,{recursive:true});
+const context=async(viewport={width:1440,height:1000})=>{const c=await browser.newContext({viewport});if(pages)await c.addInitScript(value=>{window.YOLK_API_ORIGIN=value;},backend);c.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));return c;};
 const wait=async fn=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,100));}throw new Error('Timed out waiting for game');};
 try {
  const adminContext=await context(),hostContext=await context(),guestContext=await context(),mobileContext=await context({width:390,height:844});
@@ -20,7 +36,7 @@ try {
  assert(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await host.getByLabel('Your name',{exact:true}).fill('Host egg');await host.getByRole('button',{name:'REQUEST ACCESS',exact:true}).click();
  await host.locator('#pending:not([hidden])').waitFor();
- await admin.goto(origin+'/admin');await admin.getByLabel('Owner key').fill(secret);await admin.getByRole('button',{name:'OPEN DASHBOARD'}).click();
+ await admin.goto(pages?origin+'admin.html':origin+'/admin');await admin.getByLabel('Owner key').fill(secret);await admin.getByRole('button',{name:'OPEN DASHBOARD'}).click();
  await admin.getByRole('button',{name:'Approve',exact:true}).click();
  await host.getByRole('button',{name:'PLAY WITH FRIENDS'}).waitFor({timeout:30000});
  console.log('PASS request, owner approval, automatic game entry, responsive access screen');
@@ -52,7 +68,7 @@ try {
  await host.getByRole('button',{name:'Pause menu'}).click();
  await host.getByRole('button',{name:'Room: public · Make private',exact:true}).click();await wait(()=>room.visibility==='private');
  await host.getByRole('button',{name:'Room: private · Make public',exact:true}).waitFor();
- assert.equal((await guestContext.request.get(origin+'/api/rooms').then(r=>r.json())).rooms.length,0);
+ assert.equal((await guest.evaluate(()=>window.YolkClient.api('/api/rooms'))).rooms.length,0);
  await host.screenshot({path:out+'/in-match-privacy.png'});
  await host.getByRole('button',{name:'Room: private · Make public',exact:true}).click();await wait(()=>room.visibility==='public');
  console.log('PASS replicated movement, firing, and in-match privacy changes');
@@ -61,9 +77,9 @@ try {
  await admin.getByRole('button',{name:'Refresh dashboard'}).click();
  admin.on('dialog',d=>d.accept());
  const guestRow=admin.locator('#people .row').filter({hasText:'Guest egg'});await guestRow.getByRole('button',{name:'Revoke access'}).click();
- await guest.waitForURL('**/access');await guest.getByText('Access for this browser has ended.',{exact:false}).waitFor();
+ await guest.waitForURL('**/access.html');await guest.getByText('Access for this browser has ended.',{exact:false}).waitFor();
  await wait(()=>room.members.size===1);
  console.log('PASS revocation disconnects a playing guest and blocks re-entry');
  assert.deepEqual(errors,[]);
  console.log('PASS no browser JavaScript errors');
-} finally {await browser.close();await app.close();}
+} finally {await browser.close();await app.close();if(staticServer)await new Promise(r=>staticServer.close(r));}

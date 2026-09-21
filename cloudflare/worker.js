@@ -51,6 +51,7 @@ export class YolkService extends DurableObject {
     this.store = new CloudStore(ctx.storage);
     this.rooms = new Rooms(this.store, 4);
     this.limits = new Map();
+    this.tickets = new Map();
     this.cleanedAt = 0;
   }
   async fetch(request) {
@@ -99,12 +100,12 @@ export class YolkService extends DurableObject {
       res.end(asset.body);
     };
     const service = createService({origin:url.origin, adminSecret:this.env.ADMIN_SECRET,
-      store:this.store, rooms:this.rooms, limits:this.limits, secure, serve});
+      store:this.store, rooms:this.rooms, limits:this.limits, tickets:this.tickets, clientOrigins:(this.env.CLIENT_ORIGINS||'').split(',').filter(Boolean), secure, serve});
     if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
       try {
-        if (url.pathname !== '/session' || request.headers.get('Origin') !== url.origin) throw new Error('Forbidden');
+        if (url.pathname !== '/session') throw new Error('Forbidden');
         service.limit(req, 'socket', 30);
-        const browser = service.requirePlayer(req);
+        const browser = service.socketPlayer(req);
         const pair = new WebSocketPair();
         pair[1].accept();
         this.rooms.connect(new MatchSocket(pair[1]), browser);

@@ -1,6 +1,6 @@
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let data, latestCode='';
-async function api(path,body){const r=await fetch('/api/admin/'+path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const d=await r.json();if(!r.ok)throw Object.assign(new Error(d.error),{status:r.status});return d;}
+const api=(path,body)=>window.YolkClient.api('/api/admin/'+path,body);
 const personOptions=()=>'<option value="">New player</option>'+data.people.map(p=>`<option value="${esc(p.id)}">Replace browser: ${esc(p.name)}</option>`).join('');
 async function refresh(){
  try{data=await api('dashboard');$('#login').hidden=true;$('#dashboard').hidden=false;$('#logout').hidden=false;

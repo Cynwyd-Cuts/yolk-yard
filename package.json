@@ -14,6 +14,7 @@
     "dev:cloudflare": "wrangler dev",
     "deploy": "wrangler deploy",
     "check:cloudflare": "wrangler deploy --dry-run --outdir .worker-build",
+    "test:pages": "YOLK_TEST_PAGES=1 node scripts/access-browser-check.mjs",
     "test:cloudflare": "node scripts/cloudflare-check.mjs"
   },
   "dependencies": {

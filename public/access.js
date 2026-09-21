@@ -1,13 +1,10 @@
 const $=s=>document.querySelector(s);
-async function api(path,body) {
- const response=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});
- const data=await response.json(); if(!response.ok) throw new Error(data.error||'The service is unavailable.');return data;
-}
+const api=window.YolkClient.api;
 let last='';
 async function refresh(){
  try{
  const s=await api('/api/access');
- if(s.status==='approved'){location.replace('/'+location.search);return;}
+ if(s.status==='approved'){location.replace(window.YolkClient.page('./')+location.search);return;}
  if(last!==s.status){
  last=s.status;
  $('#status').textContent=({new:'Request access to get started.',pending:'Request sent. Waiting for the owner’s approval.',denied:'This request was declined. Contact the owner if this was a mistake.',revoked:'Access for this browser has ended. Contact the owner about a replacement.'})[s.status];

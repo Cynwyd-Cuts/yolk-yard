@@ -1,6 +1,8 @@
 # Yolk Yard — protected multiplayer
 
-This branch adds browser approval, single-use activation codes, owner controls, public/private room discovery, and a server-authoritative match service. It runs on Cloudflare Workers Free with a SQLite Durable Object. See [HOSTING.md](HOSTING.md) for setup, access behavior, tests, and the migration from GitHub Pages.
+This branch adds browser approval, single-use activation codes, owner controls, public/private room discovery, and a server-authoritative match service. It runs on Cloudflare Workers Free with a SQLite Durable Object. See [HOSTING.md](HOSTING.md) for setup, access behavior, tests, and the GitHub Pages frontend with a Cloudflare backend.
+
+Play at https://zl-2.github.io/yolk-yard/ — owner dashboard at https://zl-2.github.io/yolk-yard/admin.html.
 
 The legacy instructions below describe the earlier static/PeerJS release and do not apply to this protected build.
 

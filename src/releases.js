@@ -1,6 +1,20 @@
-export const RELEASE = typeof __RELEASE_NUMBER__ !== "undefined" ? __RELEASE_NUMBER__ : "07";
-export const RELEASES = [
-  { number: RELEASE, title: "Clearer hits and simpler controls", changes: [
+export const RELEASE_NOTES = [
+  { number: "11", title: "Your yard, on the same link", changes: [
+    "Browser approval, single-use activation codes, and the owner dashboard now work on the GitHub Pages address.",
+    "Browse public matches or keep a room private, with access and matches managed by the game service."
+  ] },
+  { number: "10", title: "Crosshairs that show your accuracy", changes: [
+    "Crosshair arms widen with movement and firing spread, then settle as accuracy recovers.",
+    "The indicator uses the match host’s actual weapon spread in practice and multiplayer."
+  ] },
+  { number: "09", title: "Crosshair preferences and ordered updates", changes: [
+    "Center Dot and Hit Markers can be switched independently, both enabled by default.",
+    "Release history is numbered consecutively; failed builds and retries no longer skip numbers."
+  ] },
+  { number: "08", title: "Readable damage at every distance", changes: [
+    "Damage numbers keep the same screen size at every distance, with distinct critical-hit styling."
+  ] },
+  { number: "07", title: "Clearer hits and simpler controls", changes: [
     "Damage numbers are 60% larger, with distinct gold critical hits.",
     "Desktop play always uses mouse lock; removed the drag-to-look setting.",
     "New private rooms start with zero bots selected.",
@@ -32,4 +46,7 @@ export const RELEASES = [
     "Improved weapon models, model previews and working optic views.",
     "Expanded arenas and traveling projectiles fired from weapon muzzles."
   ] }
+  ,{ number: "01", title: "Welcome to Yolk Yard", changes: ["The original arenas, blasters, practice matches and private multiplayer rooms."] }
 ];
+export const RELEASES = typeof __RELEASE_HISTORY__ !== "undefined" ? __RELEASE_HISTORY__ : RELEASE_NOTES;
+export const RELEASE = RELEASES[0].number;
