@@ -37,7 +37,7 @@ const pass = (text) => {
   results.push(text);
   console.log("PASS", text);
 };
-const make = async (name, viewport = { width: 1440, height: 900 }) => {
+const make = async (name, viewport = { width: 960, height: 640 }) => {
   const context = await browser.newContext({
     viewport,
     isMobile: viewport.width < 500,
