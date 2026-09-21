@@ -365,9 +365,9 @@ try {
       );
     }, targetSetup);
     // Mouse is locked: moving the cursor here would turn away from the target.
-    await guest.mouse.down();
+    await guest.locator("#world").dispatchEvent("mousedown", { button: 0 });
     await host.waitForFunction(({ id, after }) => window.__yolkTest.read().state.events.some(e => e.id > after && e.type === "shot" && e.player === id), { id: gid, after: targetSetup.eventId });
-    await guest.mouse.up();
+    await guest.evaluate(() => document.dispatchEvent(new MouseEvent("mouseup", { button: 0 })));
     await host.waitForFunction(({ after }) => { const s = window.__yolkTest.read().state; const shot=s.events.find(e=>e.id>after && e.type==="shot"); return shot && s.time>shot.time+0.3; }, {after:targetSetup.eventId});
     console.log("SHOT DIAGNOSTIC", JSON.stringify(await host.evaluate(() => window.__yolkTest.read().state)));
     await host.waitForFunction(
