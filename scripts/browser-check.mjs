@@ -351,6 +351,8 @@ try {
     await guest.mouse.down();
     await host.waitForFunction(({ id, after }) => window.__yolkTest.read().state.events.some(e => e.id > after && e.type === "shot" && e.player === id), { id: gid, after: targetSetup.eventId });
     await guest.mouse.up();
+    await host.waitForFunction(({ after }) => { const s = window.__yolkTest.read().state; const shot=s.events.find(e=>e.id>after && e.type==="shot"); return shot && s.time>shot.time+0.3; }, {after:targetSetup.eventId});
+    console.log("SHOT DIAGNOSTIC", JSON.stringify(await host.evaluate(() => window.__yolkTest.read().state)));
     await host.waitForFunction(
       ({ id, after }) => {
         const state = window.__yolkTest.read().state;
