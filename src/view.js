@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import {equipPose} from "./equip.js";
 import { makeArms, updateArms, reloadProgress } from "./arms.js";
 import { patternedShell, addHeadwear, addEyewear, optionProfile } from "./cosmetics.js";
 import { getMap } from "./maps.js";
@@ -424,7 +425,9 @@ export class View {
   diagnostics() {
     return {
       weapon: this.localWeapon,
-      remoteArms: [...this.models.entries()].map(([id, model]) => ({id, progress: model.userData.arms?.userData.progress})),
+      draw: this.drawPresentation,
+      outgoing: !!this.outgoing,
+      remoteArms: [...this.models.entries()].map(([id, model]) => ({id, progress: model.userData.arms?.userData.progress, draw: model.userData.draw?.progress})),
       arms: this.localArms ? { weapon: this.localArms.userData.id, progress: this.localArms.userData.progress, hands: this.localArms.userData.limbs.map(l=>l.hand.position.toArray()) } : null,
       muzzle: this.localModel?.userData.muzzle
         ?.getWorldPosition(new THREE.Vector3())
@@ -467,9 +470,34 @@ export class View {
       this.portraits.set(id, weaponPortrait(this.renderer, id));
     return this.portraits.get(id);
   }
-  setWeapon(p) {
+  clearOutgoing(owner) {
+    if(!owner.outgoing)return;
+    const {group}=owner.outgoing;
+    group.removeFromParent();this.disposeGroup(group);owner.outgoing=null;
+  }
+  lowerOutgoing(owner,pose,visible=true) {
+    const old=owner.outgoing;if(!old)return;
+    if(!visible || pose.holster>=1){this.clearOutgoing(owner);return;}
+    old.group.position.copy(old.position);
+    old.group.position.y-=pose.holster*.9;
+    old.group.position.x+=pose.holster*.12;
+    old.group.rotation.copy(old.rotation);
+    old.group.rotation.x-=pose.holster*.5;
+    old.group.rotation.z-=pose.holster*.35;
+    old.group.visible=true;
+  }
+  setWeapon(p,draw) {
     const id = gun(p).id;
     if (id === this.localWeapon && p.color === this.armColor) return;
+    this.clearOutgoing(this);
+    if(this.localModel && this.localWeapon!==id && draw.holster<1 && this.gunGroup.visible){
+      updateArms(this.localArms,-1,this.localModel);
+      const old=new THREE.Group();old.scale.copy(this.gunGroup.scale);
+      old.position.copy(this.gunGroup.position);old.rotation.copy(this.gunGroup.rotation);
+      while(this.gunGroup.children.length)old.add(this.gunGroup.children[0]);
+      this.camera.add(old);
+      this.outgoing={group:old,position:old.position.clone(),rotation:old.rotation.clone()};
+    }
     this.armColor = p.color;
     this.localWeapon = id;
     this.disposeGroup(this.gunGroup);
@@ -683,6 +711,7 @@ export class View {
     this.effects.visible = playing;
     this.gunGroup.visible = playing && local?.health > 0;
     if (!playing) {
+      this.clearOutgoing(this);
       this.preview(profile);
       this.menuEgg.rotation.y =
         Math.PI + 0.25 + Math.sin(this.clock * 0.25) * 0.2;
@@ -706,9 +735,14 @@ export class View {
         this.camera.position.set(origin.x+back.x*distance, origin.y+back.y*distance, origin.z+back.z*distance);
         this.camera.lookAt(p.x, p.y+1.05, p.z);
       }
+      const draw=equipPose(local,state.time);
+      this.drawPresentation=draw;
+      this.setWeapon(local,draw);
+      this.lowerOutgoing(this,draw,local.health>0);
+      this.gunGroup.visible=this.gunGroup.visible&&draw.visible;
       const w = gun(local),
         scoped = w.optic === "scope" || w.optic === "prism";
-      const aiming = aim && local.health > 0 && local.reloadEnd <= state.time;
+      const aiming = aim && local.health > 0 && local.reloadEnd <= state.time && !draw.active;
       this.aimBlend += (Number(aiming) - this.aimBlend) * Math.min(1, dt * 14);
       const fov = aiming
         ? scoped
@@ -717,14 +751,13 @@ export class View {
         : this.settings.fov;
       this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 13);
       this.camera.updateProjectionMatrix();
-      this.setWeapon(local);
       const bob =
         Math.sin(this.clock * 11) *
         0.012 *
         (p.moving ? 1 : 0) *
         (1 - this.aimBlend);
       const reload = reloadProgress(local, state.time);
-      const hands = updateArms(this.localArms, reload, this.localModel, this.recoil);
+      const hands = updateArms(this.localArms, draw.active?-1:reload, this.localModel, this.recoil,draw.progress);
       const front = -VIEWMODEL.z + w.muzzle * VIEWMODEL.scale;
       const wall = wallDistance(
         getMap(state.options.map),
@@ -733,20 +766,20 @@ export class View {
         front,
       );
       this.gunGroup.position.set(
-        VIEWMODEL.x * (1 - this.aimBlend),
+        VIEWMODEL.x * (1 - this.aimBlend) + draw.position[0],
         THREE.MathUtils.lerp(
           VIEWMODEL.y,
           -w.sightY * VIEWMODEL.scale,
           this.aimBlend,
         ) +
           bob -
-          hands.dip,
-        VIEWMODEL.z + this.recoil * 0.035 + Math.max(0, front - wall) * 0.65,
+          hands.dip + draw.position[1],
+        VIEWMODEL.z + this.recoil * 0.035 + Math.max(0, front - wall) * 0.65 + draw.position[2],
       );
       this.gunGroup.rotation.set(
-        this.recoil * 0.045 * (1 - this.aimBlend * 0.65) + hands.rotation[0],
-        hands.rotation[1],
-        hands.rotation[2],
+        this.recoil * 0.045 * (1 - this.aimBlend * 0.65) + hands.rotation[0] + draw.rotation[0],
+        hands.rotation[1] + draw.rotation[1],
+        hands.rotation[2] + draw.rotation[2],
       );
       this.scopeActive = aiming && scoped && this.aimBlend > 0.1;
     }
@@ -756,8 +789,6 @@ export class View {
         if (p.spectating || p.awaitingEntry || (p.id === local?.id && p.health > 0)) continue;
         seen.add(p.id);
         const sig =
-          p.weapon +
-          p.slot +
           p.color +
           p.hat + JSON.stringify([p.pattern,p.finish,p.eyewear,p.accent]) +
           p.team +
@@ -785,6 +816,20 @@ export class View {
           this.models.set(p.id, model);
           model.position.set(p.x, p.y, p.z);
         }
+        const draw=equipPose(p,state.time);
+        if(model.userData.arms?.userData.id!==gun(p).id){
+          this.clearOutgoing(model.userData);
+          const old=model.userData.held;
+          if(draw.holster<1){
+            updateArms(model.userData.arms,-1,model.userData.blaster);
+            model.userData.outgoing={group:old,position:old.position.clone(),rotation:old.rotation.clone()};
+          }else{old.removeFromParent();this.disposeGroup(old);}
+          const held=new THREE.Group(),blaster=makeBlaster(gun(p).id),arms=makeArms(gun(p).id,p.color,false);
+          held.scale.setScalar(VIEWMODEL.scale);held.add(blaster,arms);model.add(held);
+          Object.assign(model.userData,{held,blaster,arms,armRecoil:0});
+        }
+        this.lowerOutgoing(model.userData,draw,p.health>0);
+        model.userData.draw=draw;
         // Continuous time-based gait; network snapshots never jump the phase.
         const walking = p.health > 0 && p.grounded && p.moving;
         const gait = model.userData.gait = THREE.MathUtils.lerp(
@@ -799,9 +844,10 @@ export class View {
 
         if (model.userData.arms) {
           const recoil = model.userData.armRecoil = Math.max(0, (model.userData.armRecoil || 0) - dt * 7);
-          const hands = updateArms(model.userData.arms, reloadProgress(p, state.time), model.userData.blaster, recoil);
-          model.userData.held.rotation.set(p.pitch + hands.rotation[0] + recoil * .045, hands.rotation[1], hands.rotation[2]);
-          model.userData.held.position.y = EYE + VIEWMODEL.y - hands.dip;
+          const hands = updateArms(model.userData.arms, draw.active?-1:reloadProgress(p, state.time), model.userData.blaster, recoil,draw.progress);
+          model.userData.held.visible=draw.visible;
+          model.userData.held.rotation.set(p.pitch + hands.rotation[0] + recoil * .045 + draw.rotation[0], hands.rotation[1]+draw.rotation[1], hands.rotation[2]+draw.rotation[2]);
+          model.userData.held.position.set(VIEWMODEL.x+draw.position[0],EYE+VIEWMODEL.y-hands.dip+draw.position[1]*.5,VIEWMODEL.z+draw.position[2]);
         }
         // Do not let cosmetic smoothing leave a moving shell behind its hitbox.
         const base = model.userData.basePosition ||= new THREE.Vector3(p.x, p.y, p.z);

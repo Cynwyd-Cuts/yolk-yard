@@ -44,55 +44,109 @@ export function armPose(id, progress=-1) {
   const lean=active?Math.sin(Math.PI*t):0;
   return {left,right,partOffset,rotation:c.tilt.map(v=>v*lean),dip:lean*.08,progress};
 }
-const sphere = new THREE.SphereGeometry(1,12,8),tube = new THREE.CylinderGeometry(1,1,1,12);
-sphere.userData.shared=tube.userData.shared=true;
+// Sculpted, shared hand shapes; each arm is a single deforming surface.
+// No separate elbow balls or cylinder seams are visible when the arm bends.
+const sphere = new THREE.SphereGeometry(1,24,16);
 const handShapes=new Map();
 function handGeometry(side) {
   if(handShapes.has(side)) return handShapes.get(side);
   const pieces=[];
-  const add=(x,y,z,sx,sy,sz)=>{const g=sphere.clone();g.scale(sx,sy,sz);g.translate(x,y,z);pieces.push(g);};
-  add(0,0,0,.085,.09,.075);
-  // Three rounded curled fingers and an opposing thumb: a readable cartoon hand.
-  for(let i=0;i<3;i++) {add(-side*.04,-.062+i*.052,-.055,.075,.022,.032);add(-side*.082,-.062+i*.052,-.027,.024,.022,.05);}
-  add(-side*.065,.072,.015,.055,.032,.038);
+  const volume=(x,y,z,sx,sy,sz)=>{
+    const g=sphere.clone();g.scale(sx,sy,sz);g.translate(x,y,z);pieces.push(g);
+  };
+  const finger=(points,radius)=>{
+    const curve=new THREE.CatmullRomCurve3(points.map(([x,y,z])=>new THREE.Vector3(x*side,y,z)));
+    pieces.push(new THREE.TubeGeometry(curve,16,radius,10,false));
+    for(const [x,y,z] of [points[0],points.at(-1)])volume(x*side,y,z,radius,radius,radius);
+  };
+  // Broad palm, rounded back of the hand, and a fleshy thumb base.
+  volume(side*.035,-.006,.014,.10,.139,.086);
+  volume(side*.074,.015,.006,.073,.112,.077);
+  volume(side*.024,.052,.05,.071,.084,.072);
+  // Four individually curled fingers wrap around the grip. The small gaps
+  // between them preserve a readable silhouette without painted-on lines.
+  const fingers=[{y:.096,r:.032,end:.082},{y:.030,r:.034,end:.023},{y:-.040,r:.032,end:-.042},{y:-.102,r:.027,end:-.100}];
+  for(const {y,r,end} of fingers) finger([
+    [.083,y,-.025],[.054,y,-.077],[-.015,y,-.106],[-.099,end,-.085],[-.115,end,-.028]
+  ],r);
+  // Opposing thumb crosses the near side of the grip, with its own rounded tip.
+  finger([[.065,-.018,.067],[.034,.068,.096],[-.029,.13,.073],[-.086,.113,.027]],.041);
   const geometry=mergeGeometries(pieces);pieces.forEach(g=>g.dispose());
-  geometry.userData.shared=true;handShapes.set(side,geometry);return geometry;
+  geometry.computeBoundingSphere();geometry.userData.shared=true;
+  handShapes.set(side,geometry);return geometry;
+}
+const ARM_RINGS=24,ARM_SIDES=16;
+const armProfile=[[0,.12],[.22,.124],[.44,.097],[.61,.114],[.78,.103],[1,.070]];
+const ringRadius=Array.from({length:ARM_RINGS+1},(_,i)=>path(armProfile.map(([t,r])=>[t,[r]]),i/ARM_RINGS)[0]);
+const circumference=Array.from({length:ARM_SIDES+1},(_,i)=>[Math.cos(i/ARM_SIDES*Math.PI*2),Math.sin(i/ARM_SIDES*Math.PI*2)]);
+function armGeometry() {
+  const g=new THREE.BufferGeometry(),count=(ARM_RINGS+1)*(ARM_SIDES+1),indices=[];
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(count*3),3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(count*3),3).setUsage(THREE.DynamicDrawUsage));
+  for(let i=0;i<ARM_RINGS;i++)for(let j=0;j<ARM_SIDES;j++){
+    const a=i*(ARM_SIDES+1)+j,b=a+ARM_SIDES+1;
+    indices.push(a,a+1,b,a+1,b+1,b);
+  }
+  g.setIndex(indices);return g;
 }
 export function makeArms(id, shellColor='#fff6da', firstPerson=true) {
   const group=new THREE.Group();group.name='Animated egg arms';
-  const material=new THREE.MeshStandardMaterial({color:shellColor,roughness:.48});
-  const mesh=(geo)=>{const m=new THREE.Mesh(geo,material);m.castShadow=true;group.add(m);return m;};
+  const material=new THREE.MeshStandardMaterial({color:shellColor,roughness:.62});
+  const mesh=(geo)=>{const m=new THREE.Mesh(geo,material);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;};
   const limbs=[-1,1].map(side=>{
     const hand=mesh(handGeometry(side));hand.name=side<0?'Support hand':'Grip hand';
-    const upper=mesh(tube),forearm=mesh(tube),elbow=mesh(sphere);elbow.scale.setScalar(.06);
-    const shoulder=new THREE.Vector3(side<0?-.76:.34,firstPerson?-.66:-.4,firstPerson?.64:.9);
-    return {side,hand,upper,forearm,elbow,shoulder};
+    const arm=mesh(armGeometry());arm.name='Smooth tapered arm';arm.frustumCulled=false;
+    const shoulder=new THREE.Vector3(side<0?-.72:.38,firstPerson?-.72:-.4,firstPerson?.42:.9);
+    return {side,hand,arm,shoulder,lastWrist:new THREE.Vector3(Infinity,Infinity,Infinity)};
   });
   limbs[0].hand.userData.ownedMaterial=true;
   group.userData={id,limbs,progress:-1};
   updateArms(group,-1);
   return group;
 }
-const up=new THREE.Vector3(0,1,0);
-function segment(mesh,a,b,width) {
-  mesh.position.copy(a).add(b).multiplyScalar(.5);
-  const delta=new THREE.Vector3().subVectors(b,a);
-  mesh.scale.set(width,Math.max(.001,delta.length()),width);
-  mesh.quaternion.setFromUnitVectors(up,delta.normalize());
+// Reuse scratch vectors and GPU buffers. Idle arms need no vertex uploads;
+// moving arms update only their existing surface, never allocate new meshes.
+const wrist=new THREE.Vector3(),control=new THREE.Vector3(),center=new THREE.Vector3(),tangent=new THREE.Vector3();
+const normal=new THREE.Vector3(),binormal=new THREE.Vector3(),radial=new THREE.Vector3(),axis=new THREE.Vector3(1,0,0);
+function shapeArm(limb) {
+  wrist.set(limb.side*.035,-.105,.025).applyQuaternion(limb.hand.quaternion).add(limb.hand.position);
+  if(limb.lastWrist.distanceToSquared(wrist)<1e-12)return;
+  limb.lastWrist.copy(wrist);
+  const shoulder=limb.shoulder;
+  control.copy(shoulder).lerp(wrist,.48);
+  control.x+=limb.side*.18;control.y-=.16;
+  const geometry=limb.arm.geometry,positions=geometry.attributes.position,normals=geometry.attributes.normal;
+  for(let i=0;i<=ARM_RINGS;i++){
+    const t=i/ARM_RINGS,u=1-t,r=ringRadius[i];
+    center.copy(shoulder).multiplyScalar(u*u).addScaledVector(control,2*u*t).addScaledVector(wrist,t*t);
+    tangent.copy(control).sub(shoulder).multiplyScalar(2*u).addScaledVector(wrist,2*t).addScaledVector(control,-2*t).normalize();
+    binormal.crossVectors(tangent,axis).normalize();normal.crossVectors(binormal,tangent).normalize();
+    // A gently oval section gives the forearm a broad back and softer edges.
+    const slope=(ringRadius[Math.min(ARM_RINGS,i+1)]-ringRadius[Math.max(0,i-1)])*ARM_RINGS/2;
+    const length=Math.max(.1,shoulder.distanceTo(wrist));
+    for(let j=0;j<=ARM_SIDES;j++){
+      const [c,s]=circumference[j],index=i*(ARM_SIDES+1)+j;
+      radial.copy(normal).multiplyScalar(c).addScaledVector(binormal,s*.9);
+      positions.setXYZ(index,center.x+radial.x*r,center.y+radial.y*r,center.z+radial.z*r);
+      radial.copy(normal).multiplyScalar(c).addScaledVector(binormal,s/.9).addScaledVector(tangent,-slope/length).normalize();
+      normals.setXYZ(index,radial.x,radial.y,radial.z);
+    }
+  }
+  positions.needsUpdate=true;normals.needsUpdate=true;
 }
-export function updateArms(rig,progress,blaster=null,recoil=0) {
+export function updateArms(rig,progress,blaster=null,recoil=0,draw=1) {
   const pose=armPose(rig.userData.id,progress);
   rig.userData.progress=progress;
   for(const limb of rig.userData.limbs) {
     const target=new THREE.Vector3(...(limb.side<0?pose.left:pose.right));
     target.z+=recoil*.015;
-    const elbow=limb.shoulder.clone().lerp(target,.48);
-    elbow.x+=limb.side*.07;elbow.y-=.07;
+    if(limb.side<0 && draw<1){
+      const reach=1-smooth(clamp(draw/.8,0,1));
+      target.y-=reach*.13;target.z+=reach*.18;
+    }
     limb.hand.position.copy(target);
     limb.hand.rotation.set(-.15,limb.side<0?-.25:.15,limb.side<0?-.12:.12);
-    limb.elbow.position.copy(elbow);
-    segment(limb.upper,limb.shoulder,elbow,.045);
-    segment(limb.forearm,elbow,target,.052);
+    shapeArm(limb);
   }
   const part=blaster?.userData.reloadPart;
   if(part) {

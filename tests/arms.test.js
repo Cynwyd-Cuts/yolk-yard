@@ -31,3 +31,23 @@ test('reload animation follows both empty and partial host reload times and canc
   p.reloadEnd=22;p.health=0;assert.equal(reloadProgress(p,20),-1);
  }
 });
+test('smooth arm surfaces remain finite through reloads and reuse their buffers',()=>{
+ for(const w of WEAPONS){
+  const rig=makeArms(w.id),other=makeArms(w.id);
+  assert.equal(rig.userData.limbs[0].hand.geometry,other.userData.limbs[0].hand.geometry);
+  assert.notEqual(rig.userData.limbs[0].arm.geometry,other.userData.limbs[0].arm.geometry);
+  for(const limb of rig.userData.limbs){
+   const {position,normal}=limb.arm.geometry.attributes;
+   const buffer=position.array,version=position.version;
+   updateArms(rig,-1);
+   assert.equal(position.version,version,'idle geometry is not uploaded again');
+   for(let f=0;f<=20;f++){
+    updateArms(rig,f/20);
+    assert.equal(position.array,buffer,'reload reuses the arm buffer');
+    assert.ok(position.array.every(Number.isFinite));
+    for(let i=0;i<normal.count;i++)assert.ok(Math.abs(Math.hypot(normal.getX(i),normal.getY(i),normal.getZ(i))-1)<1e-5);
+   }
+   updateArms(rig,-1);
+  }
+ }
+});
