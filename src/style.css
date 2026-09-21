@@ -762,37 +762,17 @@ body.in-game #hud {
   border-color: #738a8f;
 }
 .crosshair {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 22px;
-  height: 22px;
-  transform: translate(-50%, -50%);
+  position: absolute; top: 50%; left: 50%; width: 0; height: 0;
+  --crosshair-gap: 4px;
   filter: drop-shadow(0 1px 1px #172b39);
+  pointer-events: none;
 }
-.crosshair::before,
-.crosshair::after {
-  content: "";
-  position: absolute;
-  background: white;
-  border-radius: 2px;
-}
-.crosshair::before {
-  left: 10px;
-  top: 0;
-  height: 22px;
-  width: 2px;
-}
-.crosshair::after {
-  top: 10px;
-  left: 0;
-  width: 22px;
-  height: 2px;
-}
-/* The center dot and hit indicator are independently selectable. */
-.crosshair::before { background: linear-gradient(white 0 7px, transparent 7px 15px, white 15px); }
-.crosshair::after { background: linear-gradient(90deg, white 0 7px, transparent 7px 15px, white 15px); }
-.center-dot { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: white; left: 9.5px; top: 9.5px; }
+.crosshair-arm { position: absolute; display: block; background: white; border-radius: 1px; transition: transform 80ms linear; }
+.crosshair-arm.left { width: 7px; height: 2px; left: -7px; top: -1px; transform: translateX(calc(-1 * var(--crosshair-gap))); }
+.crosshair-arm.right { width: 7px; height: 2px; left: 0; top: -1px; transform: translateX(var(--crosshair-gap)); }
+.crosshair-arm.top { width: 2px; height: 7px; left: -1px; top: -7px; transform: translateY(calc(-1 * var(--crosshair-gap))); }
+.crosshair-arm.bottom { width: 2px; height: 7px; left: -1px; top: 0; transform: translateY(var(--crosshair-gap)); }
+.center-dot { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: white; left: -1.5px; top: -1.5px; }
 .hit-marker { position: absolute; z-index: 5; left: 50%; top: 50%; width: 30px; height: 30px; transform: translate(-50%, -50%) rotate(45deg); filter: drop-shadow(0 1px 1px #172b39); pointer-events: none; }
 .hit-marker::before, .hit-marker::after { content: ""; position: absolute; }
 .hit-marker::before { left: 14px; top: 0; width: 2px; height: 30px; background: linear-gradient(white 0 9px, transparent 9px 21px, white 21px); }

@@ -15,7 +15,7 @@ try {
   await page.goto('http://127.0.0.1:5176/?qa=1');
   await page.getByRole('button',{name:/QUALITY UPDATE ·/}).click();
   await page.getByRole('heading',{name:'Update history',exact:true}).waitFor();
-  assert.equal(await page.locator('.release-note').count(),9);
+  assert.equal(await page.locator('.release-note').count(),10);
   await page.screenshot({path:'test-results/update/history.png'});
   await page.getByRole('button',{name:'Close dialog',exact:true}).click();
   await page.getByRole('button',{name:'Settings',exact:true}).click();

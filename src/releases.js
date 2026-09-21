@@ -1,4 +1,8 @@
 export const RELEASE_NOTES = [
+  { number: "10", title: "Crosshairs that show your accuracy", changes: [
+    "Crosshair arms widen with movement and firing spread, then settle as accuracy recovers.",
+    "The indicator uses the match host’s actual weapon spread in practice and multiplayer."
+  ] },
   { number: "09", title: "Crosshair preferences and ordered updates", changes: [
     "Center Dot and Hit Markers can be switched independently, both enabled by default.",
     "Release history is numbered consecutively; failed builds and retries no longer skip numbers."
