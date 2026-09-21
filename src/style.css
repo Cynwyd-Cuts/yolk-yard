@@ -1336,3 +1336,8 @@ body.in-game {
 .respawn .plain { margin-top: 6px; }
 #spectator-stats { margin-top: 6px; line-height: 1.5; }
 @media (max-width: 600px) { .respawn { bottom: 155px; } }
+
+#spectate-panel { position:absolute; bottom:28px; left:50%; transform:translateX(-50%); background:#172b39ed; border:1px solid #7898a0; border-radius:16px; padding:16px; width:min(540px,94vw); text-align:center; pointer-events:auto; }
+#spectate-panel[hidden] { display:none; }
+#spectate-info { margin:8px 0 12px; font-size:14px; }
+.spectating .hud-bottom, .spectating .mobile-controls { display:none; }

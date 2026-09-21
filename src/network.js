@@ -165,6 +165,8 @@ export class Network {
       }
       if (!accepted) return;
       if (msg.type === "input") this.callbacks.onInput?.(conn.peer, msg.input);
+      else if (msg.type === "player-action" && ["respawn", "spectate", "rejoin"].includes(msg.action))
+        this.callbacks.onPlayerAction?.(conn.peer, msg.action);
       else if (msg.type === "profile")
         this.callbacks.onProfile?.(conn.peer, safeProfile(msg.profile));
       else if (msg.type === "ping" && Number.isFinite(msg.time))

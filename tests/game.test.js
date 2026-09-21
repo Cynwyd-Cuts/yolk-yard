@@ -426,3 +426,37 @@ test("full reserves leave ammo crates available, including with a partial magazi
     }
   }
 });
+
+test("spectators stay out of play and rejoin through a countdown", () => {
+  const {s,a,b} = fixture();
+  s.playerAction(a.id,"spectate");
+  assert.equal(a.spectating,true);
+  const pos = [a.x,a.y,a.z];
+  s.setInput(a.id,{seq:100,forward:1,fire:true});
+  for(let i=0;i<240;i++) s.tick(1/60);
+  assert.equal(a.health,0);
+  assert.deepEqual([a.x,a.y,a.z],pos);
+  assert.equal(s.snapshot().players.find(p=>p.id===a.id).spectating,true);
+  assert.equal(a.deaths,0);
+  assert.equal(b.kills,0);
+  s.playerAction(a.id,"rejoin");
+  assert.equal(a.spectating,false);
+  assert.equal(a.health,0);
+  s.time=a.respawnAt; s.tick(1/60);
+  assert.equal(a.health,100);
+  assert.ok(a.shieldUntil>s.time);
+});
+test("manual respawn drops objectives without awarding an elimination", () => {
+  const {s,a,b}=fixture("capture");
+  a.crown=1; s.flags[1].carrier=a.id;
+  s.playerAction(a.id,"respawn");
+  assert.equal(a.health,0);
+  assert.equal(a.crown,null);
+  assert.equal(s.flags[1].carrier,null);
+  assert.equal(b.kills,0);
+  const ready=a.respawnAt;
+  s.playerAction(a.id,"respawn");
+  assert.equal(a.respawnAt,ready);
+  s.time=ready; s.tick(1/60);
+  assert.equal(a.health,100);
+});

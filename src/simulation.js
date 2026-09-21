@@ -195,7 +195,28 @@ export class Simulation {
     }
     this.emit("round", { round: this.round });
   }
+  playerAction(id, action) {
+    const p = this.players.get(id);
+    if (!p || p.bot || this.phase !== "playing" ||
+        this.time < (p.nextPlayerAction || 0)) return;
+    if (!["respawn", "spectate", "rejoin"].includes(action)) return;
+    if (action === "respawn" && (p.health <= 0 || p.spectating)) return;
+    if (action === "rejoin" && !p.spectating) return;
+    p.nextPlayerAction = this.time + 1;
+    this.dropFlag(p);
+    this.inputs.delete(id);
+    this.projectiles = this.projectiles.filter(b => b.owner !== id);
+    p.reloadEnd = 0;
+    p.burstLeft = 0;
+    p.killerId = null;
+    p.moving = false;
+    p.health = 0;
+    p.spectating = action === "spectate";
+    p.respawnAt = p.spectating ? 0 : this.time + 3;
+    this.emit("player-action", {player: id, action});
+  }
   spawn(p) {
+    if (p.spectating) { p.health = 0; return; }
     if (p.nextProfile) {
       Object.assign(p, p.nextProfile);
       delete p.nextProfile;
@@ -247,6 +268,7 @@ export class Simulation {
     if (this.phase !== "playing") return;
     this.remaining = Math.max(0, this.remaining - dt);
     for (const p of this.players.values()) {
+      if (p.spectating) continue;
       if (p.health <= 0) {
         if (this.time >= p.respawnAt) this.spawn(p);
         continue;
@@ -866,6 +888,7 @@ export class Simulation {
       "shieldUntil",
       "respawnAt",
       "killerId",
+      "spectating",
       "crown",
       "ack",
       "aim",

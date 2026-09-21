@@ -186,6 +186,26 @@ try {
       time,
     );
     pass("Practice pauses from the pause menu");
+    await host.getByRole("button", {name:"Respawn",exact:true}).click();
+    await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 0);
+    await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 100, {}, {timeout:30000});
+    await host.getByRole("button", {name:"Pause menu",exact:true}).click();
+    await host.getByRole("button", {name:"Spectate",exact:true}).click();
+    await host.locator("#spectate-panel").waitFor({state:"visible"});
+    assert.match(await host.locator("#spectate-info").innerText(), /Waiting/);
+    await host.evaluate(() => window.__yolkTest.fixture(s => {
+      s.addPlayer("viewer-target", {name:"Watched Egg"});
+      s.addPlayer("viewer-target-2", {name:"Second Egg"});
+    }));
+    await host.waitForFunction(() => document.querySelector("#spectate-info").textContent.includes("Watched Egg"));
+    await host.getByRole("button", {name:"Next →",exact:true}).click();
+    await host.waitForFunction(() => document.querySelector("#spectate-info").textContent.includes("Second Egg"));
+    await host.screenshot({path:new URL("spectator-mode.png",out).pathname});
+    await host.getByRole("button", {name:"Join game",exact:true}).click();
+    await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 100, {}, {timeout:30000});
+    await host.getByRole("button", {name:"Pause menu",exact:true}).click();
+    pass("Pause respawn, empty spectator state, player switching, and rejoin work");
+
     await host
       .getByRole("button", { name: "Leave match", exact: true })
       .click();

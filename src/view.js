@@ -143,12 +143,12 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
   }
   return group;
 }
-function label(text, color = "#ffffff", compact = false) {
+function label(text, color = "#ffffff", compact = false, critical = false) {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 96;
   const ctx = c.getContext("2d");
-  ctx.font = "bold 34px Arial";
+  ctx.font = compact ? (critical ? "italic 900 64px Arial" : "900 54px Arial") : "bold 34px Arial";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "rgba(23,43,57,.82)";
@@ -156,6 +156,12 @@ function label(text, color = "#ffffff", compact = false) {
   ctx.roundRect(10, 7, 492, 80, 24);
   if (!compact) ctx.fill();
   ctx.fillStyle = color;
+  if (compact) {
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#172b39";
+    ctx.lineWidth = critical ? 7 : 6;
+    ctx.strokeText(text.slice(0, 22), 256, 49, 460);
+  }
   ctx.fillText(text.slice(0, 22), 256, 49, 460);
   const texture = new THREE.CanvasTexture(c);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -456,11 +462,11 @@ export class View {
   }
   event(e, localId) {
     if (e.type === "hit" && e.player === localId && Number.isFinite(e.x)) {
-      const mesh = label(String(e.amount) + (e.precision ? " CRIT" : ""), e.precision ? "#ffcf52" : "#ffffff", true);
-      mesh.scale.set(1.25, 0.24, 1);
+      const mesh = label(String(e.amount) + (e.precision ? "!" : ""), e.precision ? "#ffcf52" : "#ffffff", true, e.precision);
+      mesh.scale.set(1.5, 0.29, 1);
       mesh.position.set(e.x + (e.id % 3 - 1) * 0.16, e.y, e.z);
       this.effects.add(mesh);
-      this.fx.push({mesh, life: 0.8, max: 0.8, damageText: true});
+      this.fx.push({mesh, life: 0.85, max: 0.85, damageText: true, critical: e.precision, drift: (e.id % 5 - 2) * 0.2});
     }
 
     if (e.type === "shot" || e.type === "launch") {
@@ -642,7 +648,7 @@ export class View {
       this.camera.fov = 51;
       this.camera.updateProjectionMatrix();
     } else if (local) {
-      const killer = local.health <= 0 && state.players.find(p => p.id === local.killerId && p.health > 0);
+      const killer = local.health <= 0 && state.players.find(p => p.id === (local.spectating ? this.spectateTarget : local.killerId) && p.health > 0);
       const p = killer || (local.health <= 0 ? local : predicted || local);
       this.camera.position.set(
         p.x,
@@ -709,7 +715,7 @@ export class View {
     if (state) {
       const seen = new Set();
       for (const p of state.players) {
-        if (p.id === local?.id && p.health > 0) continue;
+        if (p.spectating || (p.id === local?.id && p.health > 0)) continue;
         seen.add(p.id);
         const sig =
           p.weapon +
@@ -908,7 +914,11 @@ export class View {
         }
         this.fx.splice(i, 1);
       } else if (f.damageText) {
-        f.mesh.position.y += dt * 0.65;
+        const age = f.max - f.life;
+        const pop = (f.critical ? 1.18 : 1) * (1 + 0.4 * Math.sin(Math.min(1, age / 0.18) * Math.PI));
+        f.mesh.scale.set(1.5 * pop, 0.29 * pop, 1);
+        f.mesh.position.y += dt * (0.85 - age * 0.45);
+        f.mesh.position.x += dt * f.drift;
         f.mesh.material.opacity = Math.min(1, f.life / 0.3);
       } else if (f.v) {
         if (!f.noGravity) f.v.y -= 12 * dt;

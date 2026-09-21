@@ -107,7 +107,7 @@ const touch = {
 };
 let drag = false;
 $("#app").innerHTML =
-  `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"></div><div class="hit-flash" id="damage"></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow">SHELL DOWN</div><h2>Back in <span id="respawn-time">3</span></h2><p class="small" id="respawn-by"></p><p class="small" id="spectator-stats"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="health-label">SHELL <b id="health">100</b></div><div class="health-bar"><span id="health-fill"></span></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
+  `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"></div><div class="hit-flash" id="damage"></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow">SHELL DOWN</div><h2>Back in <span id="respawn-time">3</span></h2><p class="small" id="respawn-by"></p><p class="small" id="spectator-stats"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="health-label">SHELL <b id="health">100</b></div><div class="health-bar"><span id="health-fill"></span></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div id="spectate-panel" hidden><div class="eyebrow">SPECTATING</div><p id="spectate-info"></p><div class="split-actions"><button data-action="spectate-prev">← Previous</button><button data-action="spectate-next">Next →</button><button data-action="rejoin">Join game</button></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
 const dialog = $("#dialog");
 function remember() {
   save("yolk-profile", profile);
@@ -275,6 +275,7 @@ function callbacks() {
       return !!sim.addPlayer(id, p);
     },
     onLeave: (id) => sim?.removePlayer(id),
+    onPlayerAction: (id, action) => sim?.playerAction(id, action),
     onInput: (id, i) => sim?.setInput(id, i),
     onProfile: (id, p) => sim?.setProfile(id, p),
     onState: (s) => {
@@ -440,14 +441,14 @@ function enterGame(capture = false) {
       "ready",
     );
 }
-async function resume() {
+async function resume(capture = true) {
   dialog.close();
   dialogType = "";
   paused = false;
   keys.clear();
   queuedActions.clear();
   sound.unlock();
-  if (!settings.dragLook && !matchMedia("(pointer:coarse)").matches) {
+  if (capture && !state?.players.find(p => p.id === localId)?.spectating && !settings.dragLook && !matchMedia("(pointer:coarse)").matches) {
     try {
       const result = $("#world").requestPointerLock();
       if (result?.catch) await result;
@@ -458,11 +459,24 @@ async function resume() {
     }
   }
 }
+let spectateTarget = null;
+function switchSpectator(step) {
+  const players = state?.players.filter(p => p.id !== localId && !p.spectating && p.health > 0) || [];
+  const index = players.findIndex(p => p.id === spectateTarget);
+  spectateTarget = players.length ? players[(index + step + players.length) % players.length].id : null;
+}
+function playerAction(action) {
+  if (sim) { sim.playerAction(localId, action); state = sim.snapshot(); }
+  else net?.send({type: "player-action", action});
+  pendingInputs = [];
+  predicted = null;
+  resume(action !== "spectate");
+}
 function pauseMenu() {
   if (screen !== "game") return;
   modal(
     "Take a breather",
-    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "Practice is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
+    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "Practice is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
     "pause",
   );
 }
@@ -593,6 +607,9 @@ function processEvents() {
       if (e.target === localId)
         $("#respawn-by").textContent = `Tagged by ${e.name} · ${e.weapon}`;
     }
+    if (e.type === "player-action" && e.player === localId) {
+      $("#respawn-by").textContent = e.action === "respawn" ? "Returning to a fresh spawn" : "";
+    }
     if (e.type === "spawn" && e.player === localId) {
       input.slot = 0;
       const p = state.players.find((p) => p.id === localId);
@@ -646,11 +663,18 @@ function hud() {
       ? "RELOADING…"
       : `${p.poppers} poppers · ${p.slot === 0 ? "2 → sidearm" : "1 → primary"}`;
   $("#respawn").style.display =
-    p.health <= 0 && state.phase === "playing" ? "block" : "none";
+    p.health <= 0 && !p.spectating && state.phase === "playing" ? "block" : "none";
   const killer = p.health <= 0 && state.players.find(k => k.id === p.killerId);
   $("#spectator-stats").textContent = killer
     ? `${killer.health > 0 ? "Spectating" : "Eliminated"} ${killer.name} · Shell ${Math.ceil(killer.health)} · ${gun(killer).name} · ${killer.kills} K / ${killer.deaths} D · ${Math.floor(killer.points)} pts`
     : "";
+  const watching = !!p.spectating && state.phase === "playing";
+  $("#spectate-panel").hidden = !watching;
+  $("#hud").classList.toggle("spectating", watching);
+  const target = state.players.find(k => k.id === spectateTarget);
+  $("#spectate-info").textContent = target && watching
+    ? `${target.name} · Shell ${Math.ceil(target.health)} · ${gun(target).name} · ${target.kills} K / ${target.deaths} D`
+    : "Waiting for a player to spawn…";
   $("#respawn-time").textContent = Math.max(
     1,
     Math.ceil(p.respawnAt - state.time),
@@ -699,7 +723,12 @@ const actions = {
   help: helpMenu,
   close: closeDialog,
   pause: pauseMenu,
-  resume,
+  resume: () => resume(),
+  "respawn-player": () => playerAction(state?.players.find(p => p.id === localId)?.spectating ? "rejoin" : "respawn"),
+  spectate: () => playerAction("spectate"),
+  rejoin: () => playerAction("rejoin"),
+  "spectate-prev": () => switchSpectator(-1),
+  "spectate-next": () => switchSpectator(1),
   leave: () => leave(),
   "leave-confirm": () => leave(true),
   scores: () => {
@@ -1025,6 +1054,9 @@ function loop(now) {
   }
   processEvents();
   const me = state?.players.find((p) => p.id === localId);
+  if (me?.spectating && !state.players.some(p => p.id === spectateTarget && p.health > 0 && !p.spectating))
+    switchSpectator(1);
+  view.spectateTarget = me?.spectating ? spectateTarget : null;
   let renderPlayer = predicted;
   if (sim && me) {
     renderPlayer = {
