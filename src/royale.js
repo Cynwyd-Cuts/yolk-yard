@@ -202,6 +202,7 @@ export class RoyaleSimulation extends Simulation {
    if(p.flight==='transport'){
     Object.assign(p,transportAt(this.route,this.elapsed));
     if(this.elapsed>=3&&(input.jump||this.elapsed>=this.route.duration)){
+     p.lastJumpPress=Math.max(p.lastJumpPress||0,input.jumpPress||0);
      p.flight='dive';p.flightLatch=true;p.yaw=input.yaw||p.yaw;p.pitch=0;this.emit('royale-cue',{player:p.id,cue:'transport-exit'});
     }
     continue;

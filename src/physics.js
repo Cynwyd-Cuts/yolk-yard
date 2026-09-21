@@ -91,6 +91,10 @@ function pushAxis(p, map, axis, delta) {
 }
 export function movePlayer(p, input, map, dt) {
   if (p.health <= 0) return;
+  if ((input.jumpPress || 0) > (p.lastJumpPress || 0)) {
+    p.lastJumpPress = input.jumpPress;
+    p.jumpLatch = p.flightLatch = false;
+  }
   p.yaw = Number.isFinite(input.yaw) ? input.yaw : p.yaw;
   p.pitch = clamp(
     Number.isFinite(input.pitch) ? input.pitch : p.pitch,

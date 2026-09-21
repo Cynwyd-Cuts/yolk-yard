@@ -64,6 +64,14 @@ test('transport cannot be damaged, forces exit, and automatically deploys a glid
  const s=make(),p=s.players.get('host');s.damage(p,null,1000,'Storm');assert.equal(p.health,100);
  advance(s,35.2);assert.equal(p.flight,'dive');advance(s,8);assert.equal(p.flight,'ground');assert.equal(p.y,0);assert.equal(p.health,100);
 });
+test('a second flight tap survives a release and press arriving between host ticks',()=>{
+ const s=make(),p=s.players.get('guest');s.time=s.startedAt+4;
+ s.setInput(p.id,{seq:1,jump:true});s.tick(1/60);assert.equal(p.flight,'dive');
+ s.setInput(p.id,{seq:2,jump:false});s.setInput(p.id,{seq:3,jump:true});s.setInput(p.id,{seq:4,jump:false});
+ s.tick(1/60);assert.equal(p.flight,'glide');
+ for(let i=0;i<5;i++)s.tick(1/60);assert.equal(p.flight,'glide','a consumed press must not toggle again');
+ s.setInput(p.id,{seq:3,jump:true});s.tick(1/60);assert.equal(p.flight,'glide','stale input must not replay a press');
+});
 test('all storm circles are nested and timing is continuous across stage boundaries',()=>{
  for(let seed=1;seed<=120;seed++){
   const phases=makeStorm(rng(seed));for(const step of phases)assert.ok(Math.hypot(step.x-step.fromX,step.z-step.fromZ)+step.radius<=step.fromRadius+1e-6);

@@ -9,7 +9,10 @@ const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHR
 const pages=[],errors=[],checks=[];await mkdir('test-results',{recursive:true});
 const pass=s=>{checks.push(s);console.log('PASS',s);};
 async function make(name,mobile=false){
- const ctx=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1280,height:800},isMobile:mobile,hasTouch:mobile});
+ // Several simultaneous software-rendered islands otherwise starve WebRTC on
+ // the two-core CI runner. Keep the desktop CSS layout; solo/art checks render
+ // at full resolution, while this suite verifies real host/guest networking.
+ const ctx=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1280,height:800},deviceScaleFactor:.5,isMobile:mobile,hasTouch:mobile});
  await ctx.addInitScript(name=>{if(location.origin==='null')return;localStorage.setItem('yolk-profile',JSON.stringify({name}));localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:.15}));},name);
  await ctx.route('**/network-config.js',route=>route.fulfill({contentType:'application/javascript',body:"window.YOLK_NETWORK={peer:{host:'127.0.0.1',port:9002,path:'/peer',secure:false},iceServers:[]};"}));
  const page=await ctx.newPage();pages.push(page);page.setDefaultTimeout(60000);page.on('pageerror',e=>{errors.push(e.message);console.error('BROWSER',e.message);});
