@@ -46,9 +46,9 @@ try{
  await listing(guest,code,true);
  console.log('PASS public room discovered across independent browsers');
  await closeModal(guest);
- await host.locator('[data-action="toggle-visibility"]').click();
+ await host.locator('[data-action="toggle-visibility"]:visible').click();
  await listing(guest,code,false);await closeModal(guest);
- await host.locator('[data-action="toggle-visibility"]').click();
+ await host.locator('[data-action="toggle-visibility"]:visible').click();
  await listing(guest,code,true);
  await guest.locator(`[data-join-room="${code}"]`).click();await guest.locator('.room-code').waitFor();
  await host.waitForFunction(()=>window.__yolkTest.read().state.players.length===2);
@@ -60,7 +60,7 @@ try{
  await guest.keyboard.down('KeyW');
  await host.waitForFunction(({id,x,z})=>{const p=window.__yolkTest.read().state.players.find(p=>p.id===id);return Math.hypot(p.x-x,p.z-z)>.5;},before);
  await guest.keyboard.up('KeyW');
- await host.keyboard.press('Escape');await host.locator('[data-action="toggle-visibility"]').click();
+ await host.keyboard.press('Escape');await host.locator('[data-action="toggle-visibility"]:visible').click();
  
  console.log('PASS multiplayer input replication and in-match visibility switch');
  await guest.screenshot({path:'test-results/open-multiplayer.png'});

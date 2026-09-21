@@ -366,9 +366,9 @@ async function createRoom() {
   net = attempt;
   try {
     await attempt.host();
+    if (attempt !== net) return;
     attempt.setVisibility(visibility);
     localId = attempt.id;
-    if (attempt !== net) return;
     screen = "lobby";
     paused = true;
     dialog.close();

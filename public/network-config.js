@@ -6,3 +6,13 @@
    TURN credentials here are PUBLIC. Use short-lived credentials from your own service.
 */
 window.YOLK_NETWORK = {};
+
+// Discard credentials left by the retired access system; keep game preferences.
+for (const name of ['localStorage', 'sessionStorage']) {
+  try {
+    const storage = window[name];
+    for (const key of Object.keys(storage)) {
+      if (key.startsWith('yolk-browser:') || key.startsWith('yolk-admin:')) storage.removeItem(key);
+    }
+  } catch {}
+}

@@ -94,6 +94,7 @@ export class Network {
     this.code = roomCode();
     await this.makePeer(PREFIX + this.code);
     this.ready = true;
+    this.rejectOpen = null;
     this.peer.on("connection", (connection) => this.accept(connection));
     this.startHeartbeat();
     return this.code;
@@ -261,6 +262,7 @@ export class Network {
         if (!this.ready) reject(new Error(errorText(e)));
       });
     });
+    this.rejectOpen = null;
     this.startHeartbeat();
     return this.id;
   }
@@ -312,6 +314,8 @@ export class Network {
   destroy() {
     if (this.closed) return;
     this.closed = true;
+    this.rejectOpen?.(new Error("Connection cancelled."));
+    this.rejectOpen = null;
     if (this.isHost) directory.publish(null);
     for (const timer of this.timers) clearTimeout(timer);
     clearInterval(this.heartbeat);
