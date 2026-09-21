@@ -684,7 +684,7 @@ export class View {
         local.reloadEnd > state.time
           ? Math.sin(
               Math.PI *
-                clamp(1 - (local.reloadEnd - state.time) / w.reload, 0, 1),
+                clamp(1 - (local.reloadEnd - state.time) / (local.ammo[local.slot] === 0 ? w.reloadEmpty : w.reload), 0, 1),
             )
           : 0;
       const front = -VIEWMODEL.z + w.muzzle * VIEWMODEL.scale;

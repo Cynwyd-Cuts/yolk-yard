@@ -18,6 +18,7 @@ import {
   wallDistance,
   rayEgg,
   isCenterHit,
+  shellDamageFactor,
   dist,
   EYE,
 } from "./physics.js";
@@ -89,11 +90,13 @@ export class Simulation {
       points: 0,
       streak: 0,
       slot: 0,
-      ammo: [0, 12],
-      reserve: [0, 72],
+      ammo: [0, weapon("pip").magazine],
+      reserve: [0, weapon("pip").reserve],
       reloadEnd: 0,
       nextShot: 0,
       burstLeft: 0,
+      fireLatch: false,
+      accuracyState: [{}, {}],
       burstTime: 0,
       poppers: 2,
       nextPopper: 0,
@@ -243,11 +246,13 @@ export class Simulation {
       jumpLatch: false,
       health: 100,
       slot: 0,
-      ammo: [weapon(p.weapon).magazine, 12],
-      reserve: [weapon(p.weapon).reserve, 72],
+      ammo: [weapon(p.weapon).magazine, weapon("pip").magazine],
+      reserve: [weapon(p.weapon).reserve, weapon("pip").reserve],
       reloadEnd: 0,
       nextShot: this.time + 0.3,
       burstLeft: 0,
+      fireLatch: false,
+      accuracyState: [{}, {}],
       poppers: 2,
       nextPopper: 0,
       shieldUntil: this.time + 2.3,
@@ -282,9 +287,11 @@ export class Simulation {
         p.burstLeft = 0;
         p.nextShot = Math.max(p.nextShot, this.time + 0.2);
       }
+      const previousPosition = { x: p.x, y: p.y, z: p.z };
       movePlayer(p, input, this.map, dt);
       p.ack = Math.max(p.ack, input.seq || 0);
       p.aim = !!input.aim;
+      this.updateAccuracy(p, previousPosition, dt);
       if (this.time - p.lastDamage > 6 && p.health < 100)
         p.health = Math.min(100, p.health + 8 * dt);
       if (p.reloadEnd && this.time >= p.reloadEnd) {
@@ -300,11 +307,13 @@ export class Simulation {
       if (p.burstLeft && this.time >= p.burstTime) {
         this.fire(p, true);
         p.burstLeft--;
-        p.burstTime = this.time + 0.065;
+        p.burstTime += gun(p).burstInterval;
       }
       if (
         input.fire &&
-        this.time >= p.nextShot &&
+        this.time + 1e-9 >= p.nextShot &&
+        (gun(p).automatic || !p.fireLatch || p.bot) &&
+        !p.burstLeft &&
         !p.reloadEnd &&
         p.ammo[p.slot] > 0
       ) {
@@ -316,6 +325,7 @@ export class Simulation {
           p.burstTime = this.time + w.burstInterval;
         }
       }
+      p.fireLatch = !!input.fire;
       if (
         input.popper &&
         !p.popperLatch &&
@@ -347,9 +357,30 @@ export class Simulation {
       p.ammo[p.slot] >= gun(p).magazine
     )
       return;
-    p.reloadEnd = this.time + gun(p).reload;
+    p.reloadEnd = this.time + (p.ammo[p.slot] === 0 ? gun(p).reloadEmpty : gun(p).reload);
     p.burstLeft = 0;
     this.emit("reload", { player: p.id });
+  }
+  updateAccuracy(p, previous, dt) {
+    const w = gun(p), a = p.accuracyState[p.slot];
+    a.shot ??= w.spread;
+    a.movement ??= 0;
+    a.recovery ??= w.spreadRecovery;
+    a.clock = (a.clock || 0) + dt;
+    // Accuracy is updated at the reference game's 30 Hz rate.
+    const planar = Math.hypot(p.x - previous.x, p.z - previous.z) / Math.max(dt, 1e-9);
+    const vertical = Math.abs(p.y - previous.y) / Math.max(dt, 1e-9);
+    const moving = Math.min(1, planar / w.speed) + Math.min(1, vertical / w.speed);
+    const target = (moving + (p.reloadEnd && w.id !== "needle" ? 1 : 0)) * w.spreadMax;
+    const ads = p.aim ? w.aimSpread : 1;
+    while (a.clock + 1e-9 >= 1 / 30) {
+      a.clock -= 1 / 30;
+      a.movement = Math.max(target, a.movement - w.spreadRecovery);
+      a.recovery = Math.min(w.spreadRecovery, a.recovery + w.spreadRecovery);
+      a.shot = Math.max(w.spread * ads, a.shot - Math.max(0, a.recovery));
+    }
+    a.spread = a.movement * w.movementSpread + a.shot;
+    if (w.projectile) a.spread = Math.min(0.3, a.spread);
   }
   shotPath(p, w, directionOverride = null) {
     const eye = { x: p.x, y: p.y + EYE, z: p.z },
@@ -397,22 +428,22 @@ export class Simulation {
     if (p.ammo[p.slot] <= 0 || p.reloadEnd) return;
     p.ammo[p.slot]--;
     p.shieldUntil = 0;
+    const accuracy = p.accuracyState[p.slot];
+    const spread = accuracy.spread ?? w.spread * (p.aim ? w.aimSpread : 1);
+    accuracy.shot = Math.min((accuracy.shot ?? w.spread) + w.shotBloom * (p.aim ? w.aimSpread : 1), w.spreadMax * (p.aim ? w.aimSpread : 1));
+    accuracy.recovery = -8 * w.spreadRecovery;
     if (w.projectile) {
-      this.launch(p, false);
+      this.launch(p, false, spread);
       return;
     }
     const shots = [];
     let origin = muzzleOrigin(p, w),
       blocked = false;
     for (let i = 0; i < w.pellets; i++) {
-      const spread = w.spread * (p.aim ? 0.4 : 1) * (p.grounded ? 1 : 1.7);
-      // Uniform disk dispersion gives a consistent circular pattern.
-      const radius = Math.sqrt(this.random()) * spread,
-        angle = this.random() * Math.PI * 2;
-      const aim = direction(
-        p.yaw + Math.cos(angle) * radius,
-        p.pitch + Math.sin(angle) * radius,
-      );
+      // Rifle spread is angular; the shotgun disperses twenty independent pellets.
+      const yawSpread = (this.random() - 0.5) * spread * (w.pellets > 1 ? 2 : 1);
+      const pitchSpread = (this.random() - 0.5) * spread * (w.pellets > 1 ? 1.2 : 1);
+      const aim = direction(p.yaw + yawSpread, p.pitch + pitchSpread);
       const path = this.shotPath(p, w, aim);
       origin = path.origin;
       if (path.blocked) {
@@ -446,9 +477,10 @@ export class Simulation {
     }
     this.emit("shot", { player: p.id, weapon: w.id, origin, shots, blocked });
   }
-  launch(p, popper) {
+  launch(p, popper, spread = 0) {
     const w = gun(p),
-      path = this.shotPath(p, w),
+      aim = direction(p.yaw + (this.random() - 0.5) * spread, p.pitch + (this.random() - 0.5) * spread),
+      path = this.shotPath(p, w, aim),
       d = popper ? direction(p.yaw, p.pitch) : path.d;
     const origin = popper
       ? { x: p.x, y: p.y + EYE - 0.15, z: p.z }
@@ -480,7 +512,8 @@ export class Simulation {
       vz: d.z * speed,
       gravity: popper ? 13 : w.gravity,
       born: this.time,
-      fuse: popper ? 2.0 : 3.6,
+      fuse: popper ? 2.5 : w.range / w.boltSpeed,
+      travelled: 0,
       popper,
       bounces: 0,
       resting: false,
@@ -490,7 +523,7 @@ export class Simulation {
   updateProjectiles(dt) {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const b = this.projectiles[i];
-      if (this.time - b.born >= b.fuse) {
+      if (b.popper ? this.time - b.born >= b.fuse : this.time - b.born > b.fuse + dt + 1e-9) {
         if (b.kind !== "bolt") this.explode(b);
         this.projectiles.splice(i, 1);
         continue;
@@ -498,9 +531,15 @@ export class Simulation {
       if (b.resting) continue;
       const dy = b.vy * dt - 0.5 * b.gravity * dt * dt;
       b.vy -= b.gravity * dt;
-      const delta = { x: b.vx * dt, y: dy, z: b.vz * dt },
+      const remaining = b.popper ? Infinity : Math.max(0, weapon(b.weapon).range - (b.travelled || 0)),
+        fraction = Math.min(1, remaining / (Math.hypot(b.vx * dt, dy, b.vz * dt) || 1)),
+        delta = { x: b.vx * dt * fraction, y: dy * fraction, z: b.vz * dt * fraction },
         length = Math.hypot(delta.x, delta.y, delta.z);
-      if (length < 1e-8) continue;
+      if (length < 1e-8) {
+        if (!b.popper && b.kind !== "bolt") this.explode(b);
+        if (!b.popper) this.projectiles.splice(i, 1);
+        continue;
+      }
       const d = {
         x: delta.x / length,
         y: delta.y / length,
@@ -541,12 +580,11 @@ export class Simulation {
           if (victim) {
             const precision = isCenterHit(b, d, victim),
               w = weapon(b.weapon),
-              falloff =
-                w.id === "scatter" ? Math.max(0.28, 1 - b.travelled / 42) : 1;
+              hitFactor = shellDamageFactor(b, d, victim);
             this.damage(
               victim,
               attacker,
-              b.damage * falloff * (precision ? 1.15 : 1),
+              b.damage * hitFactor,
               w.name,
               precision,
             );
@@ -584,7 +622,8 @@ export class Simulation {
   }
   explode(b) {
     const attacker = this.players.get(b.owner),
-      radius = b.popper ? 5.2 : 4.2;
+      radius = b.popper ? 3 : weapon(b.weapon).splashRadius;
+    if (!b.popper && (b.travelled || 0) < weapon(b.weapon).minRange) return;
     this.emit("explosion", { x: b.x, y: b.y, z: b.z, popper: b.popper });
     for (const p of this.players.values()) {
       if (
@@ -607,7 +646,7 @@ export class Simulation {
       this.damage(
         p,
         attacker,
-        (b.popper ? 95 : 85) *
+        (b.popper ? 150 : weapon(b.weapon).damage) *
           (1 - distance / (radius * 1.2)) *
           (p === attacker ? 0.55 : 1),
         b.popper ? "Popper" : "Thumper",
@@ -660,9 +699,10 @@ export class Simulation {
         p.health = Math.min(100, p.health + 45);
       }
       if (item.type === "ammo") {
-        const capacity = [weapon(p.weapon).reserve, 72];
-        if (p.reserve.every((amount, slot) => amount >= capacity[slot])) continue;
-        p.reserve = p.reserve.map((amount, slot) => Math.max(amount, capacity[slot]));
+        const loadout = [weapon(p.weapon), weapon("pip")];
+        if (loadout.every((w, slot) => p.reserve[slot] >= w.reserve)) continue;
+        p.reserve = loadout.map((w, slot) => Math.min(w.reserve, p.reserve[slot] + w.ammoPickup));
+
       }
       if (item.type === "popper") {
         if (p.poppers >= 3) continue;
@@ -851,7 +891,7 @@ export class Simulation {
       forward: -Math.sin(yaw) * moveX - Math.cos(yaw) * moveZ,
       strafe: Math.cos(yaw) * moveX - Math.sin(yaw) * moveZ,
       fire,
-      aim: gun(p).id === "needle",
+      aim: gun(p).optic === "scope",
       reload: p.ammo[p.slot] === 0,
       jump: this.time % 2.2 < 0.04,
       popper: false,

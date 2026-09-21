@@ -216,3 +216,13 @@ export function isCenterHit(o, d, p) {
   const t = -a.reduce((s,x,i)=>s+x*v[i],0)/v.reduce((s,x)=>s+x*x,0);
   return t >= 0 && a.reduce((s,x,i)=>s+(x+t*v[i])**2,0) <= 0.32**2;
 }
+
+// The reference damage curve depends on the incidence angle, not a flat bonus.
+export function shellDamageFactor(hit, direction, egg) {
+  const normal = [(hit.x - egg.x) / 0.53 ** 2,
+    (hit.y - egg.y - 0.87) / 0.87 ** 2, (hit.z - egg.z) / 0.53 ** 2];
+  const length = Math.hypot(...normal) || 1;
+  const incidence = clamp(-(normal[0] * direction.x + normal[1] * direction.y + normal[2] * direction.z) / length, 0, 1);
+  const base = 0.2 + 0.8 * incidence;
+  return base ** (4 + base ** 4);
+}

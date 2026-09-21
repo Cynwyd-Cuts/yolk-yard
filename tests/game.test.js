@@ -112,29 +112,32 @@ test("inputs cannot inject movement speed or non-finite coordinates", () => {
 test("server controls hit damage, ammunition, shielding, and respawn", () => {
   const { s, a, b } = fixture();
   a.weapon = "needle";
-  a.ammo = [5, 12];
+  a.ammo = [1, 15];
+  a.pitch = Math.atan2(0.87 - 1.43, 8);
   b.shieldUntil = 11;
   s.fire(a);
-  advance(s, 6);
+  advance(s, 12);
   assert.equal(b.health, 100);
+  assert.equal(a.ammo[0], 0);
   s.time = 12;
+  s.reload(a);
+  s.time = a.reloadEnd;
+  s.tick(1 / 60);
+  a.accuracyState = [{}, {}];
   s.fire(a);
   assert.equal(b.health, 100, "Damage waits for the projectile to arrive");
-  advance(s, 6);
-  assert.equal(b.health, 16);
-  s.time = 14;
-  s.fire(a);
-  advance(s, 6);
+  advance(s, 12);
   assert.equal(b.health, 0);
   assert.equal(b.killerId, a.id);
   assert.equal(a.kills, 1);
   assert.equal(b.deaths, 1);
-  assert.equal(a.ammo[0], 2);
+  assert.equal(a.ammo[0], 0);
   s.time = b.respawnAt;
   s.tick(1 / 60);
   assert.equal(b.health, 100);
   assert.ok(b.shieldUntil > s.time);
 });
+
 test("solid cover blocks shots and friendly fire is disabled", () => {
   const { s, a, b } = fixture();
   s.map.boxes = [{ x: 0, y: 0, z: 4, w: 4, h: 3, d: 1 }];
@@ -283,7 +286,7 @@ test("all seven primary classes can fire and serialize projectiles safely", () =
   }
 });
 
-test("bolts have finite travel, start at the muzzle, and drop under gravity", () => {
+test("bolts have finite travel, start at the muzzle, and keep a straight trajectory", () => {
   const { s, a, b } = fixture();
   b.z = -30;
   s.random = () => 0;
@@ -296,12 +299,13 @@ test("bolts have finite travel, start at the muzzle, and drop under gravity", ()
     vy = bolt.vy;
   s.updateProjectiles(0.05);
   assert.equal(b.health, 100);
-  assert.ok(bolt.vy < vy);
+  assert.equal(bolt.vy, vy);
   assert.ok(
     Math.abs(bolt.y - (y + vy * 0.05 - 0.5 * bolt.gravity * 0.05 ** 2)) < 1e-8,
   );
   advance(s, 30);
-  assert.ok(b.health < 100);
+  assert.equal(b.health, 100, "Target is beyond the 20-unit rifle range");
+  assert.equal(s.projectiles.length, 0);
 });
 test("a low wall can block the muzzle even when the camera can see over it", () => {
   const { s, a, b } = fixture();
@@ -390,11 +394,11 @@ test("center hits reward aim without rewarding the shell rim", () => {
   a.weapon = "needle";
   a.pitch = Math.atan2(0.87-1.43,8);
   s.fire(a);
-  advance(s, 6);
-  assert.ok(Math.abs(b.health-3.4)<0.001);
+  advance(s, 12);
+  assert.equal(b.health, 0);
   const event=s.events.find(e=>e.type==="hit");
   assert.equal(event.precision,true);
-  assert.equal(event.amount,97);
+  assert.equal(event.amount,100);
 });
 test("lethal damage reports remaining health and serializes the killer", () => {
   const {s,a,b}=fixture();
@@ -409,7 +413,7 @@ test("full reserves leave ammo crates available, including with a partial magazi
   const { s, a } = fixture();
   for (const w of WEAPONS) {
     a.weapon = w.id;
-    a.reserve = [w.reserve, 72];
+    a.reserve = [w.reserve, weapon("pip").reserve];
     a.ammo = [0, 0];
     const crate = { id: 0, x: a.x, y: a.y, z: a.z, type: "ammo", availableAt: 0 };
     s.pickups = [crate];
@@ -420,7 +424,7 @@ test("full reserves leave ammo crates available, including with a partial magazi
     for (const slot of [0, 1]) {
       a.reserve[slot]--;
       s.collect(a);
-      assert.deepEqual(a.reserve, [w.reserve, 72]);
+      assert.deepEqual(a.reserve, [w.reserve, weapon("pip").reserve]);
       assert.equal(crate.availableAt, s.time + 15);
       crate.availableAt = 0;
     }
