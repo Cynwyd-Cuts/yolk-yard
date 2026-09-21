@@ -271,16 +271,18 @@ export function makeBlaster(id) {
     box(g, 0.19, 0.01, 0.16, 0.06, 0.07, 0.07, dark);
     optic(g, "scope");
   } else if (id === "thumper") {
-    tube(g, 0, 0, -0.22, 0.215, 0.94, c, true);
-    for (const z of [0.2, -0.07, -0.52, -0.7])
-      ring(g, 0, 0, z, 0.215, 0.037, dark);
-    tube(g, 0, 0, -0.698, 0.16, 0.025, black);
-    ring(g, 0, 0, -0.723, 0.164, 0.015, 0x8ae5dc);
+    // Closed breech and compact barrel: no open rear tube facing the camera.
+    box(g, 0, -0.025, 0.055, 0.29, 0.27, 0.39, c, 0.045);
+    tube(g, 0, 0, -0.35, 0.15, 0.69, c);
+    for (const z of [-0.08, -0.5, -0.69])
+      ring(g, 0, 0, z, 0.151, 0.018, dark);
+    tube(g, 0, 0, -0.702, 0.12, 0.017, black);
+    ring(g, 0, 0, -0.723, 0.129, 0.014, steel);
     grip(g, 0.17);
-    stock(g, c, 0.33);
-    box(g, 0, -0.21, -0.32, 0.22, 0.16, 0.35, dark);
-    for (const x of [-0.23, 0.23])
-      box(g, x, 0, -0.25, 0.03, 0.07, 0.43, 0xa3efe7, 0.01);
+    stock(g, c, 0.29);
+    box(g, 0, -0.16, -0.3, 0.19, 0.11, 0.3, dark);
+    for (const x of [-0.151, 0.151])
+      box(g, x, 0, -0.3, 0.018, 0.038, 0.3, 0xa3efe7, 0.006);
     optic(g, "reflex");
   } else if (id === "zipper") {
     plate(
@@ -397,7 +399,7 @@ export function makeBlaster(id) {
       scatter: 0.154,
       needle: 0.12,
       zipper: 0.135,
-      thumper: 0.213,
+      thumper: 0.151,
       anchor: 0.174,
       duet: 0.145,
       sprinter: 0.135,
@@ -508,3 +510,4 @@ export function weaponPortrait(renderer, id) {
   disposeBlaster(model);
   return result;
 }
+

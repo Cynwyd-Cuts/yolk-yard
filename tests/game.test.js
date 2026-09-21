@@ -403,3 +403,26 @@ test("lethal damage reports remaining health and serializes the killer", () => {
   assert.equal(s.events.find(e=>e.type==="hit").amount,9);
   assert.equal(s.snapshot().players.find(p=>p.id===b.id).killerId,a.id);
 });
+
+
+test("full reserves leave ammo crates available, including with a partial magazine", () => {
+  const { s, a } = fixture();
+  for (const w of WEAPONS) {
+    a.weapon = w.id;
+    a.reserve = [w.reserve, 72];
+    a.ammo = [0, 0];
+    const crate = { id: 0, x: a.x, y: a.y, z: a.z, type: "ammo", availableAt: 0 };
+    s.pickups = [crate];
+    const events = s.events.length;
+    s.collect(a);
+    assert.equal(crate.availableAt, 0);
+    assert.equal(s.events.length, events);
+    for (const slot of [0, 1]) {
+      a.reserve[slot]--;
+      s.collect(a);
+      assert.deepEqual(a.reserve, [w.reserve, 72]);
+      assert.equal(crate.availableAt, s.time + 15);
+      crate.availableAt = 0;
+    }
+  }
+});

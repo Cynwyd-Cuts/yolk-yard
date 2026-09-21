@@ -100,8 +100,7 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
   block(group, 0, 1.04, -0.403, 0.66, 0.22, 0.13, 0x263e4c);
   block(group, 0, 1.065, -0.48, 0.54, 0.11, 0.025, 0x62d5e3);
   block(group, -0.2, 1.095, -0.501, 0.13, 0.021, 0.011, 0xeafff1);
-  for (const x of [-0.17, 0.17])
-    block(group, x, 0.08, -0.02, 0.19, 0.15, 0.31, 0x314951);
+
   const hat = Number(profile.hat) || 0;
   if (hat === 1) {
     for (const x of [-0.45, 0.45])
@@ -742,6 +741,15 @@ export class View {
           this.models.set(p.id, model);
           model.position.set(p.x, p.y, p.z);
         }
+        // Drive the gait from interpolated horizontal travel, including network players.
+        const previous = model.userData.walkPosition || { x: p.x, z: p.z };
+        const travel = Math.hypot(p.x - previous.x, p.z - previous.z);
+        model.userData.walkPosition = { x: p.x, z: p.z };
+        const walking = p.health > 0 && p.grounded && travel < 2;
+        const targetSpeed = walking ? Math.min(1, travel / Math.max(dt, 0.001) / 5) : 0;
+        const stride = model.userData.stride = (model.userData.stride || 0) + (walking ? travel * 7 : 0);
+        const gait = model.userData.gait = THREE.MathUtils.lerp(model.userData.gait || 0, targetSpeed, Math.min(1, dt * 12));
+        const bob = Math.abs(Math.sin(stride)) * 0.065 * gait;
         const deathAge = p.health <= 0 ? state.time - (p.respawnAt - 3) : 0;
         model.visible = p.health > 0 || deathAge < 0.75;
         model.userData.cracks.forEach((crack, i) => {
@@ -753,7 +761,7 @@ export class View {
           model.position.set(p.x, p.y, p.z);
         else
           model.position.lerp(
-            new THREE.Vector3(p.x, p.y, p.z),
+            new THREE.Vector3(p.x, p.y + bob, p.z),
             Math.min(1, dt * 18),
           );
         let delta = p.yaw - model.rotation.y;
@@ -768,7 +776,10 @@ export class View {
           const collapse = Math.min(1, Math.max(0, deathAge - 0.2) / 0.55);
           model.scale.set(1 + collapse * 0.25, 1 - collapse * 0.95, 1 + collapse * 0.25);
           model.rotation.z = collapse * 0.35;
-        } else model.rotation.z = 0;
+        } else {
+          model.rotation.z = Math.sin(stride) * 0.1 * gait;
+          model.rotation.x = Math.cos(stride * 2) * 0.025 * gait;
+        }
       }
       for (const [id, model] of this.models)
         if (!seen.has(id)) {
@@ -787,29 +798,34 @@ export class View {
         let mesh = this.projectiles.get(b.id);
         if (!mesh) {
           const bolt = b.kind === "bolt";
+          // Compact weapon-specific rounds; tails are brief motion cues, not giant cones.
+          const profiles = {
+            sprinter: [0.018, 0.14, 0.55], scatter: [0.022, 0.025, 0.12],
+            needle: [0.015, 0.24, 0.95], zipper: [0.015, 0.08, 0.32],
+            anchor: [0.023, 0.17, 0.65], duet: [0.018, 0.18, 0.7],
+            pip: [0.02, 0.075, 0.25],
+          };
+          const [radius, length, trail] = profiles[b.weapon] || profiles.sprinter;
           mesh = new THREE.Mesh(
-            bolt
-              ? new THREE.CapsuleGeometry(0.035, 0.26, 3, 6)
-              : new THREE.SphereGeometry(0.16, 12, 8),
-            new THREE.MeshBasicMaterial({
-              color: b.popper ? 0xb79bea : weapon(b.weapon).color,
-              toneMapped: false,
+            bolt ? new THREE.CapsuleGeometry(radius, length, 3, 6)
+              : b.popper ? new THREE.SphereGeometry(0.14, 12, 8)
+              : new THREE.CapsuleGeometry(0.075, 0.16, 4, 10),
+            new THREE.MeshStandardMaterial({
+              color: b.popper ? 0xb79bea : bolt ? 0xe4bc78 : 0x9871b5,
+              roughness: 0.4, metalness: bolt ? 0.55 : 0.25,
             }),
           );
           this.effects.add(mesh);
           this.projectiles.set(b.id, mesh);
           if (bolt) {
             const tail = new THREE.Mesh(
-              new THREE.ConeGeometry(0.045, 1.4, 6),
+              new THREE.CylinderGeometry(radius * 0.35, 0, trail, 5),
               new THREE.MeshBasicMaterial({
-                color: weapon(b.weapon).color,
-                transparent: true,
-                opacity: 0.45,
-                depthWrite: false,
-                toneMapped: false,
+                color: 0xffdc97, transparent: true, opacity: 0.3,
+                depthWrite: false, toneMapped: false,
               }),
             );
-            tail.position.y = -0.65;
+            tail.position.y = -(length + trail) / 2;
             mesh.add(tail);
           }
         }
@@ -932,3 +948,4 @@ export class View {
     this.renderer.render(this.scene, this.camera);
   }
 }
+

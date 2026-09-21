@@ -638,7 +638,9 @@ export class Simulation {
         p.health = Math.min(100, p.health + 45);
       }
       if (item.type === "ammo") {
-        p.reserve = [weapon(p.weapon).reserve, 72];
+        const capacity = [weapon(p.weapon).reserve, 72];
+        if (p.reserve.every((amount, slot) => amount >= capacity[slot])) continue;
+        p.reserve = p.reserve.map((amount, slot) => Math.max(amount, capacity[slot]));
       }
       if (item.type === "popper") {
         if (p.poppers >= 3) continue;
@@ -902,3 +904,4 @@ export class Simulation {
     };
   }
 }
+
