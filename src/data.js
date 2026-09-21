@@ -309,8 +309,15 @@ export const COLORS = [
   "#b7a1ec",
   "#8492a6",
   "#fae8b6",
+  "#ffffff", "#273345", "#ff637e", "#d94949", "#f78336", "#ffe45e",
+  "#45b979", "#21796d", "#80eacb", "#3d8ce8", "#464eb3", "#8c54c9",
+  "#efb4df", "#bd728b", "#946344", "#b9ccd4",
 ];
-export const HATS = ["Bare shell", "Headphones", "Cap", "Crown", "Sprout"];
+export const HATS = ["Bare shell", "Headphones", "Cap", "Crown", "Sprout", "Top hat", "Beanie", "Wizard", "Cowboy", "Party hat", "Halo", "Bunny ears", "Cat ears", "Chef", "Beret", "Antenna", "Flower", "Viking", "Pirate", "Propeller"];
+export const PATTERNS = ["Solid", "Stripes", "Polka dots", "Checkerboard", "Confetti", "Lightning", "Stars", "Two tone", "Waves", "Diamond"];
+export const FINISHES = ["Classic", "Matte", "Gloss", "Metallic"];
+export const EYEWEAR = ["Classic visor", "Round goggles", "Sunglasses", "Cyclops", "Square glasses", "Star shades"];
+const cosmeticIndex = (value, options) => Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) < options.length ? Number(value) : 0;
 export const TEAM_COLORS = [0x47c5e0, 0xfb7f70];
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const weapon = (id) => WEAPONS.find((w) => w.id === id) || WEAPONS[0];
@@ -326,7 +333,11 @@ export function safeProfile(p = {}) {
     name: cleanName(p.name),
     weapon: weapon(p.weapon).secondary ? "sprinter" : weapon(p.weapon).id,
     color: COLORS.includes(p.color) ? p.color : COLORS[0],
-    hat: clamp(Math.floor(Number(p.hat) || 0), 0, 4),
+    hat: cosmeticIndex(p.hat, HATS),
+    pattern: cosmeticIndex(p.pattern, PATTERNS),
+    finish: cosmeticIndex(p.finish, FINISHES),
+    eyewear: cosmeticIndex(p.eyewear, EYEWEAR),
+    accent: COLORS.includes(p.accent) ? p.accent : COLORS[1],
   };
 }
 export function rng(seed) {

@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { checkCosmetics } from './cosmetics-browser-check.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -40,6 +41,7 @@ try {
  await admin.getByRole('button',{name:'Approve',exact:true}).click();
  await host.getByRole('button',{name:'PLAY WITH FRIENDS'}).waitFor({timeout:30000});
  console.log('PASS request, owner approval, automatic game entry, responsive access screen');
+ await checkCosmetics(host,out);
  await guest.goto(origin);await guest.getByLabel('Your name',{exact:true}).fill('Guest egg');
  await admin.getByLabel('Player name',{exact:true}).fill('Guest egg');await admin.locator('#invite-kind').selectOption('paid');await admin.getByRole('button',{name:'CREATE SINGLE-USE CODE'}).click();
  await wait(async()=>!!await admin.locator('#code-output').textContent());
@@ -61,6 +63,8 @@ try {
  await host.getByRole('button',{name:'Enter the Yard',exact:true}).click();await guest.getByRole('button',{name:'Enter the Yard',exact:true}).click();
  const room=[...app.rooms.rooms.values()][0];
  await wait(()=>room.members.size===2);
+ const styled=room.sim.snapshot().players.find(p=>p.id===room.host);
+ assert.equal(styled.hat,7);assert.equal(styled.pattern,6);assert.equal(styled.eyewear,1);assert.equal(styled.accent,'#ff637e');
  const guestId=[...room.members.keys()].find(id=>id!==room.host),p=room.sim.players.get(guestId);
  const pos={x:p.x,z:p.z};
  await guest.keyboard.down('KeyW');await wait(()=>Math.hypot(p.x-pos.x,p.z-pos.z)>.3);await guest.keyboard.up('KeyW');

@@ -107,7 +107,7 @@ test("inputs cannot inject movement speed or non-finite coordinates", () => {
       hat: 99,
       weapon: "bad",
     }).hat,
-    4,
+    0,
   );
 });
 test("server controls hit damage, ammunition, shielding, and respawn", () => {

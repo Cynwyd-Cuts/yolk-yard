@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { patternedShell, addHeadwear, addEyewear } from "./cosmetics.js";
 import { getMap } from "./maps.js";
 import { gun, weapon, TEAM_COLORS, mode, clamp } from "./data.js";
 import { EYE, VIEWMODEL, direction, wallDistance } from "./physics.js";
@@ -66,15 +67,10 @@ function eggGeometry() {
   return new THREE.LatheGeometry(pts, 64);
 }
 const eggGeo = eggGeometry();
-const shellMaterials = new Map();
-function shellMaterial(color) {
-  if (!shellMaterials.has(color)) shellMaterials.set(color,
-    new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0, flatShading: false }));
-  return shellMaterials.get(color);
-}
 export function makeEgg(profile, team = -1, withWeapon = true) {
   const group = new THREE.Group(),
-    body = new THREE.Mesh(eggGeo, shellMaterial(profile.color || "#fff6da"));
+    body = new THREE.Mesh(eggGeo, patternedShell(profile));
+  body.userData.ownedMaterial = true;
   body.castShadow = true;
   group.add(body);
   // Jagged paths follow the same lathed shell surface and reveal with damage.
@@ -95,7 +91,7 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
   }
   group.userData.cracks = cracks;
 
-  const trim = team < 0 ? 0xf2b933 : TEAM_COLORS[team];
+  const trim = team < 0 ? (profile.accent || 0xf2b933) : TEAM_COLORS[team];
   const band = new THREE.Mesh(
     new THREE.TorusGeometry(0.446, 0.064, 8, 30),
     mat(trim),
@@ -103,9 +99,7 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
   band.position.y = 1.02;
   band.rotation.x = Math.PI / 2;
   group.add(band);
-  block(group, 0, 1.04, -0.403, 0.66, 0.22, 0.13, 0x263e4c);
-  block(group, 0, 1.065, -0.48, 0.54, 0.11, 0.025, 0x62d5e3);
-  block(group, -0.2, 1.095, -0.501, 0.13, 0.021, 0.011, 0xeafff1);
+  addEyewear(group, profile, {block, ball, mat});
 
   const hat = Number(profile.hat) || 0;
   if (hat === 1) {
@@ -139,6 +133,7 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
     const leaf = ball(group, 0.1, 1.87, 0, 0.17, 0.04, 0.08, 0x8ac763);
     leaf.rotation.z = 0.4;
   }
+  addHeadwear(group, profile, {ball, block, cylinder, mat});
   if (withWeapon) {
     const blaster = makeBlaster(profile.weapon);
     blaster.position.set(VIEWMODEL.x, EYE + VIEWMODEL.y, VIEWMODEL.z);
@@ -431,6 +426,34 @@ export class View {
       projectiles: this.projectiles.size,
       scopeFov: this.scopeCamera.fov,
     };
+  }
+  eggOptionPortrait(key, value) {
+    this.cosmeticPortraits ||= new Map();
+    const id = `${key}:${value}`;
+    if (!this.cosmeticPortraits.has(id)) {
+      this.cosmeticPortraits.set(id, this.eggPortrait({color: "#fff6da", accent: "#3d8ce8", hat: 0, pattern: 0, finish: 0, eyewear: 0, [key]: value}, 160));
+    }
+    return this.cosmeticPortraits.get(id);
+  }
+  eggPortrait(profile, size = 440) {
+    if (!this.portraitRenderer) {
+      this.portraitRenderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
+
+      this.portraitRenderer.setPixelRatio(1);
+    }
+    this.portraitRenderer.setSize(size, size);
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x7d8c82, 2.8));
+    const light = new THREE.DirectionalLight(0xffffff, 3);
+    light.position.set(-3, 5, -4); scene.add(light);
+    const egg = makeEgg(profile, -1, false);
+    egg.rotation.y = -.25; scene.add(egg);
+    const camera = new THREE.PerspectiveCamera(36, 1, .1, 20);
+    camera.position.set(0, 1.5, -4.2); camera.lookAt(0, 1.15, 0);
+    this.portraitRenderer.render(scene, camera);
+    const image = this.portraitRenderer.domElement.toDataURL();
+    this.disposeGroup(egg);
+    return image;
   }
   weaponPreview(id) {
     if (!this.portraits.has(id))
@@ -731,7 +754,7 @@ export class View {
           p.weapon +
           p.slot +
           p.color +
-          p.hat +
+          p.hat + JSON.stringify([p.pattern,p.finish,p.eyewear,p.accent]) +
           p.team +
           mode(state.options.mode).teams;
         let model = this.models.get(p.id);

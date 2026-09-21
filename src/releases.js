@@ -1,7 +1,13 @@
 export const RELEASE_NOTES = [
+  { number: "12", title: "The egg studio", changes: [
+    "Choose your look with image tiles showing the actual 3D cosmetics and a larger outfit preview.",
+    "24 shell colors, 20 headwear styles, 10 patterns, 4 finishes and 6 eyewear styles—all unlocked.",
+    "Choose an accent color, shuffle your look or reset it. Styles save and appear in multiplayer."
+  ] },
   { number: "11", title: "Your yard, on the same link", changes: [
     "Browser approval, single-use activation codes, and the owner dashboard now work on the GitHub Pages address.",
     "Browse public matches or keep a room private, with access and matches managed by the game service."
+
   ] },
   { number: "10", title: "Crosshairs that show your accuracy", changes: [
     "Crosshair arms widen with movement and firing spread, then settle as accuracy recovers.",

@@ -1338,3 +1338,39 @@ body.in-game {
 .respawn { pointer-events: auto; z-index: 8; }
 .respawn .primary { margin: 10px 0; }
 button:disabled { opacity: 0.55; cursor: default; }
+
+/* Egg studio */
+#dialog:has(.egg-studio) { width: 920px; max-width: min(920px, calc(100vw - 24px)); }
+.egg-studio { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 28px; }
+.egg-studio-preview { background: #e5eadf; border-radius: 16px; padding: 16px; text-align: center; align-self: start; }
+.egg-studio-preview img { display: block; width: 100%; height: 240px; object-fit: contain; }
+.egg-studio-preview strong { display: block; margin: 10px 0; }
+.egg-studio-preview p { margin: 12px 0 18px; }
+.egg-studio-preview button { width: 100%; margin-top: 8px; }
+.studio-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+.studio-tabs button { padding: 10px 12px; border: 2px solid #bec9c4; border-radius: 9px; background: white; font-weight: 700; }
+.studio-tabs button.active { background: var(--ink); color: white; border-color: var(--ink); }
+.egg-studio-options h3 { font-size: 1rem; margin-top: 12px; }
+.egg-studio-options h3 small { font-weight: 400; color: #5f6d72; margin-left: 8px; }
+.egg-studio-options .hint { margin: 18px 0; }
+.egg-studio-options .swatch { width: 34px; height: 34px; }
+.egg-studio button:focus-visible { outline: 3px solid #328ca6; outline-offset: 3px; }
+@media (max-width: 650px) {
+  .egg-studio { grid-template-columns: 1fr; gap: 18px; }
+  .egg-studio-preview img { height: 165px; }
+  .egg-studio-preview { padding: 12px; }
+  .egg-studio-preview .eyebrow, .egg-studio-preview strong { display: none; }
+  .egg-studio-preview p { margin: 4px 0; font-size: .8rem; }
+  .egg-studio-preview button { width: auto; margin: 8px 4px 0; padding: 9px 12px; font-size: .8rem; }
+  .studio-tabs { margin-bottom: 14px; }
+  .studio-tabs button { flex: 1; padding: 9px 7px; font-size: .8rem; }
+}
+
+.cosmetic-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0 24px; }
+.cosmetic-tile { position: relative; min-width: 0; padding: 2px; border: 2px solid #bec9c4; border-radius: 12px; background: #eef0e6; cursor: pointer; }
+.cosmetic-tile img { display: block; width: 100%; height: auto; aspect-ratio: 1; pointer-events: none; }
+.cosmetic-tile:hover { background: #f9e6ac; border-color: #ac8b35; }
+.cosmetic-tile.active { border: 3px solid var(--ink); background: #f8d779; padding: 1px; }
+.cosmetic-check { display: none; position: absolute; right: 4px; bottom: 4px; border-radius: 50%; background: var(--ink); color: white; width: 20px; height: 20px; font-size: 13px; line-height: 20px; }
+.cosmetic-tile.active .cosmetic-check { display: block; }
+@media(max-width:650px) { .cosmetic-grid { gap: 8px; } }

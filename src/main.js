@@ -5,7 +5,7 @@ import {
   WEAPONS,
   MODES,
   COLORS,
-  HATS,
+  HATS, PATTERNS, FINISHES, EYEWEAR,
   gun,
   weapon,
   mode,
@@ -144,7 +144,7 @@ function renderMenu() {
       )
       .join(
         "",
-      )}<button class="plain" data-action="customize">Colors & headwear</button><p class="hint">${stats.matches} matches · ${stats.kills} eliminations</p></section></main><div class="footer"><span>YOLK YARD · ORIGINAL EGG ARENA</span><span class="footer-right">WASD + MOUSE &nbsp; / &nbsp; <a href="./admin.html">Owner dashboard</a> &nbsp; / &nbsp; <button data-action="about">About & credits</button></span></div>`;
+      )}<button class="plain" data-action="customize">Egg studio</button><p class="hint">${stats.matches} matches · ${stats.kills} eliminations</p></section></main><div class="footer"><span>YOLK YARD · ORIGINAL EGG ARENA</span><span class="footer-right">WASD + MOUSE &nbsp; / &nbsp; <a href="./admin.html">Owner dashboard</a> &nbsp; / &nbsp; <button data-action="about">About & credits</button></span></div>`;
   $("#player-name").addEventListener("change", (e) => {
     profile.name = safeProfile({ name: e.target.value }).name;
     e.target.value = profile.name;
@@ -213,12 +213,17 @@ function loadoutMenu() {
     "loadout",
   );
 }
+let customTab = "shell";
 function customizeMenu() {
-  modal(
-    "Your egg. Your style.",
-    `<p>All colors and headwear are unlocked.</p><h3 style="margin-top:23px;font-size:1rem">Shell color</h3><div class="swatches">${COLORS.map((c, i) => `<button class="swatch ${c === profile.color ? "active" : ""}" style="background:${c}" data-color="${c}" aria-label="Shell color ${i + 1}" aria-pressed="${c === profile.color}"></button>`).join("")}</div><h3 style="font-size:1rem">Headwear</h3><div class="hats">${HATS.map((h, i) => `<button class="hat ${i === profile.hat ? "active" : ""}" data-hat="${i}">${h}</button>`).join("")}</div><button class="primary" data-action="close">Looking good</button>`,
-    "customize",
-  );
+  const choices = (key, items) => `<div class="cosmetic-grid">${items.map((name, i) => `<button class="cosmetic-tile ${profile[key] === i ? "active" : ""}" data-cosmetic="${key}" data-value="${i}" aria-label="${name}" title="${name}" aria-pressed="${profile[key] === i}"><img src="${view.eggOptionPortrait(key, i)}" alt="" width="140" height="140"><span class="cosmetic-check" aria-hidden="true">✓</span></button>`).join("")}</div>`;
+  const colors = (key) => `<div class="swatches">${COLORS.map((c, i) => `<button class="swatch ${c === profile[key] ? "active" : ""}" style="background:${c}" data-cosmetic="${key}" data-value="${c}" aria-label="${key === "color" ? "Shell" : "Accent"} color ${i + 1}" aria-pressed="${c === profile[key]}"></button>`).join("")}</div>`;
+  const sections = {
+    shell: () => `<h3>Shell color <small>24 colors</small></h3>${colors("color")}<h3>Finish</h3>${choices("finish", FINISHES)}`,
+    pattern: () => `<h3>Shell pattern</h3>${choices("pattern", PATTERNS)}<h3>Pattern & accessory color</h3>${colors("accent")}`,
+    headwear: () => `<h3>Headwear <small>20 styles</small></h3>${choices("hat", HATS)}`,
+    eyewear: () => `<h3>Eyewear</h3>${choices("eyewear", EYEWEAR)}<h3>Accessory color</h3>${colors("accent")}`,
+  };
+  modal("Egg studio", `<div class="egg-studio"><div class="egg-studio-preview"><img src="${view.eggPortrait(profile)}" alt="Your customized egg preview"><div class="eyebrow">YOUR SIGNATURE SHELL</div><strong>${HATS[profile.hat]} · ${PATTERNS[profile.pattern]}</strong><p>All options unlocked. Changes save automatically.</p><button class="secondary" data-action="shuffle-egg">Shuffle look</button><button class="plain" data-action="reset-egg">Reset appearance</button></div><div class="egg-studio-options"><div class="studio-tabs" role="group" aria-label="Customization categories">${[["shell","Shell"],["pattern","Patterns"],["headwear","Headwear"],["eyewear","Eyewear"]].map(([id,label])=>`<button aria-pressed="${id===customTab}" data-custom-tab="${id}" class="${id===customTab ? "active" : ""}">${label}</button>`).join("")}</div><div>${sections[customTab]()}</div><p class="hint">Cosmetic only. Team matches keep your team-colored band.</p><button class="primary" data-action="close">Looking good</button></div></div>`, "customize");
 }
 function helpMenu() {
   modal(
@@ -753,6 +758,15 @@ const actions = {
   join: () => joinMenu(),
   loadout: loadoutMenu,
   customize: customizeMenu,
+  "shuffle-egg": () => {
+    const pick = (items) => Math.floor(Math.random() * items.length);
+    Object.assign(profile, {color: COLORS[pick(COLORS)], accent: COLORS[pick(COLORS)], hat: pick(HATS), pattern: pick(PATTERNS), finish: pick(FINISHES), eyewear: pick(EYEWEAR)});
+    remember(); customizeMenu();
+  },
+  "reset-egg": () => {
+    profile = safeProfile({name: profile.name, weapon: profile.weapon});
+    remember(); customizeMenu();
+  },
   settings: settingsMenu,
   help: helpMenu,
   close: closeDialog,
@@ -809,6 +823,15 @@ document.addEventListener("click", (e) => {
     remember();
     if (dialogType === "loadout") loadoutMenu();
     renderMenu();
+  }
+  if (b.dataset.customTab) { customTab = b.dataset.customTab; customizeMenu(); }
+  if (b.dataset.cosmetic) {
+    const key = b.dataset.cosmetic;
+    if (["color", "accent", "hat", "pattern", "finish", "eyewear"].includes(key)) {
+      profile = safeProfile({...profile, [key]: b.dataset.value});
+      remember(); customizeMenu();
+      document.querySelector(`[data-cosmetic="${key}"][data-value="${b.dataset.value}"]`)?.focus();
+    }
   }
   if (b.dataset.color) {
     profile.color = b.dataset.color;
