@@ -9,7 +9,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: protected-game-${{ github.ref }}
+  group: protected-game-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   test:
@@ -36,13 +36,13 @@ jobs:
           path: test-results
           retention-days: 7
       - uses: actions/configure-pages@v5
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: dist
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     concurrency:
