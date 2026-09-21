@@ -80,7 +80,9 @@ try{
   await guest.screenshot({path:'test-results/chat/in-game.png'});await close(guest);
   await guest.waitForFunction(()=>!window.__yolkTest.chatRead().open);
   await guest.waitForFunction(()=>document.activeElement?.id==='world');
-  await guest.locator('[data-action="pause"]').click();await guest.locator('[data-action="spectate"]').click();
+  await guest.waitForFunction(()=>document.pointerLockElement?.id==='world'||document.querySelector('#dialog').open);
+  if(!await guest.locator('#dialog').isVisible())await guest.keyboard.press('Escape');
+  await guest.locator('[data-action="spectate"]').click();
   await guest.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId).spectating;});
   const preSpectate=(await rows(host)).length;await send(guest,'Watching the round');await has(guest,'Watching the round');
   await host.waitForTimeout(500);assert.equal((await rows(host)).length,preSpectate);
