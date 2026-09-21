@@ -1,5 +1,6 @@
 import {RoyaleSimulation} from './royale.js';
 import {RoyaleUI} from './royale-ui.js';
+import {SLIDERS, SLIDER_DEFAULTS, resetSliders, royalePanelAction} from './settings.js';
 import {queueCandidates,ITEMS,itemInfo} from './royale-data.js';
 import { ChatPanel } from "./chat-ui.js";
 import { moderateText, safeName } from "./moderation.js";
@@ -55,11 +56,7 @@ let profile = safeProfile(
   read("yolk-profile", { name: "Player", weapon: "sprinter", hat: 1 }),
 );
 const settings = {
-  sensitivity: 1,
-  scopeSensitivity: 0.65,
-  effectsVolume: .85, ambienceVolume: .5, musicVolume: .3,
-  fov: 85,
-  volume: 0.45,
+  ...SLIDER_DEFAULTS,
   quality: "high",
   invert: false,
   centerDot: true,
@@ -228,18 +225,10 @@ function notice(text) {
 function settingsMenu() {
   modal(
     "Make it yours",
-    `<p>Settings are saved on this browser.</p>${[
-      ["sensitivity", "Mouse sensitivity", 0.2, 3, 0.1],
-      ["scopeSensitivity", "Scope sensitivity", 0.1, 2, 0.05],
-      ["fov", "Field of view", 65, 110, 1],
-      ["volume", "Master volume", 0, 1, 0.05],
-      ["effectsVolume", "Effects & gameplay", 0, 1, 0.05],
-      ["ambienceVolume", "Ambience & wind", 0, 1, 0.05],
-      ["musicVolume", "Music & fanfares", 0, 1, 0.05],
-    ]
+    `<p>Settings are saved on this browser.</p><button class="slider-reset-all" data-reset-slider="all">Reset all sliders</button>${SLIDERS
       .map(
         ([id, label, min, max, step]) =>
-          `<div class="setting-row"><label class="setting-label" for="${id}">${label} <output id="out-${id}">${settings[id]}</output></label><input type="range" id="${id}" data-setting="${id}" min="${min}" max="${max}" step="${step}" value="${settings[id]}"></div>`,
+          `<div class="setting-row"><label class="setting-label" for="${id}">${label} <output id="out-${id}">${settings[id]}</output></label><div class="slider-controls"><input type="range" id="${id}" data-setting="${id}" min="${min}" max="${max}" step="${step}" value="${settings[id]}"><button class="slider-reset" data-reset-slider="${id}" aria-label="Reset ${label}">Reset</button></div></div>`,
       )
       .join(
         "",
@@ -1057,6 +1046,12 @@ function pressControl(code) {
   scoreHeld = actionDown('scores');
 }
 dialog.addEventListener('click', e => {
+  const reset = e.target.closest('[data-reset-slider]');
+  if (reset) {
+    resetSliders(settings, reset.dataset.resetSlider);
+    for (const [id] of SLIDERS) { $('#'+id).value=settings[id]; $('#out-'+id).value=settings[id]; }
+    save('yolk-settings', settings); sound.setVolumes(settings); view.setQuality();
+  }
   const button = e.target.closest('[data-bind]');
   if (button) {
     bindingCapture = { action: button.dataset.bind, slot: Number(button.dataset.bindSlot) };
@@ -1092,7 +1087,15 @@ function captureBinding(e) {
 document.addEventListener('keydown', captureBinding, true);
 document.addEventListener('mousedown', captureBinding, true);
 document.addEventListener("keydown", (e) => {
-  if (chat.opened || e.target.matches("input,select,textarea") || dialog.open) return;
+  if (chat.opened || e.target.matches("input,select,textarea,[contenteditable=true]")) return;
+  const panel = screen==='game' && state?.royale && (!paused || ['royale-map','royale-inventory'].includes(dialogType))
+    ? royalePanelAction(e.code, settings.keybinds, dialog.open ? dialogType : '') : null;
+  if (panel) {
+    e.preventDefault(); if (e.repeat) return;
+    if (panel==='close') resume(); else if (panel==='royale-map') royaleMap(); else royaleInventory();
+    return;
+  }
+  if (dialog.open) return;
   if (settings.keybinds.chat.includes(e.code) && net?.ready && screen!=="menu") {
     e.preventDefault();if(!e.repeat)chat.open();return;
   }
@@ -1169,7 +1172,6 @@ document.addEventListener('click',e=>{
  }
  if(e.target.closest('button')){sound.unlock();sound.cue('ui-select',null,.45);}
 });
-document.addEventListener('pointerover',e=>{const b=e.target.closest('button');if(b&&!b.contains(e.relatedTarget))sound.cue('ui-hover');});
 document.addEventListener('wheel',e=>{if(screen==='game'&&state?.royale&&!paused&&!dialog.open&&!chat.opened){e.preventDefault();input.slot=(input.slot+(e.deltaY>0?1:4))%5;}},{passive:false});
 document.addEventListener("contextmenu", (e) => {
   if (screen === "game") e.preventDefault();

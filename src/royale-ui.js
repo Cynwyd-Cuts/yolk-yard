@@ -1,6 +1,7 @@
 import {ITEMS,RARITIES,itemInfo,transportAt} from './royale-data.js';
 import {ROYALE_MAP} from './royale-map.js';
 import {wallDistance,dist} from './physics.js';
+import {groundAt} from './terrain.js';
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export class RoyaleUI{
  constructor(preview){
@@ -30,8 +31,15 @@ export class RoyaleUI{
   const c=canvas.getContext('2d'),w=canvas.width,h=canvas.height,size=512,s=w/size,map=ROYALE_MAP,r=state.royale;
   const point=(x,z)=>[(x+256)*s,(z+256)*s];
   c.clearRect(0,0,w,h);c.fillStyle='#3e91ab';c.fillRect(0,0,w,h);c.fillStyle='#e5d4a1';c.fillRect(3,3,w-6,h-6);c.fillStyle='#84ad79';c.fillRect(9,9,w-18,h-18);
-  c.lineWidth=7*s;c.strokeStyle='#c5ba96';
-  for(const poi of map.districts){const [x,z]=point(poi.x,poi.z);c.beginPath();c.moveTo(w/2,h/2);c.lineTo(x,z);c.stroke();c.fillStyle='#abc08a';c.beginPath();c.arc(x,z,42*s,0,Math.PI*2);c.fill();}
+  // Static terrain and vegetation are rasterized once per map size, not every HUD frame.
+  this.mapBackgrounds??=new Map();
+  if(!this.mapBackgrounds.has(w)){
+   const bg=document.createElement('canvas');bg.width=w;bg.height=h;const b=bg.getContext('2d');
+   for(let z=-256;z<256;z+=4)for(let x=-256;x<256;x+=4){const elevation=groundAt(map,x,z);if(elevation<.25)continue;const [px,pz]=point(x,z);b.fillStyle=`rgba(75,101,67,${Math.min(.4,elevation*.045)})`;b.fillRect(px,pz,4*s+1,4*s+1);}
+   b.fillStyle='#5c8b65';for(const t of map.trees){const [x,z]=point(t.x,t.z);b.beginPath();b.arc(x,z,(t.kind==='pine'?2:2.8)*s,0,Math.PI*2);b.fill();}this.mapBackgrounds.set(w,bg);
+  }
+  c.drawImage(this.mapBackgrounds.get(w),0,0);c.lineWidth=7*s;c.strokeStyle='#c5ba96';
+  for(const poi of map.districts){const [x,z]=point(poi.x,poi.z);c.beginPath();c.moveTo(w/2,h/2);c.lineTo(x,z);c.stroke();c.fillStyle='#abc08a';c.beginPath();c.arc(x,z,15*s,0,Math.PI*2);c.fill();}
   c.fillStyle='#697a68';for(const b of map.buildings){const [x,z]=point(b.x-b.w/2,b.z-b.d/2);c.fillRect(x,z,b.w*s,b.d*s);}
   if(r.storm?.active){const q=r.storm,[x,z]=point(q.x,q.z);c.save();c.fillStyle='#725ac277';c.beginPath();c.rect(0,0,w,h);c.moveTo(x+q.radius*s,z);c.arc(x,z,q.radius*s,0,Math.PI*2,true);c.fill('evenodd');c.strokeStyle='#f6f5ff';c.lineWidth=full?3:2;c.beginPath();c.arc(x,z,q.radius*s,0,Math.PI*2);c.stroke();const [nx,nz]=point(q.nextX,q.nextZ);c.setLineDash([5,4]);c.strokeStyle='#fff';c.beginPath();c.arc(nx,nz,q.nextRadius*s,0,Math.PI*2);c.stroke();c.restore();}
   if(r.route&&r.elapsed<r.route.duration){c.save();c.strokeStyle='#ffedb1';c.lineWidth=2;c.setLineDash([6,6]);c.beginPath();c.moveTo(...point(r.route.fromX,r.route.fromZ));c.lineTo(...point(r.route.toX,r.route.toZ));c.stroke();c.restore();const bus=transportAt(r.route,r.elapsed),[x,z]=point(bus.x,bus.z);c.fillStyle='#ffda70';c.fillRect(x-5,z-5,10,10);}

@@ -4,7 +4,7 @@ const note=(f,d=.12,v=.12,w='sine',to=0,at=0)=>({f,d,v,w,to,at});
 const noise=(f,d=.15,v=.15,at=0)=>({noise:true,f,d,v,at});
 export const SOUND_CUES={
  'ui-select':[note(660,.05,.05),note(990,.07,.04,'sine',0,.035)],
- 'ui-back':[note(440,.07,.055,'sine',280)],'ui-hover':[note(900,.025,.018)],
+ 'ui-back':[note(440,.07,.055,'sine',280)],
  'ui-error':[note(180,.15,.06,'triangle',90)],
  'queue-found':[note(440),note(554,.15,.1,'sine',0,.1),note(660,.23,.1,'sine',0,.2)],
  'countdown':[note(800,.07,.07)],'round-start':[note(330,.15),note(440,.16,.12,'triangle',0,.13),note(660,.4,.12,'sine',0,.25)],
@@ -14,11 +14,6 @@ export const SOUND_CUES={
  'glider-flap':[noise(800,.28,.05)],'glider-cut':[noise(2400,.12,.08),note(280,.08,.08,'triangle',100)],
  jump:[noise(850,.1,.07),note(180,.1,.055,'sine',350)],
  land:[noise(220,.18,.14),note(90,.13,.1,'triangle',40)],
- 'step-grass':[noise(1600,.09,.10),noise(240,.04,.05)],
- 'step-stone':[noise(800,.06,.075),note(155,.045,.06,'triangle',70)],
- 'step-wood':[noise(550,.06,.07),note(230,.06,.06,'triangle',120)],
- 'step-metal':[noise(2300,.06,.06),note(720,.065,.045,'sine',260)],
- 'step-water':[noise(1400,.15,.08),note(390,.055,.05,'sine',200)],
  'stamina-empty':[noise(420,.28,.065),note(150,.09,.04,'sine',80)],
  'stamina-ready':[note(470,.075,.035),note(680,.1,.035,'sine',0,.1)],
  'weapon-swap':[noise(2100,.07,.055),note(390,.045,.035,'triangle',160)],
@@ -66,7 +61,7 @@ for(const [i,id]of Object.keys(ITEMS).entries()){
 }
 export const SHOT_PALETTE={sprinter:[145,1200,.15],scatter:[78,700,.25],needle:[62,2100,.33],zipper:[210,1900,.10],thumper:[52,500,.45],anchor:[100,1100,.19],duet:[185,1800,.14],pip:[240,1800,.12],peeper:[105,2500,.21],doubleyolk:[95,900,.21],comet:[520,2400,.18]};
 export class Sound {
- constructor(){this.ctx=null;this.volume=.45;this.effectsVolume=.85;this.ambienceVolume=.5;this.musicVolume=.3;this.enabled=true;this.voices=new Set();this.loops=new Map();this.cooldowns=new Map();this.steps=new Map();this.listener=null;this.clock=0;this.lastAlive=0;this.wasStorm=false;this.wasExhausted=false;this.reloadTimers=[];}
+ constructor(){this.ctx=null;this.volume=.45;this.effectsVolume=.85;this.ambienceVolume=.5;this.musicVolume=.3;this.enabled=true;this.voices=new Set();this.loops=new Map();this.cooldowns=new Map();this.listener=null;this.clock=0;this.lastAlive=0;this.wasStorm=false;this.wasExhausted=false;this.reloadTimers=[];}
  unlock(){
   if(!this.ctx){const Audio=window.AudioContext||window.webkitAudioContext;if(Audio){this.ctx=new Audio();this.master=this.ctx.createGain();this.compressor=this.ctx.createDynamicsCompressor();this.master.connect(this.compressor).connect(this.ctx.destination);this.master.gain.value=this.volume;const size=this.ctx.sampleRate*2;this.noiseBuffer=this.ctx.createBuffer(1,size,this.ctx.sampleRate);const a=this.noiseBuffer.getChannelData(0);let seed=12345;for(let i=0;i<size;i++){seed=(seed*1664525+1013904223)>>>0;a[i]=seed/2147483648-1;}}}
   this.ctx?.resume().catch(()=>{});
@@ -109,7 +104,7 @@ export class Sound {
   }
   if(loop){loop.gain.gain.setTargetAtTime(Math.max(0,target)*volume*this.ambienceVolume,this.ctx.currentTime,.3);if(!target){if(!loop.silentAt)loop.silentAt=this.clock;if(this.clock-loop.silentAt>1.5){loop.source.stop();loop.source.disconnect();loop.filter.disconnect();loop.gain.disconnect();this.loops.delete(id);}}else loop.silentAt=0;}
  }
- stopWorld(){for(const loop of this.loops.values()){loop.source.stop();loop.source.disconnect();loop.filter.disconnect();loop.gain.disconnect();}this.loops.clear();this.steps.clear();this.wasStorm=false;this.lastAlive=0;}
+ stopWorld(){for(const loop of this.loops.values()){loop.source.stop();loop.source.disconnect();loop.filter.disconnect();loop.gain.disconnect();}this.loops.clear();this.wasStorm=false;this.lastAlive=0;}
  event(e,me,state){
   if(e.type==='round')this.cue('round-start');
   if(e.type==='royale-cue'){
@@ -138,9 +133,6 @@ export class Sound {
   if(outside!==this.wasStorm){this.cue(outside?'storm-enter':'storm-exit');this.wasStorm=outside;}
   if(me.exhausted&&!this.wasExhausted)this.cue('stamina-empty');if(!me.exhausted&&this.wasExhausted)this.cue('stamina-ready');this.wasExhausted=!!me.exhausted;
   if(royale){if(this.lastAlive>10&&royale.alive<=10)this.cue('top-ten');if(this.lastAlive>2&&royale.alive===2)this.cue('final-duel');this.lastAlive=royale.alive;}
-  for(const p of state.players){if(p.health<=0||!p.grounded||!p.moving)continue;const last=this.steps.get(p.id)||0;if(this.clock-last<(p.sprinting?.27:.43))continue;this.steps.set(p.id,this.clock);
-   const surface=p.x>160&&Math.abs(p.z)<55?'metal':p.y>1?'wood':Math.abs(p.x)<5||Math.abs(p.z)<5?'stone':Math.max(Math.abs(p.x),Math.abs(p.z))>245?'water':'grass';this.cue('step-'+surface,p,p.id===me.id?.65:1.2);
-  }
   if(ground&&royale&&Math.floor(this.clock/9)!==this.lastBird){this.lastBird=Math.floor(this.clock/9);this.cue('ambient-bird',{x:me.x+20,z:me.z-15});}
   if(ground&&royale&&this.clock-(this.lastBell||0)>28&&Math.hypot(me.x,me.z)<70){this.lastBell=this.clock;this.cue('ambient-bell',{x:0,z:-6});}
   if(ground&&royale&&this.clock-(this.lastChestHum||0)>.85){this.lastChestHum=this.clock;const chest=royale.chests?.find(c=>!c.opened&&(!c.landAt||c.landAt<state.time)&&Math.hypot(c.x-me.x,c.z-me.z)<12);if(chest)this.cue('chest-hum',chest);}
