@@ -53,9 +53,10 @@ const settings = {
   volume: 0.45,
   quality: "high",
   invert: false,
-  dragLook: false,
   ...read("yolk-settings", {}),
 };
+delete settings.dragLook;
+save("yolk-settings", settings);
 settings.sensitivity = clamp(Number(settings.sensitivity) || 1, 0.2, 3);
 settings.scopeSensitivity = clamp(Number(settings.scopeSensitivity) || 0.65, 0.1, 2);
 settings.fov = clamp(Number(settings.fov) || 85, 65, 110);
@@ -109,7 +110,6 @@ const touch = {
   reload: false,
   popper: false,
 };
-let drag = false;
 $("#app").innerHTML =
   `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"></div><div class="hit-flash" id="damage"></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow" id="spawn-heading">SHELL DOWN</div><h2 id="spawn-status">Ready when you are</h2><button class="primary" id="spawn-button" data-action="enter-yard">Respawn</button><p class="small" id="respawn-by"></p><p class="small" id="spectator-stats"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="health-label">SHELL <b id="health">100</b></div><div class="health-bar"><span id="health-fill"></span></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div id="spectate-panel" hidden><div class="eyebrow">SPECTATING</div><p id="spectate-info"></p><div class="split-actions"><button data-action="spectate-prev">← Previous</button><button data-action="spectate-next">Next →</button><button data-action="rejoin">Join game</button></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
 const dialog = $("#dialog");
@@ -191,7 +191,7 @@ function settingsMenu() {
       )
       .join(
         "",
-      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><div class="setting-row"><label for="drag-look" class="setting-label">Drag to look (no mouse lock)</label><input id="drag-look" data-setting="dragLook" type="checkbox" ${settings.dragLook ? "checked" : ""}></div><p class="hint">In drag mode, hold right click to look. Left click fires. On a trackpad, use a two-finger click for aiming.</p><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
+      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
     "settings",
   );
 }
@@ -241,6 +241,7 @@ function helpMenu() {
   );
 }
 function setupMenu(practice = false) {
+  if (!practice) options.bots = 0;
   modal(
     practice ? "Practice arena" : "Create a private room",
     `<p>${practice ? "Warm up with bots. Practice needs no multiplayer connection." : "Share the room code with your friends. Keep your tab open and in front while hosting."}</p><div class="form-grid"><label>ARENA<select class="field" id="setup-map">${MAPS.map((m) => `<option value="${m.id}" ${m.id === options.map ? "selected" : ""}>${m.name}</option>`).join("")}</select></label><label>MODE<select class="field" id="setup-mode">${MODES.map((m) => `<option value="${m.id}" ${m.id === options.mode ? "selected" : ""}>${m.name}</option>`).join("")}</select></label><label>BOTS<select class="field" id="setup-bots">${[0, 1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === options.bots ? "selected" : ""}>${n}</option>`).join("")}</select></label><label>BOT DIFFICULTY<select class="field" id="setup-difficulty">${["Relaxed", "Regular", "Sharp"].map((n, i) => `<option value="${i + 1}" ${i + 1 === options.difficulty ? "selected" : ""}>${n}</option>`).join("")}</select></label></div><p class="small" id="mode-desc">${mode(options.mode).description}</p><p class="hint">${practice ? "5-minute rounds. Choose zero bots to explore the arena." : "Friends replace bots when the room is full. The host decides when to start."}</p><button class="primary" style="margin-top:22px" data-action="${practice ? "start-practice" : "create-room"}">${practice ? "START PRACTICE" : "CREATE ROOM"}</button>`,
@@ -448,14 +449,13 @@ async function resume(capture = true) {
   keys.clear();
   queuedActions.clear();
   sound.unlock();
-  if (capture && !state?.players.find(p => p.id === localId)?.spectating && !settings.dragLook && !matchMedia("(pointer:coarse)").matches) {
+  if (capture && !state?.players.find(p => p.id === localId)?.spectating && !matchMedia("(pointer:coarse)").matches) {
     try {
       const result = $("#world").requestPointerLock();
       if (result?.catch) await result;
     } catch {
-      settings.dragLook = true;
-      save("yolk-settings", settings);
-      toast("Mouse lock is unavailable. Hold right click and drag to look.");
+      pauseMenu();
+      toast("Mouse lock was unavailable. Press Resume to try again.");
     }
   }
 }
@@ -831,7 +831,6 @@ document.addEventListener("pointerlockchange", () => {
     screen === "game" &&
     !paused &&
     state?.players.find(p => p.id === localId)?.health > 0 &&
-    !settings.dragLook &&
     !matchMedia("(pointer:coarse)").matches
   )
     pauseMenu();
@@ -878,7 +877,6 @@ window.addEventListener("blur", () => {
   queuedActions.clear();
   input.fire = false;
   input.aim = false;
-  drag = false;
   touch.fire = false;
 });
 document.addEventListener("visibilitychange", () => {
@@ -897,14 +895,12 @@ $("#world").addEventListener("mousedown", (e) => {
   }
   if (e.button === 2) {
     input.aim = true;
-    drag = true;
   }
 });
 document.addEventListener("mouseup", (e) => {
   if (e.button === 0) input.fire = false;
   if (e.button === 2) {
     input.aim = false;
-    drag = false;
   }
 });
 function aimSensitivity() {
@@ -915,7 +911,7 @@ document.addEventListener("mousemove", (e) => {
   if (
     screen !== "game" ||
     paused ||
-    (!document.pointerLockElement && !(settings.dragLook && drag))
+    !document.pointerLockElement
   )
     return;
   input.yaw -=

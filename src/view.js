@@ -469,7 +469,7 @@ export class View {
   event(e, localId) {
     if (e.type === "hit" && e.player === localId && Number.isFinite(e.x)) {
       const mesh = label(String(e.amount) + (e.precision ? "!" : ""), e.precision ? "#ffcf52" : "#ffffff", true, e.precision);
-      mesh.scale.set(1.5, 0.29, 1);
+      mesh.scale.set(2.4, 0.464, 1);
       mesh.position.set(e.x + (e.id % 3 - 1) * 0.16, e.y, e.z);
       this.effects.add(mesh);
       this.fx.push({mesh, life: 0.85, max: 0.85, damageText: true, critical: e.precision, drift: (e.id % 5 - 2) * 0.2});
@@ -919,7 +919,7 @@ export class View {
       } else if (f.damageText) {
         const age = f.max - f.life;
         const pop = (f.critical ? 1.18 : 1) * (1 + 0.4 * Math.sin(Math.min(1, age / 0.18) * Math.PI));
-        f.mesh.scale.set(1.5 * pop, 0.29 * pop, 1);
+        f.mesh.scale.set(2.4 * pop, 0.464 * pop, 1);
         f.mesh.position.y += dt * (0.85 - age * 0.45);
         f.mesh.position.x += dt * f.drift;
         f.mesh.material.opacity = Math.min(1, f.life / 0.3);

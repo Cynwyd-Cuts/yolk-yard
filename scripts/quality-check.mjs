@@ -33,7 +33,7 @@ await page.addInitScript(() => {
     "yolk-settings",
     JSON.stringify({
       quality: "low",
-      dragLook: true,
+
       fov: 85,
       volume: 0,
       sensitivity: 1,
@@ -185,7 +185,7 @@ try {
     "Actual firing creates traveling bolts and a flash at the rendered muzzle",
   );
 
-  await page.getByRole("button", { name: "Pause menu", exact: true }).click();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Leave match", exact: true }).click();
   const metrics = [];
   for (const map of ["yard", "depot", "courtyard"]) {
@@ -200,9 +200,7 @@ try {
     await page.getByRole("button", { name: "Enter the Yard", exact: true }).click();
     await page.waitForFunction(() => { const q=window.__yolkTest.read(); return q.state.players.find(p=>p.id===q.localId)?.health > 0; });
     if (map === "yard") {
-      await page
-        .getByRole("button", { name: "Pause menu", exact: true })
-        .click();
+      await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await page.getByLabel("Graphics", { exact: true }).selectOption("high");
       await page.getByRole("button", { name: "Done", exact: true }).click();
@@ -228,7 +226,7 @@ try {
         triangles: window.__yolkTest.read().triangles,
       })),
     );
-    await page.getByRole("button", { name: "Pause menu", exact: true }).click();
+    await page.keyboard.press("Escape");
     await page
       .getByRole("button", { name: "Leave match", exact: true })
       .click();

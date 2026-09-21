@@ -1,10 +1,11 @@
 import { defineConfig } from "vite";
 import { RELEASE } from "./src/releases.js";
 const build = process.env.GITHUB_SHA || `local-${Date.now()}`;
-const version = JSON.stringify({ build, release: RELEASE });
+const release = process.env.GITHUB_RUN_NUMBER || RELEASE;
+const version = JSON.stringify({ build, release });
 export default defineConfig({
   base: "./",
-  define: { __BUILD_ID__: JSON.stringify(build) },
+  define: { __BUILD_ID__: JSON.stringify(build), __RELEASE_NUMBER__: JSON.stringify(release) },
   plugins: [{
     name: "yolk-build-version",
     configureServer(server) {

@@ -55,7 +55,7 @@ const make = async (name, viewport = { width: 960, height: 640 }) => {
         fov: 85,
         volume: 0,
         quality: "low",
-        dragLook: true,
+
       }),
     );
   }, name);
@@ -181,7 +181,7 @@ try {
     assert.match(await host.locator("#ammo-extra").innerText(), /1 poppers/);
     pass("Poppers are thrown and consumed");
     await host.screenshot({ path: new URL("02-gameplay.png", out).pathname });
-    await host.getByRole("button", { name: "Pause menu", exact: true }).click();
+    await host.keyboard.press("Escape");
     const time = await host.evaluate(() => window.__yolkTest.read().state.time);
     await host.waitForTimeout(300);
     assert.equal(
@@ -192,7 +192,7 @@ try {
     await host.getByRole("button", {name:"Respawn",exact:true}).click();
     await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 0);
     await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 100, {}, {timeout:30000});
-    await host.getByRole("button", {name:"Pause menu",exact:true}).click();
+    await host.keyboard.press("Escape");
     await host.getByRole("button", {name:"Spectate",exact:true}).click();
     await host.locator("#spectate-panel").waitFor({state:"visible"});
     assert.match(await host.locator("#spectate-info").innerText(), /Waiting/);
@@ -206,7 +206,7 @@ try {
     await host.screenshot({path:new URL("spectator-mode.png",out).pathname});
     await host.getByRole("button", {name:"Join game",exact:true}).click();
     await host.waitForFunction(() => window.__yolkTest.read().state.players[0].health === 100, {}, {timeout:30000});
-    await host.getByRole("button", {name:"Pause menu",exact:true}).click();
+    await host.keyboard.press("Escape");
     pass("Pause respawn, empty spectator state, player switching, and rejoin work");
 
     await host
@@ -217,6 +217,7 @@ try {
     await host
       .getByRole("button", { name: "PLAY WITH FRIENDS", exact: false })
       .click();
+    assert.equal(await host.locator("#setup-bots").inputValue(), "0");
     await host.locator("#setup-bots").selectOption("2");
     await host.locator("#setup-mode").selectOption("teams");
     await host
@@ -283,9 +284,7 @@ try {
     await guest.screenshot({
       path: new URL("04-multiplayer.png", out).pathname,
     });
-    await guest
-      .getByRole("button", { name: "Pause menu", exact: true })
-      .click();
+    await guest.keyboard.press("Escape");
     await guest.getByRole("button", { name: "Loadout", exact: true }).click();
     await guest.getByRole("button", { name: /PRECISION Needle/ }).click();
     await guest.getByRole("button", { name: "Done", exact: true }).click();
@@ -408,7 +407,7 @@ try {
       .getByRole("button", { name: "Enter the Yard", exact: true })
       .waitFor();
     pass("Host rematch resets scores and returns guests to play");
-    await host.getByRole("button", { name: "Pause menu", exact: true }).click();
+    await host.keyboard.press("Escape");
     await host.getByRole("button", { name: "Close room", exact: true }).click();
     await host.getByRole("button", { name: "Close room", exact: true }).click();
     await guest
