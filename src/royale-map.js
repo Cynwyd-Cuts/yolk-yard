@@ -30,7 +30,7 @@ for(const [n,p] of DISTRICTS.entries()) {
   chests.push({x:x+2.5,y:0,z:z-2});
   floorLoot.push({x:x+2,y:0,z:z+3},{x:x+10,y:0,z:z+5},{x:x-3,y:h+.35,z:z-2});
  }
- chests.push({x:p.x,y:0,z:p.z});
+ chests.push({x:p.x+(p.kind==='resort'?4:0),y:0,z:p.z});
  floorLoot.push({x:p.x-5,y:0,z:p.z+5},{x:p.x+6,y:0,z:p.z+6});
  for(let k=0;k<6;k++) {
   const a=k*Math.PI/3+.2;

@@ -167,6 +167,7 @@ function renderMenu() {
   });
 }
 function modal(title, body, type = "generic") {
+  if(type==="error")sound.cue("ui-error");
   bindingCapture = null;
   dialogType = type;
   keys.clear();
@@ -180,6 +181,7 @@ function modal(title, body, type = "generic") {
   if (!dialog.open) dialog.showModal();
 }
 function closeDialog() {
+  sound.cue('ui-back');
   bindingCapture = null;
   dialog.close();
   dialogType = "";
@@ -613,12 +615,12 @@ function scoresHTML(s = state) {
 }
 function resultsMenu() {
   const p = state.players.find((p) => p.id === localId);
-  if (roundSaved !== state.round && p) {
+  if (roundSaved !== state.round && p && (!state.royale || p.place>0)) {
     roundSaved = state.round;
     stats.matches++;
     stats.kills += p.kills;
     if (
-      mode(state.options.mode).teams
+      state.royale ? state.royale.winnerId===p.id : mode(state.options.mode).teams
         ? state.scores[p.team] > state.scores[1 - p.team]
         : state.winner === p.name + " wins"
     )
@@ -1120,6 +1122,7 @@ document.addEventListener('click',e=>{
  }
  if(e.target.closest('button')){sound.unlock();sound.cue('ui-select',null,.45);}
 });
+document.addEventListener('pointerover',e=>{const b=e.target.closest('button');if(b&&!b.contains(e.relatedTarget))sound.cue('ui-hover');});
 document.addEventListener('wheel',e=>{if(screen==='game'&&state?.royale&&!paused&&!dialog.open){e.preventDefault();input.slot=(input.slot+(e.deltaY>0?1:4))%5;}},{passive:false});
 document.addEventListener("contextmenu", (e) => {
   if (screen === "game") e.preventDefault();

@@ -1449,3 +1449,8 @@ button:disabled { opacity: 0.55; cursor: default; }
  .in-royale .royale-mobile{bottom:178px}.in-royale .touch-stick{bottom:235px}
  .in-royale .touch-buttons{bottom:230px}
 }
+
+.royale-flight.airborne{top:154px;padding:9px 16px;width:min(390px,64vw)}
+.royale-flight.airborne .eyebrow{display:none}.royale-flight.airborne strong{font-size:16px;margin:0}.royale-flight.airborne p{font-size:11px;margin:5px 0}.royale-flight.airborne button{padding:9px;font-size:12px;min-height:35px}
+@media(pointer:coarse) and (max-width:600px){.royale-flight.airborne{top:227px;width:86vw}.royale-flight.airborne p{font-size:10px}}
+@media(pointer:coarse) and (max-width:600px) and (max-height:740px){.royale-flight.airborne{top:170px}}

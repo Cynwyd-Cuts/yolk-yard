@@ -54,9 +54,9 @@ export class RoyaleUI{
   const grid=document.querySelector('.royale-inventory-grid');
   if(grid&&this.inventoryKey!==key){grid.innerHTML=this.slotMarkup(local,true);this.inventoryKey=key;const bank=document.querySelector('.ammo-bank');if(bank)bank.innerHTML=Object.entries(local.bank||{}).map(([k,v])=>`<span>${escape(k)} <b>${v}</b></span>`).join('');}
   const flight=['transport','dive','glide','launch'].includes(local.flight)&&local.health>0;
-  $('royale-flight').hidden=!flight;
+  $('royale-flight').hidden=!flight;$('royale-flight').classList.toggle('airborne',local.flight!=='transport');
   $('royale-flight-title').textContent=local.flight==='transport'?`${r.elapsed<3?'Doors open in '+Math.ceil(3-r.elapsed):'Choose your landing spot'}${r.elapsed>=3?' · '+Math.ceil(35-r.elapsed)+'s':''}`:local.flight==='dive'?'Freefall':'Shell glider deployed';
-  $('royale-flight-help').textContent=local.flight==='transport'?'Open the map to mark a district. Leave the Eggspress when you are ready.':local.flight==='dive'?`${label('forward')} to steer · ${label('jump')} to deploy glider`:'Steer toward loot. Your glider lands safely on rooftops and ground.';
+  $('royale-flight-help').textContent=local.flight==='transport'?'Open the map to mark a district. Leave the Eggspress when you are ready.':local.flight==='dive'?`${label('forward')} to steer · ${label('jump')} to deploy glider`:`${label('jump')} to dive again at altitude. Your glider opens automatically near the ground.`;
   $('royale-flight-button').hidden=['glide','launch'].includes(local.flight);$('royale-flight-button').disabled=local.flight==='transport'&&r.elapsed<3;$('royale-flight-button').textContent=local.flight==='transport'?`JUMP · ${label('jump')}`:`DEPLOY GLIDER · ${label('jump')}`;
   const outside=r.storm.active&&Math.hypot(p.x-r.storm.x,p.z-r.storm.z)>r.storm.radius;
   $('royale-storm-warning').textContent=outside?`IN THE STORM · ${Math.ceil(Math.hypot(p.x-r.storm.x,p.z-r.storm.z)-r.storm.radius)} m TO SAFETY`:r.storm.active?`${r.storm.closing?'STORM CLOSING':'STORM CLOSES IN'} ${Math.ceil(r.storm.seconds)}s`:'';

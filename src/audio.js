@@ -111,6 +111,7 @@ export class Sound {
  }
  stopWorld(){for(const loop of this.loops.values()){loop.source.stop();loop.source.disconnect();loop.filter.disconnect();loop.gain.disconnect();}this.loops.clear();this.steps.clear();this.wasStorm=false;this.lastAlive=0;}
  event(e,me,state){
+  if(e.type==='round')this.cue('round-start');
   if(e.type==='royale-cue'){
    // Personal inventory cues are local, spatial actions are audible to nearby eggs.
    if(e.player&&e.player!==me?.id&&e.x===undefined)return;

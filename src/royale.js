@@ -184,7 +184,7 @@ export class RoyaleSimulation extends Simulation {
  }
  tick(dt){
   dt=clamp(dt,0,1/30);this.time+=dt;
-  if(this.phase!=='playing')return;
+  if(this.phase!=='playing'){const count=Math.ceil(this.queueEnds-this.time);if(this.queueEnds&&count>0&&count<=5&&this.lastCountdown!==count){this.lastCountdown=count;this.emit('royale-cue',{cue:'countdown'});}return;}
   this.elapsed=this.time-this.startedAt;this.remaining=Math.max(0,this.stormSteps.at(-1).end+15-this.elapsed);
   const oldIndex=this.storm.index,oldClosing=this.storm.closing;
   this.storm=stormAt(this.stormSteps,this.elapsed);
@@ -209,7 +209,7 @@ export class RoyaleSimulation extends Simulation {
    p.swapLatch=input.swapSlot>=0;
    if(input.sprint)this.cancelUse(p);
    movePlayer(p,input,this.map,dt);p.moving=Math.hypot(p.x-previous.x,p.z-previous.z)>.001;p.aim=!!input.aim&&p.flight==='ground'&&!p.use;
-   if(wasFlight!==p.flight)this.emit('royale-cue',{player:p.id,cue:p.flight==='ground'?'land':'glider-deploy',x:p.x,y:p.y,z:p.z});
+   if(wasFlight!==p.flight)this.emit('royale-cue',{player:p.id,cue:p.flight==='ground'?'land':p.flight==='dive'?'glider-cut':'glider-deploy',x:p.x,y:p.y,z:p.z});
    else if(!oldGrounded&&p.grounded)this.emit('royale-cue',{player:p.id,cue:'land',x:p.x,y:p.y,z:p.z});
    else if(oldGrounded&&!p.grounded&&p.vy>0)this.emit('royale-cue',{player:p.id,cue:'jump',x:p.x,y:p.y,z:p.z});
    if(p.flight==='ground'){

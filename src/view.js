@@ -1,7 +1,7 @@
 import {buildIsland,RoyaleView} from './royale-view.js';
 import * as THREE from "three";
 import {equipPose} from "./equip.js";
-import { makeArms, updateArms, reloadProgress, armAppearance } from "./arms.js";
+import { makeArms, updateArms, reloadProgress, utilityArms, armAppearance } from "./arms.js";
 import { patternedShell, addHeadwear, addEyewear, optionProfile } from "./cosmetics.js";
 import { getMap } from "./maps.js";
 import { gun, weapon, TEAM_COLORS, mode, clamp, NO_EYEWEAR } from "./data.js";
@@ -799,6 +799,7 @@ export class View {
           this.heldItem=null;this.heldItemKey=itemKey;
           if(itemKey){this.heldItem=this.royaleView.itemModel(heldItem);this.heldItem.scale.setScalar(.4);this.heldItem.position.set(-.05,-.08,-.28);this.gunGroup.add(this.heldItem);}
         }
+        if(!heldItem?.weapon&&this.localArms)utilityArms(this.localArms,heldItem?.id,local.use?(state.time-local.use.start)/(local.use.end-local.use.start):-1,this.clock);
         if(this.heldItem)this.heldItem.rotation.z=local.use?Math.sin(this.clock*8)*.15:0;
         if(this.localArms){this.localArms.rotation.x=local.use ? -.35+Math.sin(this.clock*6)*.06 : 0;}
         this.gunGroup.rotation.z+=local.sprinting?.35:0;

@@ -33,11 +33,14 @@ try{
  await guest.keyboard.press('Space');await guest.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state.players.find(p=>p.id===q.localId).flight==='glide';});await guest.screenshot({path:'test-results/royale-glider.png'});pass('Guest exit and manual glider deployment are host-authoritative');
  await host.evaluate(()=>window.__yolkTest.fixture(s=>{
    s.loot=[];s.lootVersion++;s.chests=[{id:'qa-chest',x:70,y:0,z:-1.8,opened:false}];
-   for(const [i,p]of [...s.players.values()].entries()){Object.assign(p,{x:70+i*7,y:0,z:0,flight:'ground',grounded:true,health:100,shield:0,yaw:0,pitch:0});p.bot=false;}
+   s.botInput=p=>({yaw:p.yaw,pitch:0,slot:p.slot});
+   for(const [i,p]of [...s.players.values()].entries()){Object.assign(p,{x:70+i*7,y:0,z:0,flight:'ground',grounded:true,health:100,shield:0,yaw:0,pitch:0});}
  }));
  await host.keyboard.press('Escape');if(await host.locator('[data-action="resume"]').isVisible())await host.locator('[data-action="resume"]').click();
  await host.keyboard.down('KeyF');await host.waitForFunction(()=>window.__yolkTest.read().state.royale.chests[0].opened);await host.keyboard.up('KeyF');
  await guest.waitForFunction(()=>window.__yolkTest.read().state.royale.chests[0].opened);pass('Chest opening and generated loot replicate to the guest');
+ await host.evaluate(()=>window.__yolkTest.fixture(s=>{const p=[...s.players.values()].find(p=>!p.bot&&p.id!=='host');s.takeLoot(p,s.dropLoot(p,{id:'mini',count:2,rarity:1}));s.takeLoot(p,s.dropWeapon(p,'pip'));}));
+ await guest.keyboard.press('KeyI');await guest.locator('[data-royale-swap="1"]').click();await host.waitForFunction(()=>window.__yolkTest.read().state.players.find(p=>!p.bot&&p.id!=='host').inventory[0]?.id==='pip');await guest.locator('[data-action="resume"]').click();pass('Guest inventory commands arrive intact between movement packets');
  await host.evaluate(()=>window.__yolkTest.fixture(s=>{
   const p=s.players.get('host');s.loot=[];s.lootVersion++;s.chests=[];
   for(const item of [{id:'comet',weapon:true,rarity:3,ammo:24,count:1},{id:'mini',rarity:1,count:2},{id:'medkit',rarity:1,count:1},{id:'impulse',rarity:3,count:2},{id:'launchpad',rarity:2,count:1}])s.takeLoot(p,s.dropLoot(p,item));

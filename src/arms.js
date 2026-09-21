@@ -44,10 +44,10 @@ export function armPose(id, progress=-1) {
   let left=[...c.left],right=[...c.right],partOffset=[0,0,0];
   if(active) {
     left=path([[0,c.left],[.16,c.socket],[.38,c.drop],[.5,c.drop],[.72,c.socket],[1,c.left]],t);
-    if(id==='scatter') left=path([[0,c.left],[.15,c.drop],[.32,c.socket],[.45,c.drop],[.62,c.socket],[.78,[-.13,-.15,-.23]],[1,c.left]],t);
-    if(id==='needle') right=path([[0,c.right],[.12,c.right],[.26,[.22,.01,.2]],[.44,[.24,.01,.33]],[.72,[.22,.01,.18]],[1,c.right]],t);
+    if(id==='scatter'||id==='doubleyolk') left=path([[0,c.left],[.15,c.drop],[.32,c.socket],[.45,c.drop],[.62,c.socket],[.78,[-.13,-.15,-.23]],[1,c.left]],t);
+    if(id==='needle'||id==='peeper') right=path([[0,c.right],[.12,c.right],[.26,[.22,.01,.2]],[.44,[.24,.01,.33]],[.72,[.22,.01,.18]],[1,c.right]],t);
     if(id==='thumper') left=path([[0,c.left],[.25,c.drop],[.45,[-.25,-.25,-.57]],[.75,c.socket],[1,c.left]],t);
-    if(id!=='scatter') partOffset=left.map((v,i)=>(v-c.socket[i])*(t>=.16&&t<=.72?1:0));
+    if(id!=='scatter'&&id!=='doubleyolk') partOffset=left.map((v,i)=>(v-c.socket[i])*(t>=.16&&t<=.72?1:0));
   }
   // Smoothly ease the model into and out of the reload pose.
   const lean=active?Math.sin(Math.PI*t):0;
@@ -178,4 +178,19 @@ export function updateArms(rig,progress,blaster=null,recoil=0,draw=1) {
     token.position.set(...pose.left);token.position.x+=.1;
   }
   return pose;
+}
+
+// Royale actions share the same sculpted, styled limbs as every weapon pose.
+export function actionArms(rig,targets,rotation=-.15){
+ for(const limb of rig.userData.limbs){limb.hand.position.set(...targets[limb.side<0?0:1]);limb.hand.rotation.set(rotation,limb.side*.15,limb.side*.12);shapeArm(limb);}
+}
+export function utilityArms(rig,id,progress=-1,time=0){
+ const lift=progress<0?0:Math.sin(Math.PI*clamp(progress,0,1));
+ let left=[-.43,-.25,-.15],right=[.06,-.2,-.2];
+ if(['mini','flask'].includes(id)){right=[.03,-.2+lift*.3,-.2+lift*.22];left=[-.38,-.33,-.11];}
+ else if(id==='bandage'){left=[-.42+lift*.38,-.25+lift*.06,-.17];right=[.07,-.2,-.17];}
+ else if(id==='medkit'){left=[-.35,-.28,-.22];right=[.02,-.23+lift*.08,-.2+(progress>=0?Math.sin(time*8)*.025:0)];}
+ else if(['popper','splash','impulse'].includes(id))right=[.06+lift*.25,-.2+lift*.12,-.2+lift*.34];
+ else if(id==='launchpad'){left[1]-=lift*.28;right[1]-=lift*.28;}
+ actionArms(rig,[left,right],-.15-lift*.25);
 }

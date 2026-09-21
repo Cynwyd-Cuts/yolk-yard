@@ -97,14 +97,14 @@ export function movePlayer(p, input, map, dt) {
   );
   if (p.flight === 'transport') return;
   if (p.flight === 'dive' || p.flight === 'glide' || p.flight === 'launch') {
-    if (input.jump && !p.flightLatch && p.flight === 'dive') p.flight = 'glide';
-    p.flightLatch = !!input.jump;
+    const toggle=input.jump&&!p.flightLatch;p.flightLatch=!!input.jump;
     const f=clamp(input.forward || 0,-1,1),s=clamp(input.strafe || 0,-1,1),length=Math.max(1,Math.hypot(f,s));
     const speed=p.flight==='glide'?24:p.flight==='launch'?26:17;
     pushAxis(p,map,'x',(-Math.sin(p.yaw)*f+Math.cos(p.yaw)*s)/length*speed*dt);
     pushAxis(p,map,'z',(-Math.cos(p.yaw)*f-Math.sin(p.yaw)*s)/length*speed*dt);
     p.x=clamp(p.x,-map.size+.5,map.size-.5);p.z=clamp(p.z,-map.size+.5,map.size-.5);
     let floor=0;for(const b of candidates(map,p))if(b.y+b.h<=p.y+.045&&Math.abs(p.x-b.x)<b.w/2+RADIUS-.015&&Math.abs(p.z-b.z)<b.d/2+RADIUS-.015)floor=Math.max(floor,b.y+b.h);
+    if(toggle){if(p.flight==='dive')p.flight='glide';else if(p.flight==='glide'&&p.y-floor>32)p.flight='dive';}
     if(p.flight==='launch'){
       p.vy-=20*dt;
       const ceiling=worldHit(map,{x:p.x,y:p.y+HEIGHT,z:p.z},{x:0,y:1,z:0},Math.max(0,p.vy*dt));
@@ -112,7 +112,7 @@ export function movePlayer(p, input, map, dt) {
     }else{if(p.y-floor<=24)p.flight='glide';p.vy=p.flight==='glide'?-6:-25;}
     p.y+=p.vy*dt;p.grounded=false;
     if(p.y<=floor){p.y=floor;p.vy=0;p.grounded=true;p.flight='ground';p.jumpLatch=!!input.jump;}
-    p.sprinting=false;return;
+    p.sprinting=false;if(p.inventory){p.sprintRest=(p.sprintRest||0)+dt;if(p.sprintRest>1.3)p.stamina=Math.min(100,(p.stamina??100)+18*dt);if(p.stamina>=20)p.exhausted=false;}return;
   }
   if (p.inventory) {
     p.stamina ??= 100; p.sprintRest ??= 0;

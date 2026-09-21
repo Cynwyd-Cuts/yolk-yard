@@ -92,3 +92,9 @@ test('inventory commands survive intervening movement packets and reject invalid
  s.playerAction('host','inventory-swap-0-999');assert.equal(p.inventory.length,5);s.playerAction('host','inventory-drop-0');assert.equal(p.inventory[0],null);
  s.playerAction('host','inventory-select-1');assert.equal(p.slot,1);s.damage(p,null,1000,'Storm');const before=s.loot.length;s.playerAction('host','inventory-drop-1');assert.equal(s.loot.length,before);
 });
+test('every authored loot and chest anchor is outside solid architecture',()=>{
+ for(const anchor of [...ROYALE_MAP.chests,...ROYALE_MAP.floorLoot]){
+  const box=ROYALE_MAP.boxes.find(b=>anchor.y+.2>b.y&&anchor.y+.2<b.y+b.h&&Math.abs(anchor.x-b.x)<b.w/2+.15&&Math.abs(anchor.z-b.z)<b.d/2+.15);
+  assert.equal(box,undefined,`Blocked anchor at ${anchor.x},${anchor.y},${anchor.z}`);
+ }
+});
