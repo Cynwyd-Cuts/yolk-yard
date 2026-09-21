@@ -87,5 +87,5 @@ try{
  assert.deepEqual(errors,[]);
  assert.equal(requests.some(u=>/workers\.dev|\/api\/access/.test(u)),false);
  console.log('PASS no browser exceptions or removed backend requests');
-}catch(e){for(const ctx of browser.contexts())for(const p of ctx.pages()){console.log('DIRECTORY',await p.evaluate(async()=>{const {directory:d}=await import('/src/directory.js');return {leader:d.leader,room:d.room,peer:d.peer?.id,open:d.peer?.open,clients:d.clients.size,connection:d.connection?.open,states:Object.values(d.peer?.connections||{}).flat().map(c=>({peer:c.peer,open:c.open,ice:c.peerConnection?.iceConnectionState}))}}).catch(()=>null));console.log('PAGE',p.url(),(await p.locator('body').innerText().catch(()=>'' )).slice(-1400));}throw e;}
-finally{await browser.close();await vite.close();signalServer?.close();}
+}catch(e){for(const ctx of browser.contexts())for(const p of ctx.pages()){console.log('DIRECTORY',await p.evaluate(async()=>{const {directory:d}=await import('/src/directory.js');return {leader:d.leader,room:d.room,peer:d.peer?.id,open:d.peer?.open,clients:d.clients.size,connection:d.connection?.open,states:Object.values(d.peer?.connections||{}).flat().map(c=>({peer:c.peer,open:c.open,ice:c.peerConnection?.iceConnectionState}))}}).catch(()=>null));console.log('PAGE',p.url(),(await p.locator('body').innerText().catch(()=>'' )).slice(-1400));}console.error(e);process.exitCode=1;}
+finally{await browser.close();await vite.close();signalServer?.close();setTimeout(()=>process.exit(process.exitCode || 0),100).unref();}
