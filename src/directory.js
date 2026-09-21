@@ -19,8 +19,11 @@ class Directory {
     this.timer=setInterval(()=>{
       if (!this.peer || this.peer.destroyed) this.elect();
       if (this.leader) this.prune();
-      else if (this.connection?.open) this.connection.send({type:'publish',room:this.room});
-    },5000);
+      else if (this.connection?.open) {
+        if (Date.now() - this.lastSeen > 8000) { this.reset(); this.elect(); }
+        else this.connection.send({type:'publish',room:this.room});
+      }
+    },2000);
   }
   options() {
     const config=window.YOLK_NETWORK || {};
@@ -45,7 +48,7 @@ class Directory {
     peer.on('connection',conn=>this.accept(conn));
     peer.on('disconnected',()=>{if(this.peer===peer)this.reset();});
     peer.on('error',err=>{
-      if(this.peer!==peer)return;
+      if(this.peer!==peer || (this.leader && ['webrtc','peer-unavailable'].includes(err.type)))return;
       this.reset();
       if(err.type==='unavailable-id')this.follow();
     });
@@ -56,8 +59,9 @@ class Directory {
     peer.on('open',()=>{
       if(this.peer!==peer)return;
       const conn=this.connection=peer.connect(DIRECTORY_ID,{reliable:true,serialization:'json'});
-      conn.on('open',()=>{clearTimeout(this.connectTimer);conn.send({type:'publish',room:this.room});});
+      conn.on('open',()=>{clearTimeout(this.connectTimer);this.lastSeen=Date.now();conn.send({type:'publish',room:this.room});});
       conn.on('data',message=>{
+        if (message?.type === 'ack' || message?.type === 'rooms') this.lastSeen=Date.now();
         if(message?.type!=='rooms' || !Array.isArray(message.rooms))return;
         const waiter=this.waiters.get(message.id);
         if(waiter){this.waiters.delete(message.id);waiter(message.rooms.slice(0,100).map(cleanListing).filter(Boolean));}
@@ -78,7 +82,7 @@ class Directory {
       if(now-entry.rateAt>1000){entry.rateAt=now;entry.packets=0;}
       if(++entry.packets>15){conn.close();return;}
       entry.updated=now;
-      if(message.type==='publish')entry.room=cleanListing(message.room);
+      if(message.type==='publish'){entry.room=cleanListing(message.room);conn.send({type:'ack'});}
       if(message.type==='list' && Number.isInteger(message.id))conn.send({type:'rooms',id:message.id,rooms:this.rows()});
     });
     conn.on('close',()=>this.clients.delete(conn));

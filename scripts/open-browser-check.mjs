@@ -22,8 +22,16 @@ async function make(name,mobile=false){
 }
 async function listing(page,code,visible){
  await page.locator('[data-action="public-rooms"]').click();
- await page.locator('[data-action="refresh-rooms"]').waitFor();
- assert.equal(await page.locator(`[data-join-room="${code}"]`).count(),visible?1:0);
+ const deadline=Date.now()+35000;
+ let count;
+ do {
+  await page.locator('[data-action="refresh-rooms"]').waitFor();
+  count=await page.locator(`[data-join-room="${code}"]`).count();
+  if(count===(visible?1:0))break;
+  await page.waitForTimeout(1500);
+  await page.locator('[data-action="refresh-rooms"]').click();
+ } while(Date.now()<deadline);
+ assert.equal(count,visible?1:0);
 }
 async function closeModal(page){await page.locator('#dialog [data-action="close"]').first().click();}
 try{
