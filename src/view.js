@@ -725,7 +725,7 @@ export class View {
       const p = killer || (local.health <= 0 ? local : predicted || local);
       this.camera.position.set(
         p.x,
-        p.y + EYE + (local.health <= 0 ? 0.8 : 0),
+        p.y + EYE * (p.bodyScale || 1) + (local.health <= 0 ? 0.8 : 0),
         p.z,
       );
       this.camera.rotation.set(p.pitch, p.yaw, 0, "YXZ");
@@ -763,7 +763,7 @@ export class View {
       const front = -VIEWMODEL.z + w.muzzle * VIEWMODEL.scale;
       const wall = wallDistance(
         getMap(state.options.map),
-        { x: p.x, y: p.y + EYE, z: p.z },
+        { x: p.x, y: p.y + EYE * (p.bodyScale || 1), z: p.z },
         direction(p.yaw, p.pitch),
         front,
       );
@@ -825,6 +825,8 @@ export class View {
             { ...p, weapon: gun(p).id },
             mode(state.options.mode).teams ? p.team : -1,
           );
+          const aura = new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshBasicMaterial({color:0x83e6ff,transparent:true,opacity:.18,depthWrite:false,wireframe:true}));
+          aura.position.y=.9;aura.scale.set(.73,1.04,.73);model.add(aura);model.userData.bonusAura=aura;
           model.userData.signature = sig;
           const name = label(
             p.name,
@@ -887,6 +889,11 @@ export class View {
             ? 1.03 + Math.sin(this.clock * 10) * 0.02
             : 1,
         );
+        model.scale.multiplyScalar(p.bodyScale || 1);
+        const aura=model.userData.bonusAura;
+        aura.visible=p.health>0&&(p.streakArmor>0||p.damageUntil>state.time);
+        aura.material.color.setHex(p.damageUntil>state.time?0xff625f:0x83e6ff);
+        aura.material.opacity=.13+Math.sin(this.clock*5)*.05;
         if (p.health <= 0) {
           const collapse = Math.min(1, Math.max(0, deathAge - 0.2) / 0.55);
           model.scale.set(1 + collapse * 0.25, 1 - collapse * 0.95, 1 + collapse * 0.25);

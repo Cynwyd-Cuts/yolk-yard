@@ -1,3 +1,4 @@
+import {arenaBonuses,resetBonuses,updateBonuses,awardBonus} from './streaks.js';
 import {botInput as tacticalBotInput} from './bots.js';
 import {beginEquip} from './equip.js';
 import {matchOptions} from "./match-options.js";
@@ -195,6 +196,7 @@ export class Simulation {
     }));
     this.addBots();
     for (const p of this.players.values()) {
+      p.eggs = 0;
       p.kills = 0;
       p.deaths = 0;
       p.points = 0;
@@ -229,6 +231,7 @@ export class Simulation {
     p.reloadEnd = 0;
     p.burstLeft = 0;
     p.moving = false;
+    resetBonuses(p);
     p.health = 0;
     p.spectating = action === "spectate";
     p.spawnRequested = !p.spectating;
@@ -237,6 +240,7 @@ export class Simulation {
     this.emit("player-action", {player: id, action});
   }
   spawn(p) {
+    resetBonuses(p);
     if (p.spectating) { p.health = 0; return; }
     if (p.nextProfile) {
       Object.assign(p, p.nextProfile);
@@ -288,6 +292,7 @@ export class Simulation {
         if ((p.bot || p.spawnRequested) && this.time >= p.respawnAt) this.spawn(p);
         continue;
       }
+      if(arenaBonuses(this.options.mode))updateBonuses(p,this.time,dt);
       let input = p.bot ? this.botInput(p) : this.inputs.get(p.id);
       if (!input || (!p.bot && this.time - p.lastInput > 0.4))
         input = { yaw: p.yaw, pitch: p.pitch, slot: p.slot };
@@ -399,7 +404,7 @@ export class Simulation {
     if (w.projectile) a.spread = Math.min(0.3, a.spread);
   }
   shotPath(p, w, directionOverride = null) {
-    const eye = { x: p.x, y: p.y + EYE, z: p.z },
+    const eye = { x: p.x, y: p.y + EYE * (p.bodyScale || 1), z: p.z },
       aim = directionOverride || direction(p.yaw, p.pitch);
     let distance = wallDistance(this.map, eye, aim, (w.flightRange??w.range));
     for (const target of this.players.values())
@@ -505,7 +510,7 @@ export class Simulation {
       path = this.shotPath(p, w, aim),
       d = popper ? direction(p.yaw, p.pitch) : path.d;
     const origin = popper
-      ? { x: p.x, y: p.y + EYE - 0.15, z: p.z }
+      ? { x: p.x, y: p.y + EYE * (p.bodyScale || 1) - 0.15, z: p.z }
       : path.origin;
     if (!popper && path.blocked) {
       this.emit("impact", {
@@ -680,7 +685,13 @@ export class Simulation {
   }
   damage(victim, attacker, amount, source, precision = false, shotId = null) {
     if (victim.health <= 0 || this.time < victim.shieldUntil) return;
-    const applied = Math.min(victim.health, amount);
+    if(attacker!==victim && attacker && mode(this.options.mode).teams && attacker.team===victim.team)return;
+    let absorbed=0;
+    if(arenaBonuses(this.options.mode)) {
+      if(attacker?.damageUntil>this.time && attacker!==victim)amount*=2;
+      if(victim.health<=100){absorbed=Math.min(victim.streakArmor||0,amount);victim.streakArmor-=absorbed;amount-=absorbed;}
+    }
+    const applied = absorbed + Math.min(victim.health, amount);
     victim.health = Math.max(0, victim.health - amount);
     victim.lastDamage = this.time;
     if(source!=='Storm'||this.time>=(victim.stormFeedbackAt||0)){
@@ -697,7 +708,7 @@ export class Simulation {
     if (victim.health > 0) return;
     victim.killerId = attacker && attacker !== victim ? attacker.id : null;
     victim.deaths++;
-    victim.streak = 0;
+    resetBonuses(victim);
     victim.respawnAt = this.time + 3;
     victim.spawnRequested = false;
     victim.reloadEnd = 0;
@@ -707,6 +718,7 @@ export class Simulation {
       attacker.kills++;
       attacker.streak++;
       attacker.points += 100;
+      awardBonus(this,attacker);
       if (this.options.mode === "teams") this.scores[attacker.team]++;
     }
     this.emit("elimination", {
@@ -832,7 +844,7 @@ export class Simulation {
       "kills",
       "deaths",
       "points",
-      "streak",
+      "streak", "eggs", "streakArmor", "damageUntil", "eggsUntil", "miniUntil", "restockUntil", "bodyScale",
       "slot",
       "ammo",
       "reserve",

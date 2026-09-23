@@ -1,3 +1,4 @@
+import {arenaBonuses,BONUS_NAMES,bonusStatus} from './streaks.js';
 import { connectionReport } from './connection-report.js';
 import {RoyaleSimulation} from './royale.js';
 import {RoyaleUI} from './royale-ui.js';
@@ -183,7 +184,7 @@ function renderMenu() {
       )
       .join(
         "",
-      )}<button class="plain" data-action="customize">Egg studio</button><p class="hint">${stats.matches} matches · ${stats.kills} eliminations</p></section></main><div class="footer"><span>YOLK YARD · ORIGINAL EGG ARENA</span><span class="footer-right">WASD + MOUSE &nbsp; / &nbsp; <button data-action="about">About & credits</button></span></div>`;
+      )}<button class="plain" data-action="customize">Egg studio</button><p class="hint">${stats.matches} matches · ${stats.kills} eliminations · ${stats.eggs||0} eggs</p></section></main><div class="footer"><span>YOLK YARD · ORIGINAL EGG ARENA</span><span class="footer-right">WASD + MOUSE &nbsp; / &nbsp; <button data-action="about">About & credits</button></span></div>`;
   $("#player-name").addEventListener("change", (e) => {
     const checked=moderateText(e.target.value,{kind:"name"});
     profile.name = safeName(e.target.value);
@@ -711,6 +712,7 @@ function resultsMenu() {
     roundSaved = state.round;
     stats.matches++;
     stats.kills += p.kills;
+    stats.eggs = (stats.eggs||0)+(p.eggs||0);
     if (
       state.royale ? state.royale.winnerId===p.id : mode(state.options.mode).teams
         ? state.scores[p.team] > state.scores[1 - p.team]
@@ -747,6 +749,7 @@ function processEvents() {
     view.event(e, localId);
     const me = state.players.find((p) => p.id === localId);
     sound.event(e,me,state);
+    if(e.type==='streak-bonus'&&e.player===localId){toast(`${e.streak} in a row · ${BONUS_NAMES[e.kind] || 'Power-up'}!`);sound.pickup();}
     if(e.type==='royale-eliminated'&&e.player===localId){spectateTarget=me?.killerId;pendingInputs=[];predicted=null;}
     if (e.type === "shot") {
       const distance = me
@@ -837,7 +840,7 @@ function hud() {
     `FIRST TO ${state.options.scoreLimit} ELIMINATIONS`;
   const vitals=state.royale&&watched?watched:p;
   $("#health").textContent = Math.ceil(vitals.health);
-  $("#health-fill").style.width = vitals.health + "%";
+  $("#health-fill").style.width = Math.min(100,vitals.health) + "%";
   $("#health-fill").style.background = vitals.health < 30 ? "#f99b74" : "#8bdcc5";
   $("#streak").textContent =
     state.time < p.shieldUntil
@@ -845,6 +848,12 @@ function hud() {
       : p.streak > 1
           ? p.streak + " elimination streak"
           : "Freshly hatched";
+  let bonusPanel=$('#streak-bonuses');
+  if(!bonusPanel){bonusPanel=document.createElement('div');bonusPanel.id='streak-bonuses';$('#streak').after(bonusPanel);}
+  bonusPanel.hidden=!arenaBonuses(state.options.mode)||p.health<=0;
+  bonusPanel.textContent=bonusStatus(p,state.time).join(' • ');
+  if(arenaBonuses(state.options.mode)&&p.health>0)$('#streak').textContent+=` · ${5-p.streak%5} to bonus · ${p.eggs||0} eggs`;
+  $('#crosshair').classList.toggle('damage-boost',arenaBonuses(state.options.mode)&&p.damageUntil>state.time);
   $('.quick-controls').innerHTML = [['forward','Move'],['reload','Reload'],['popper','Popper'],['swap','Swap']].map(([id,label]) => `<span><kbd>${esc(controlLabel(id))}</kbd> ${label}</span>`).join('') + '<span><kbd>Esc</kbd> Menu</span>';
   $("#gun-name").textContent = gun(p).name;
   $("#ammo").textContent = p.ammo[p.slot];
@@ -1551,3 +1560,4 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) void updates.check();
 });
 void updates.check();
+

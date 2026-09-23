@@ -10,7 +10,7 @@ export const BOT_SKILL = [
  {reaction:.15,error:.018,hit:.90,lead:.92,cover:.94,grenade:.9,turn:7,burst:.94,pause:.28},
 ];
 const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
-const eye=p=>({x:p.x,y:p.y+EYE,z:p.z});
+const eye=p=>({x:p.x,y:p.y+EYE*(p.bodyScale||1),z:p.z});
 const visible=(sim,p,t)=>{const a=eye(p),v={x:t.x-a.x,y:t.y+.9-a.y,z:t.z-a.z},d=Math.hypot(v.x,v.y,v.z)||1;return wallDistance(sim.map,a,{x:v.x/d,y:v.y/d,z:v.z/d},d)>=d-.05;};
 function coverPoint(sim,p,t){
  const options=[];
@@ -99,7 +99,7 @@ export function botInput(sim,p,{goal:externalGoal=null,enemy:preferred=null,trav
   const lead=Math.min(1.1,distance/w.boltSpeed)*skill.lead;
   const tx=target.x+(target.vx||0)*lead-p.x,tz=target.z+(target.vz||0)*lead-p.z;
   yaw=Math.atan2(-tx,-tz)+(brain.errorX||0)+Math.sin(now*1.7+(p.botSeed||0))*skill.error*.15;
-  pitch=Math.atan2(target.y+(brain.height??.9)+(target.vy||0)*lead*.25-p.y-EYE,Math.hypot(tx,tz))+(brain.errorY||0);
+  pitch=Math.atan2(target.y+(brain.height??.9)*(target.bodyScale||1)+(target.vy||0)*lead*.25-p.y-EYE*(p.bodyScale||1),Math.hypot(tx,tz))+(brain.errorY||0);
   fire=now>=brain.aimAt&&now<brain.burstUntil&&distance<(w.flightRange??w.range)*.95&&(!w.projectile||distance>6);
   if(now>(brain.nextGrenade||0)&&distance>7&&distance<19&&p.health>0){
    brain.nextGrenade=now+5+r()*7;

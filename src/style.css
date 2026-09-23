@@ -1567,3 +1567,5 @@ button:disabled { opacity: 0.55; cursor: default; }
 .royale-hotbar .royale-slot img{width:100%;height:49px;object-fit:contain}
 @media(max-width:760px){#dialog[data-kind="royale-inventory"]{width:min(560px,100vw);padding:20px 18px}#dialog[data-kind="royale-inventory"] .royale-slot{height:98px}#dialog[data-kind="royale-inventory"] .royale-slot img{height:59px}.inventory-content{gap:20px}.inventory-inspect p{margin-bottom:8px}.weapon-stats{gap:8px}}
 @media(max-height:650px){#dialog[data-kind="royale-inventory"] .dialog-head{margin-bottom:16px}#dialog[data-kind="royale-inventory"] .dialog-body{min-height:calc(100dvh - 100px)}.inventory-content{gap:12px}.inventory-equipment{padding-top:12px}.inventory-actions{margin-top:8px;padding-top:8px}}
+
+#streak-bonuses{max-width:360px;color:#9feaf5;font-size:12px;line-height:1.5;text-shadow:0 1px 3px #000} #crosshair.damage-boost{color:#ff6464;filter:drop-shadow(0 0 3px #ff6464)}

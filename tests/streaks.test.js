@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Simulation} from '../src/simulation.js';
+import {awardBonus,updateBonuses,resetBonuses} from '../src/streaks.js';
+import {rayEgg} from '../src/physics.js';
+function fixture(mode='ffa') {const s=new Simulation({mode,bots:0});const a=s.addPlayer('a',{name:'Sunny'}),b=s.addPlayer('b',{name:'Poach'});s.spawn(a);s.spawn(b);a.shieldUntil=b.shieldUntil=0;s.phase='playing';return {s,a,b};}
+test('five eliminations award a bonus and shield absorbs damage',()=>{const {s,a,b}=fixture();s.random=()=>0;for(let i=0;i<5;i++){b.health=100;s.damage(b,a,100,'pip');}assert.equal(a.streak,5);assert.equal(a.streakArmor,100);s.damage(a,b,125,'pip');assert.equal(a.health,75);assert.equal(a.streakArmor,0);});
+test('six bonuses, timer extensions, restock and overheal',()=>{const {s,a}=fixture();a.streak=5;for(let i=0;i<6;i++){s.random=()=> (i+.1)/6;awardBonus(s,a);}assert.equal(a.health,200);assert.equal(a.bodyScale,.5);assert.equal(a.poppers,3);assert.equal(a.damageUntil,15);s.time=5;a.streak=6;awardBonus(s,a);assert.equal(a.damageUntil,18);assert.equal(a.eggsUntil,18);assert.equal(a.miniUntil,18);updateBonuses(a,19,1);assert.equal(a.bodyScale,1);assert.equal(a.health,190);});
+test('damage doubles, death and manual respawn reset bonuses',()=>{const {s,a,b}=fixture();a.damageUntil=15;s.damage(b,a,30,'pip');assert.equal(b.health,40);s.playerAction(a.id,'respawn');assert.equal(a.damageUntil,0);assert.equal(a.bodyScale,1);b.streak=8;s.damage(b,null,1000,'Arena');assert.equal(b.streak,0);});
+test('mini hitbox and checkpoint/snapshot agree',()=>{const {s,a}=fixture();a.bodyScale=.5;a.miniUntil=15;a.x=a.y=a.z=0;assert.equal(rayEgg({x:0,y:1.4,z:3},{x:0,y:0,z:-1},a),Infinity);assert.ok(Number.isFinite(rayEgg({x:0,y:.45,z:3},{x:0,y:0,z:-1},a)));const restored=new Simulation().restore(s.checkpoint());assert.equal(restored.snapshot().players[0].miniUntil,15);assert.equal(restored.players.get('a').bodyScale,.5);});
+test('team kills cannot award bonuses and Royale cannot grant or apply powers',()=>{let {s,a,b}=fixture('teams');b.team=a.team;s.damage(b,a,1000,'pip');assert.equal(a.streak,0);({s,a,b}=fixture('royale'));a.streak=5;a.damageUntil=15;awardBonus(s,a);assert.equal(a.streakArmor,0);s.damage(b,a,30,'pip');assert.equal(b.health,70);});

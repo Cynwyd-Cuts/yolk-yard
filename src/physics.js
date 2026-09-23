@@ -53,8 +53,8 @@ export function wallDistance(map, o, d, max = 200) {
 // Small shell margin covers the centered waddle and bounded render smoothing.
 export const EGG_HIT = { radius: 0.64, height: 0.94, center: 0.9 };
 export function rayEgg(o, d, p) {
-  const r = [EGG_HIT.radius, EGG_HIT.height, EGG_HIT.radius],
-    a = [(o.x - p.x) / r[0], (o.y - p.y - EGG_HIT.center) / r[1], (o.z - p.z) / r[2]],
+  const scale=p.bodyScale||1, r = [EGG_HIT.radius*scale, EGG_HIT.height*scale, EGG_HIT.radius*scale],
+    a = [(o.x - p.x) / r[0], (o.y - p.y - EGG_HIT.center*scale) / r[1], (o.z - p.z) / r[2]],
     v = [d.x / r[0], d.y / r[1], d.z / r[2]];
   const A = v.reduce((s, x) => s + x * x, 0),
     B = 2 * a.reduce((s, x, i) => s + x * v[i], 0),
@@ -217,7 +217,7 @@ export function muzzleOrigin(p, w) {
     forward = -VIEWMODEL.z + w.muzzle * VIEWMODEL.scale;
   return {
     x: p.x + right.x * side + up.x * height + f.x * forward,
-    y: p.y + EYE + up.y * height + f.y * forward,
+    y: p.y + EYE * (p.bodyScale||1) + up.y * height + f.y * forward,
     z: p.z + right.z * side + up.z * height + f.z * forward,
   };
 }
@@ -260,14 +260,16 @@ export function worldHit(map, o, d, max = 200, radius = 0) {
 
 // Distance from the shot ray to the shell center in normalized egg space.
 export function isCenterHit(o, d, p) {
-  const a = [(o.x-p.x)/EGG_HIT.radius, (o.y-p.y-EGG_HIT.center)/EGG_HIT.height, (o.z-p.z)/EGG_HIT.radius];
-  const v = [d.x/EGG_HIT.radius, d.y/EGG_HIT.height, d.z/EGG_HIT.radius];
+  const scale=p.bodyScale||1;
+  const a = [(o.x-p.x)/(EGG_HIT.radius*scale), (o.y-p.y-EGG_HIT.center*scale)/(EGG_HIT.height*scale), (o.z-p.z)/(EGG_HIT.radius*scale)];
+  const v = [d.x/(EGG_HIT.radius*scale), d.y/(EGG_HIT.height*scale), d.z/(EGG_HIT.radius*scale)];
   const t = -a.reduce((s,x,i)=>s+x*v[i],0)/v.reduce((s,x)=>s+x*x,0);
   return t >= 0 && a.reduce((s,x,i)=>s+(x+t*v[i])**2,0) <= 0.32**2;
 }
 
 // The reference damage curve depends on the incidence angle, not a flat bonus.
 export function shellDamageFactor(hit, direction, egg) {
+  if(egg.bodyScale && egg.bodyScale!==1){const scale=egg.bodyScale;return shellDamageFactor({x:egg.x+(hit.x-egg.x)/scale,y:egg.y+(hit.y-egg.y)/scale,z:egg.z+(hit.z-egg.z)/scale},direction,{...egg,bodyScale:1});}
   const depth = ((hit.x - egg.x) / EGG_HIT.radius) ** 2
     + ((hit.y - egg.y - EGG_HIT.center) / EGG_HIT.height) ** 2
     + ((hit.z - egg.z) / EGG_HIT.radius) ** 2;

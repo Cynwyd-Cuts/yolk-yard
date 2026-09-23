@@ -1,6 +1,6 @@
 import { safeName } from './moderation.js';
 // The rebuilt island and movement model must not mix with older clients.
-export const VERSION = 10;
+export const VERSION = 11;
 export const WEAPONS = [
   {
     id: "sprinter",
