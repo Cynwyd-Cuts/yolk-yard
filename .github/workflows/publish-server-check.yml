@@ -1,0 +1,38 @@
+name: Publish approved server check
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/publish-server-check.yml]
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    if: github.event.head_commit.message == 'Publish approved server check once'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-publish
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # User approved this single release without the animation check.
+      # Use the already built and unit-tested artifact from the specific release.
+      - uses: actions/download-artifact@v4
+        with:
+          name: yolk-build
+          path: dist
+          run-id: 35898265876
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify intended release
+        run: |
+          node -e "const fs=require('fs'); const v=fs.readFileSync('dist/version.json','utf8'); if(!v.includes('765a536ee7c35bdd649b4bc9d9de76af31536567')) process.exit(1); for(const p of ['server-check.html','server-check.js']) if(!fs.existsSync('dist/'+p)) process.exit(1)"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - uses: actions/deploy-pages@v4
+        id: deployment
