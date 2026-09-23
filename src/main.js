@@ -344,6 +344,7 @@ const connectionButton = '<button class="plain" data-action="connection-report" 
 function showConnectionReport() {
   modal('Connection report', `<p>Check matchmaking and public discovery here. To test another computer, join its room normally, then return here. Keep the host’s tab open.</p>
     <div role="status" aria-live="polite">${checkingConnection ? '<p>Checking… This can take about 35 seconds.</p>' : ''}</div>
+    <p><a href="./server-check.html">Test the new server connection</a></p>
     <label for="connection-report-text">Latest results</label>
     <textarea id="connection-report-text" class="field" readonly rows="12" style="width:100%;font-size:.85rem;white-space:pre-wrap">${esc(connectionReport.text(__BUILD_ID__))}</textarea>
     <button class="primary" data-action="run-connection-check" ${checkingConnection ? 'disabled' : ''}>RUN SERVICE & DIRECTORY CHECK</button>

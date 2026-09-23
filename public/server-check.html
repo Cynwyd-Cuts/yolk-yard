@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src https://yolk-yard-connection-check.zachlaskin99.chatgpt.site wss://yolk-yard-connection-check.zachlaskin99.chatgpt.site; base-uri 'none'; form-action 'none'">
+<title>Yolk Yard · Server connection check</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#193b4a;color:#172b34;font:16px/1.5 system-ui,sans-serif;padding:24px}main{max-width:680px;margin:3vh auto;background:#fff9e8;border:3px solid #122c39;border-radius:24px;padding:clamp(20px,5vw,36px);box-shadow:0 8px 0 #102732}h1{font-size:clamp(25px,5vw,34px);line-height:1.15;margin:8px 0 18px}h2{font-size:18px;margin:0 0 6px}.brand{font-weight:900;letter-spacing:.12em}button,a{font:inherit}button{width:100%;padding:14px;border:2px solid #172b34;border-radius:12px;font-weight:800;cursor:pointer;margin:8px 0;background:#f6ce4b;color:#172b34}button:disabled{opacity:.6;cursor:wait}.secondary{background:#193b4a;color:white}section{border-top:1px solid #b8c4c4;padding:16px 0}section p{margin:0;overflow-wrap:anywhere}textarea{width:100%;min-height:200px;font:14px/1.5 monospace;border:1px solid #82969c;border-radius:8px;padding:12px;resize:vertical;background:white;color:#172b34}.note{font-size:14px;color:#425861}a{color:#193b4a}button:focus-visible,a:focus-visible,textarea:focus-visible{outline:3px solid #2377ba;outline-offset:3px}
+</style>
+<script src="./server-check.js" defer></script>
+</head>
+<body><main>
+<div class="brand">YOLK YARD</div>
+<h1>Server connection check</h1>
+<p>Run this on the school computer. No room code or second computer is needed. The check takes up to 30 seconds.</p>
+<button id="run">RUN SERVER CHECK</button>
+<div aria-live="polite" role="status">
+<section><h2>1. HTTPS access</h2><p id="https">Not checked</p></section>
+<section><h2>2. Secure WebSocket</h2><p id="socket">Not checked</p></section>
+<section><h2>3. Server replies</h2><p id="replies">Not checked</p></section>
+</div>
+<p id="summary">This tests a separate server connection; it does not change multiplayer.</p>
+<label for="report">Report to send back</label>
+<textarea id="report" readonly spellcheck="false">Run the check to generate a report.</textarea>
+<button id="copy" class="secondary">COPY REPORT</button>
+<p id="copy-status" aria-live="polite"></p>
+<p class="note">The check sends three numbered test messages. No names, room codes or game data are sent. Hosting services receive normal connection metadata. A pass checks this endpoint only; it does not guarantee a full multiplayer game will work.</p>
+<a href="./">Back to Yolk Yard</a>
+</main></body></html>
