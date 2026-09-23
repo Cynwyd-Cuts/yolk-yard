@@ -1,7 +1,8 @@
+import {botInput as tacticalBotInput} from './bots.js';
 import {beginEquip} from './equip.js';
 import {matchOptions} from "./match-options.js";
 import {
-  VERSION,
+  VERSION, randomAppearance, nameKey,
   WEAPONS,
   weapon,
   gun,
@@ -12,7 +13,7 @@ import {
 } from "./data.js";
 import { getMap, navigation, surfaceAt } from "./maps.js";
 import {
-  muzzleOrigin,
+  muzzleOrigin, canStand,
   worldHit,
   movePlayer,
   sanitizeInput,
@@ -50,9 +51,9 @@ export class Simulation {
     this.scores = [0, 0];
     this.projectiles = [];
     this.projectileId = 0;
+    this.shotId = 0;
+    this.joinOrder = 0;
     this.pickups = [];
-    this.flags = [];
-    this.zone = { owner: -1, progress: 0, contested: false };
     this.winner = "";
   }
   emit(type, data = {}) {
@@ -70,6 +71,8 @@ export class Simulation {
       id,
       ...safeProfile(profile),
       bot,
+      joinedOrder: ++this.joinOrder,
+      botSeed:this.random()*100,
       team: count[0] <= count[1] ? 0 : 1,
       x: 0,
       y: 0,
@@ -113,7 +116,6 @@ export class Simulation {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
-    this.dropFlag(p);
     this.players.delete(id);
     this.inputs.delete(id);
     this.emit("leave", { name: p.name });
@@ -122,8 +124,12 @@ export class Simulation {
     const p = this.players.get(id);
     if (!p) return;
     const safe = safeProfile(profile);
+    if([...this.players.values()].some(other=>other.id!==id&&!other.bot&&nameKey(other.name)===nameKey(safe.name)))return false;
+    for(const other of this.players.values())if(other.id!==id&&other.bot&&nameKey(other.name)===nameKey(safe.name))other.name=this.uniqueBotName(other.name+' Bot');
     p.nextProfile = safe;
+    p.name=safe.name;
     if (this.phase === "lobby" || p.health <= 0) Object.assign(p, safe);
+    return true;
   }
   setInput(id, input) {
     const p = this.players.get(id);
@@ -146,7 +152,7 @@ export class Simulation {
     let i = 0;
     while (
       [...this.players.values()].filter((p) => p.bot).length <
-        this.options.bots &&
+        (this.options.fill ? (this.options.capacity||8) : this.options.bots) &&
       this.players.size < (this.maxPlayers || 8)
     ) {
       const id = "bot-" + i++;
@@ -154,10 +160,9 @@ export class Simulation {
       this.addPlayer(
         id,
         {
-          name: BOT_NAMES[(i - 1) % BOT_NAMES.length],
+          name: this.uniqueBotName(BOT_NAMES[(i - 1) % BOT_NAMES.length]),
           weapon: WEAPONS[(i + this.round) % 7].id,
-          color: ["#fff6da", "#ee897b", "#72cfdd", "#b7a1ec"][i % 4],
-          hat: i % 5,
+          ...randomAppearance(this.random),
         },
         true,
       );
@@ -180,16 +185,6 @@ export class Simulation {
     this.scores = [0, 0];
     this.projectiles = [];
     this.winner = "";
-    this.zone = { owner: -1, progress: 0, contested: false };
-    this.flags = this.map.bases.map(([x, z], team) => ({
-      team,
-      x,
-      y: 0,
-      z,
-      home: true,
-      carrier: null,
-      returnAt: 0,
-    }));
     this.pickups = this.map.pickups.map(([x, z, type], id) => ({
       id,
       x,
@@ -229,7 +224,6 @@ export class Simulation {
     p.nextPlayerAction = this.time + 1;
     const wasAlive = p.health > 0;
     const wasSpectating = p.spectating;
-    this.dropFlag(p);
     this.inputs.delete(id);
     this.projectiles = this.projectiles.filter(b => b.owner !== id);
     p.reloadEnd = 0;
@@ -248,23 +242,11 @@ export class Simulation {
       Object.assign(p, p.nextProfile);
       delete p.nextProfile;
     }
-    const teams = mode(this.options.mode).teams;
-    let spots = this.map.spawns.map(([x, z]) => ({ x, y: 0, z }));
-    if (teams)
-      spots = spots.filter((s) => (p.team === 0 ? s.x <= 0 : s.x >= 0));
-    const enemies = [...this.players.values()].filter(
-      (e) => e !== p && e.health > 0 && (!teams || e.team !== p.team),
-    );
-    spots.sort((a, b) => {
-      const score = (s) => Math.min(100, ...enemies.map((e) => dist(s, e)));
-      return score(b) - score(a);
-    });
-    const spot = spots[
-      Math.floor(this.random() * Math.min(2, spots.length))
-    ] || { x: 0, y: 0, z: 0 };
+    const spot=this.safeSpawn(p);
+    if(!spot){p.health=0;p.spawnRequested=true;p.respawnAt=this.time+.5;return;}
     Object.assign(p, spot, {
       vy: 0,
-      yaw: Math.atan2(spot.x, spot.z),
+      yaw: spot.yaw,
       pitch: 0,
       grounded: true,
       jumpLatch: false,
@@ -289,6 +271,7 @@ export class Simulation {
     });
     beginEquip(p,this.time);
     this.inputs.delete(p.id);
+    p.brain = null;
     p.botPath = [];
     p.botThink = 0;
     p.botTarget = null;
@@ -316,6 +299,7 @@ export class Simulation {
       }
       const previousPosition = { x: p.x, y: p.y, z: p.z };
       movePlayer(p, input, this.map, dt);
+      p.vx=(p.x-previousPosition.x)/dt;p.vz=(p.z-previousPosition.z)/dt;
       p.moving = Math.hypot(p.x - previousPosition.x, p.z - previousPosition.z) > 0.001;
       p.ack = Math.max(p.ack, input.seq || 0);
       p.aim = !!input.aim;
@@ -369,7 +353,7 @@ export class Simulation {
       this.collect(p);
     }
     this.updateProjectiles(dt);
-    this.objectives(dt);
+
     if (this.remaining <= 0) this.finish();
     const m = mode(this.options.mode);
     if (
@@ -417,7 +401,7 @@ export class Simulation {
   shotPath(p, w, directionOverride = null) {
     const eye = { x: p.x, y: p.y + EYE, z: p.z },
       aim = directionOverride || direction(p.yaw, p.pitch);
-    let distance = wallDistance(this.map, eye, aim, w.range);
+    let distance = wallDistance(this.map, eye, aim, (w.flightRange??w.range));
     for (const target of this.players.values())
       if (
         target !== p &&
@@ -461,6 +445,7 @@ export class Simulation {
   fire(p, burst = false) {
     const w = gun(p);
     if (p.ammo[p.slot] <= 0 || p.reloadEnd) return;
+    if(!burst)p.shotGroup=++this.shotId;
     p.ammo[p.slot]--;
     p.shieldUntil = 0;
     const accuracy = p.accuracyState[p.slot];
@@ -494,6 +479,7 @@ export class Simulation {
       const b = {
         id: ++this.projectileId,
         owner: p.id,
+        shotId:p.shotGroup,
         weapon: w.id,
         kind: "bolt",
         ...origin,
@@ -502,9 +488,9 @@ export class Simulation {
         vz: path.d.z * w.boltSpeed,
         gravity: w.gravity,
         damage: w.damage,
-        range: w.range,
+        range: w.flightRange??w.range,
         born: this.time,
-        fuse: w.range / w.boltSpeed,
+        fuse: (w.flightRange??w.range) / w.boltSpeed,
         travelled: 0,
         popper: false,
       };
@@ -540,6 +526,7 @@ export class Simulation {
     this.projectiles.push({
       id: ++this.projectileId,
       owner: p.id,
+      shotId:popper?++this.shotId:p.shotGroup,
       weapon: popper ? "popper" : w.id,
       kind: "shell",
       ...origin,
@@ -548,9 +535,9 @@ export class Simulation {
       vz: d.z * speed,
       gravity: popper ? 13 : w.gravity,
       damage: popper ? 150 : w.damage,
-      range: w.range,
+      range: w.flightRange??w.range,
       born: this.time,
-      fuse: popper ? 2.5 : w.range / w.boltSpeed,
+      fuse: popper ? 2.5 : (w.flightRange??w.range) / w.boltSpeed,
       travelled: 0,
       popper,
       bounces: 0,
@@ -604,7 +591,7 @@ export class Simulation {
           )
             continue;
           const t = rayEgg(b, d, p);
-          if (t < distance) {
+          if (Number.isFinite(t) && t <= distance + 1e-9 && t <= length + 1e-9) {
             distance = t;
             victim = p;
           }
@@ -624,7 +611,7 @@ export class Simulation {
               attacker,
               b.damage * hitFactor,
               w.name,
-              precision,
+              precision, b.shotId,
             );
           }
           this.emit("impact", {
@@ -687,22 +674,26 @@ export class Simulation {
         (b.popper ? 150 : (b.damage ?? weapon(b.weapon).damage)) *
           (1 - distance / (radius * 1.2)) *
           (p === attacker ? 0.55 : 1),
-        b.popper ? "Popper" : "Thumper",
+        b.popper ? "Popper" : "Thumper", false, b.shotId,
       );
     }
   }
-  damage(victim, attacker, amount, source, precision = false) {
+  damage(victim, attacker, amount, source, precision = false, shotId = null) {
     if (victim.health <= 0 || this.time < victim.shieldUntil) return;
     const applied = Math.min(victim.health, amount);
     victim.health = Math.max(0, victim.health - amount);
     victim.lastDamage = this.time;
+    if(source!=='Storm'||this.time>=(victim.stormFeedbackAt||0)){
+    if(source==='Storm')victim.stormFeedbackAt=this.time+.5;
     this.emit("hit", {
       player: attacker?.id,
       target: victim.id,
-      amount: Math.round(applied),
+      amount: applied, shotId,
+      sourceX:attacker?.x, sourceY:attacker?.y, sourceZ:attacker?.z,
       x: victim.x, y: victim.y + 2.35, z: victim.z,
       precision,
     });
+    }
     if (victim.health > 0) return;
     victim.killerId = attacker && attacker !== victim ? attacker.id : null;
     victim.deaths++;
@@ -711,7 +702,7 @@ export class Simulation {
     victim.spawnRequested = false;
     victim.reloadEnd = 0;
     victim.burstLeft = 0;
-    this.dropFlag(victim);
+
     if (attacker && attacker !== victim) {
       attacker.kills++;
       attacker.streak++;
@@ -751,95 +742,6 @@ export class Simulation {
       this.emit("pickup", { player: p.id, kind: item.type });
     }
   }
-  dropFlag(p) {
-    if (p.crown === null) return;
-    const f = this.flags[p.crown];
-    if (f) {
-      Object.assign(f, {
-        carrier: null,
-        x: p.x,
-        y: p.y,
-        z: p.z,
-        home: false,
-        returnAt: this.time + 18,
-      });
-    }
-    p.crown = null;
-  }
-  resetFlag(f) {
-    const [x, z] = this.map.bases[f.team];
-    Object.assign(f, { x, y: 0, z, home: true, carrier: null, returnAt: 0 });
-  }
-  objectives(dt) {
-    if (this.options.mode === "capture") {
-      for (const f of this.flags) {
-        if (f.carrier) {
-          const p = this.players.get(f.carrier);
-          if (p) {
-            f.x = p.x;
-            f.y = p.y;
-            f.z = p.z;
-          }
-        } else if (!f.home && this.time >= f.returnAt) this.resetFlag(f);
-      }
-      for (const p of this.players.values()) {
-        if (p.health <= 0) continue;
-        const own = this.flags[p.team],
-          other = this.flags[1 - p.team];
-        if (!own.home && !own.carrier && dist(p, own) < 1.7) {
-          this.resetFlag(own);
-          p.points += 30;
-          this.emit("notice", { text: p.name + " returned the crown" });
-        }
-        if (!other.carrier && dist(p, other) < 1.7) {
-          other.carrier = p.id;
-          other.home = false;
-          p.crown = other.team;
-          p.shieldUntil = 0;
-          this.emit("notice", { text: p.name + " took the crown" });
-        }
-        const [bx, bz] = this.map.bases[p.team];
-        if (
-          p.crown !== null &&
-          own.home &&
-          Math.hypot(p.x - bx, p.z - bz) < 2
-        ) {
-          this.scores[p.team]++;
-          p.points += 200;
-          this.resetFlag(other);
-          p.crown = null;
-          this.emit("notice", { text: p.name + " captured a crown!" });
-        }
-      }
-    }
-    if (this.options.mode === "control") {
-      const [x, z, y] = this.map.zone,
-        inside = [...this.players.values()].filter(
-          (p) =>
-            p.health > 0 &&
-            Math.hypot(p.x - x, p.z - z) < 5.5 &&
-            Math.abs(p.y - y) < 3,
-        ),
-        teams = new Set(inside.map((p) => p.team));
-      this.zone.contested = teams.size > 1;
-      if (teams.size === 1) {
-        const team = [...teams][0];
-        if (this.zone.owner !== team) {
-          this.zone.progress += dt / 3;
-          if (this.zone.progress >= 1) {
-            this.zone.owner = team;
-            this.zone.progress = 0;
-            this.emit("notice", {
-              text: (team === 0 ? "Blue" : "Coral") + " took the sunny side",
-            });
-          }
-        } else {
-          this.scores[team] += dt;
-          for (const p of inside) p.points += dt * 5;
-        }
-      } else this.zone.progress = Math.max(0, this.zone.progress - dt / 3);
-    }
-  }
   finish() {
     if (this.phase !== "playing") return;
     this.phase = "results";
@@ -861,85 +763,53 @@ export class Simulation {
     }
     this.emit("finish", { winner: this.winner });
   }
-  botInput(p) {
-    const enemies = [...this.players.values()].filter(
-      (e) =>
-        e !== p &&
-        e.health > 0 &&
-        (!mode(this.options.mode).teams || e.team !== p.team),
-    );
-    enemies.sort((a, b) => dist(p, a) - dist(p, b));
-    let target = enemies[0];
-    let goal = target || { x: 0, z: 0 };
-    if (this.options.mode === "capture") {
-      const f = this.flags[p.crown === null ? 1 - p.team : p.team];
-      goal = { x: f.x, z: f.z };
-    } else if (
-      this.options.mode === "control" &&
-      Math.hypot(p.x - this.map.zone[0], p.z - this.map.zone[1]) > 4
-    )
-      goal = { x: this.map.zone[0], z: this.map.zone[1] };
-    if (p.botThink <= this.time) {
-      p.botPath = this.nav.path(p, goal);
-      p.botThink = this.time + 0.9 + this.random() * 0.4;
+  botInput(p) { return tacticalBotInput(this,p); }
+  uniqueBotName(base) {
+    let name=base,i=2;while([...this.players.values()].some(p=>nameKey(p.name)===nameKey(name)))name=base+' '+i++;
+    return name;
+  }
+  admitPlayer(id,profile) {
+    if(this.players.has(id))return this.players.get(id);
+    if([...this.players.values()].some(p=>!p.bot&&nameKey(p.name)===nameKey(profile.name)))return null;
+    for(const p of this.players.values())if(p.bot&&nameKey(p.name)===nameKey(profile.name))p.name=this.uniqueBotName(p.name+' Bot');
+    const capacity=this.options.capacity||8;
+    if(this.players.size>=capacity){const bot=[...this.players.values()].find(p=>p.bot);if(!bot)return null;this.players.delete(bot.id);this.inputs.delete(bot.id);}
+    return this.addPlayer(id,profile);
+  }
+  leavePlayer(id) { this.removePlayer(id); if(this.phase==='playing')this.addBots(); }
+  safeSpawn(p) {
+    const living=[...this.players.values()].filter(e=>e!==p&&e.health>0&&!e.spectating);
+    const candidates=this.map.spawns.map(([x,z])=>({x,z,y:surfaceAt(this.map,x,z)}));
+    const spacing=Math.max(5,this.map.size/12);
+    for(let x=-this.map.size+4;x<this.map.size-3;x+=spacing)for(let z=-this.map.size+4;z<this.map.size-3;z+=spacing)candidates.push({x,z,y:surfaceAt(this.map,x,z)});
+    const teams=mode(this.options.mode).teams;
+    let best=null,score=-Infinity;
+    for(const q of candidates){
+      if(!canStand(this.map,q,.8)||living.some(e=>dist(q,e)<7))continue;
+      let clear=0,yaw=0;
+      for(let i=0;i<12;i++){const a=i*Math.PI/6,d=wallDistance(this.map,{...q,y:q.y+EYE},direction(a),10);if(d>clear){clear=d;yaw=a;}}
+      if(clear<4)continue;
+      const nearest=Math.min(45,...living.map(e=>dist(q,e)));
+      const value=nearest+clear+(teams&&((q.x<0)===(p.team===0))?8:0)+this.random()*3;
+      if(value>score){score=value;best={...q,yaw};}
     }
-    while (
-      p.botPath?.length &&
-      Math.hypot(p.botPath[0].x - p.x, p.botPath[0].z - p.z) < 0.55
-    )
-      p.botPath.shift();
-    let waypoint = p.botPath?.[0] || goal,
-      moveX = waypoint.x - p.x,
-      moveZ = waypoint.z - p.z,
-      moveLength = Math.hypot(moveX, moveZ),
-      yaw = p.yaw,
-      pitch = 0,
-      fire = false;
-    if (target) {
-      const to = {
-          x: target.x - p.x,
-          y: target.y + 0.9 - p.y - EYE,
-          z: target.z - p.z,
-        },
-        distance = Math.hypot(to.x, to.y, to.z),
-        d = { x: to.x / distance, y: to.y / distance, z: to.z / distance };
-      const visible =
-        wallDistance(this.map, { x: p.x, y: p.y + EYE, z: p.z }, d, distance) >=
-        distance - 0.4;
-      if (visible && distance < 65) {
-        const aimError = (4 - this.options.difficulty) * 0.018;
-        yaw =
-          Math.atan2(-to.x, -to.z) +
-          Math.sin(this.time * 2.1 + p.team) * aimError;
-        pitch = Math.atan2(to.y, Math.hypot(to.x, to.z));
-        fire = this.time % 1.3 < 0.3 + this.options.difficulty * 0.21;
-        if (distance < 8) {
-          moveX = -to.z;
-          moveZ = to.x;
-          moveLength = Math.hypot(moveX, moveZ);
-        }
-      } else yaw = Math.atan2(-moveX, -moveZ);
-    } else yaw = Math.atan2(-moveX, -moveZ);
-    if (moveLength > 0) {
-      moveX /= moveLength;
-      moveZ /= moveLength;
-    }
-    return {
-      yaw,
-      pitch,
-      forward: -Math.sin(yaw) * moveX - Math.cos(yaw) * moveZ,
-      strafe: Math.cos(yaw) * moveX - Math.sin(yaw) * moveZ,
-      fire,
-      aim: gun(p).optic === "scope",
-      reload: p.ammo[p.slot] === 0,
-      jump: this.time % 2.2 < 0.04,
-      popper: false,
-      slot: p.reserve[0] === 0 && p.ammo[0] === 0 ? 1 : 0,
-    };
+    return best;
+  }
+  checkpoint() {
+    const skip=new Set(['map','nav','random','players','inputs','events']);
+    const data=Object.fromEntries(Object.entries(this).filter(([key,value])=>!skip.has(key)&&typeof value!=='function'));
+    return structuredClone({...data,players:[...this.players.values()],events:this.events,randomState:this.random.state()});
+  }
+  restore(checkpoint) {
+    const {players,randomState,...fields}=structuredClone(checkpoint);
+    Object.assign(this,fields);this.players=new Map(players.map(p=>[p.id,p]));this.inputs=new Map();
+    this.map=getMap(this.options.map);this.nav=navigation(this.map);this.random=rng(1);this.random.restore(randomState);
+    for(const p of this.players.values()){p.fireLatch=false;p.popperLatch=false;p.lastInput=this.time;}
+    return this;
   }
   snapshot() {
     const keys = [
-      "id",
+      "id", "joinedOrder", "vx", "vz", "place",
       "name",
       "weapon",
       "color",
@@ -991,7 +861,6 @@ export class Simulation {
       remaining: this.remaining,
       scores: this.scores.map((v) => Math.floor(v)),
       winner: this.winner,
-      zone: { ...this.zone },
       players: [...this.players.values()].map((p) => ({
         ...Object.fromEntries(keys.map((k) => [k, Array.isArray(p[k]) ? [...p[k]] : p[k]])),
         shotSpread: p.accuracyState[p.slot]?.spread ?? gun(p).spread * (p.aim ? gun(p).aimSpread : 1),
@@ -1010,9 +879,7 @@ export class Simulation {
         vz: b.vz,
       })),
       pickups: this.pickups.map((p) => ({ ...p })),
-      flags: this.flags.map((f) => ({ ...f })),
       events: this.events.slice(-60),
     };
   }
 }
-

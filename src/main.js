@@ -10,7 +10,7 @@ import { CONTROLS, normalizeBindings, validBinding, bindingDown, bindingLabel } 
 import { RELEASES, RELEASE } from "./releases.js";
 import { UpdateWatcher } from "./updates.js";
 import {
-  WEAPONS,
+  WEAPONS, BOT_DIFFICULTIES, nameKey,
   MODES,
   COLORS,
   HATS, PATTERNS, FINISHES, EYEWEAR, NO_EYEWEAR,
@@ -53,7 +53,7 @@ const read = (key, fallback) => {
     } catch {}
   };
 let profile = safeProfile(
-  read("yolk-profile", { name: "Player", weapon: "sprinter", hat: 1 }),
+  read("yolk-profile", { name: "Player", weapon: "sprinter", hat: 0, eyewear: NO_EYEWEAR }),
 );
 const settings = {
   ...SLIDER_DEFAULTS,
@@ -128,9 +128,10 @@ const touch = {
   popper: false,
 };
 $("#app").innerHTML =
-  `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"><i class="crosshair-arm left"></i><i class="crosshair-arm right"></i><i class="crosshair-arm top"></i><i class="crosshair-arm bottom"></i><span class="center-dot" id="center-dot"></span></div><div id="hit-marker" class="hit-marker" hidden></div><div class="hit-flash" id="damage"></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow" id="spawn-heading">SHELL DOWN</div><h2 id="spawn-status">Ready when you are</h2><button class="primary" id="spawn-button" data-action="enter-yard">Respawn</button><p class="small" id="respawn-by"></p><p class="small" id="spectator-stats"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="health-label">SHELL <b id="health">100</b></div><div class="health-bar"><span id="health-fill"></span></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div id="spectate-panel" hidden><div class="eyebrow">SPECTATING</div><p id="spectate-info"></p><div class="split-actions"><button data-action="spectate-prev">← Previous</button><button data-action="spectate-next">Next →</button><button data-action="rejoin">Join game</button></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
+  `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"><i class="crosshair-arm left"></i><i class="crosshair-arm right"></i><i class="crosshair-arm top"></i><i class="crosshair-arm bottom"></i><span class="center-dot" id="center-dot"></span></div><div id="hit-marker" class="hit-marker" hidden></div><div class="hit-flash" id="damage"></div><div id="damage-directions" aria-hidden="true"></div><div id="round-banner" role="status" hidden></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow" id="spawn-heading">SHELL HEALTH DEPLETED</div><h2 id="spawn-status">Ready when you are</h2><button class="primary" id="spawn-button" data-action="enter-yard">Respawn</button><p class="small" id="respawn-by"></p><p class="small" id="spectator-stats"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="health-label">SHELL HEALTH <b id="health">100</b></div><div class="health-bar"><span id="health-fill"></span></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div id="spectate-panel" hidden><div class="eyebrow">SPECTATING</div><p id="spectate-info"></p><div class="split-actions"><button data-action="spectate-prev">← Previous</button><button data-action="spectate-next">Next →</button><button data-action="rejoin">Join game</button></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
 const dialog = $("#dialog");
-const royaleUI = new RoyaleUI(id=>view.weaponPreview(id));
+const royaleUI = new RoyaleUI(item=>view.itemPreview(item));
+let resultAt=0;const damageSources=[];
 let matchRequest=0, autoQueue=false, swapSlot=-1;
 const chat = new ChatPanel($("#app"), {
   context: () => ({state, localId, preference:settings.chatMode, connected:!!net?.ready && !net.closed && screen!=="menu", host:!!net?.isHost, enabled:net?.chatEnabled, roomMuted:net?.chatMuted||[]}),
@@ -146,14 +147,15 @@ const chat = new ChatPanel($("#app"), {
     Object.assign(touch,{x:0,y:0,jump:false,fire:false,aim:false,reload:false,popper:false,sprint:false,interact:false});
     if(document.pointerLockElement)document.exitPointerLock();
   },
-  close: () => {
+  close: (controls) => {
     keys.clear();queuedActions.clear();
+    if(controls&&screen==="game"){pauseMenu();return;}
     if(net?.ready && !net.closed && screen==="game" && state?.phase==="playing" && !dialog.open)void resume();
   },
 });
 function remember() {
   save("yolk-profile", profile);
-  if (sim) sim.setProfile(localId, profile);
+  if (sim) {if(sim.setProfile(localId, profile)===false)renamePrompt();}
   else net?.profile(profile);
 }
 function titleBar() {
@@ -194,6 +196,7 @@ function modal(title, body, type = "generic") {
   if(type==="error")sound.cue("ui-error");
   bindingCapture = null;
   dialogType = type;
+  dialog.dataset.kind=type;
   keys.clear();
   scoreHeld = false;
   queuedActions.clear();
@@ -205,6 +208,8 @@ function modal(title, body, type = "generic") {
   if (!dialog.open) dialog.showModal();
 }
 function closeDialog() {
+  if(dialogType==='rename'){toast('Choose an available name to continue, or leave the match.');return;}
+  if(['royale-inventory','royale-map'].includes(dialogType)){void resume();return;}
   sound.cue('ui-back');
   bindingCapture = null;
   dialog.close();
@@ -232,7 +237,7 @@ function settingsMenu() {
       )
       .join(
         "",
-      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Chat & privacy</h3><div class="setting-row"><label for="chatMode" class="setting-label">Chat messages</label><select id="chatMode" data-setting="chatMode"><option value="all" ${settings.chatMode === "all" ? "selected" : ""}>Filtered messages</option><option value="quick" ${settings.chatMode === "quick" ? "selected" : ""}>Quick messages only</option><option value="off" ${settings.chatMode === "off" ? "selected" : ""}>Off</option></select></div><p class="small">The safety filter stays on in every room. Use Chat → Players & safety to mute or report a player.</p><h3>Keybinds</h3><p class="small" id="binding-help" role="status">Choose a binding, then press a key or mouse button. Esc cancels; Delete clears. Esc always opens the menu.</p><div class="keybind-list">${CONTROLS.map(([id,label]) => `<div class="keybind-row"><span>${label}</span>${settings.keybinds[id].map((code, slot) => `<button data-bind="${id}" data-bind-slot="${slot}" aria-label="Bind ${label} ${slot ? 'alternate' : 'primary'}">${bindingLabel(code)}</button>`).join('')}</div>`).join('')}</div><button data-reset-bindings style="margin-top:16px">Reset default keybinds</button><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
+      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Chat & privacy</h3><div class="setting-row"><label for="chatMode" class="setting-label">Chat messages</label><select id="chatMode" data-setting="chatMode"><option value="all" ${settings.chatMode === "all" ? "selected" : ""}>Filtered messages</option><option value="quick" ${settings.chatMode === "quick" ? "selected" : ""}>Quick messages only</option><option value="off" ${settings.chatMode === "off" ? "selected" : ""}>Off</option></select></div><p class="small">The safety filter stays on in every room. Use Pause → Player controls to mute or report a player.</p><h3>Keybinds</h3><p class="small" id="binding-help" role="status">Choose a binding, then press a key or mouse button. Esc cancels; Delete clears. Esc always opens the menu.</p><div class="keybind-list">${CONTROLS.map(([id,label]) => `<div class="keybind-row"><span>${label}</span>${settings.keybinds[id].map((code, slot) => `<button data-bind="${id}" data-bind-slot="${slot}" aria-label="Bind ${label} ${slot ? 'alternate' : 'primary'}">${bindingLabel(code)}</button>`).join('')}</div>`).join('')}</div><button data-reset-bindings style="margin-top:16px">Reset default keybinds</button><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
     "settings",
   );
 }
@@ -267,7 +272,7 @@ function customizeMenu() {
 function helpMenu() {
   modal(
     "How to play",
-    `<p>Move, aim, and tag the other eggs. You return after 3 seconds when your shell runs out. Health recovers after 6 seconds without a hit.</p><table class="controls-table">${[
+    `<p>Move, aim, and tag the other eggs. You return after 3 seconds when your shell health runs out. Health recovers after 6 seconds without a hit.</p><table class="controls-table">${[
       ...CONTROLS.map(([id, label]) => [controlLabel(id), label]),
       ["Mouse", "Look"],
       ["Escape", "Menu"],
@@ -281,7 +286,7 @@ function helpMenu() {
 }
 function ruleSummary(o) {
   if(o.mode==='royale')return `${o.capacity} contestants · ${o.fill?"Fill with bots":o.bots+" bots"} · ${o.storm==='quick'?'Quick':'Normal'} storm · One life`;
-  return `${o.minutes} min · ${o.scoreLimit} ${o.mode === "capture" ? "captures" : o.mode === "control" ? "points" : "eliminations"} to win · ${o.bots} bots · ${["Relaxed", "Regular", "Sharp"][o.difficulty-1]}`;
+  return `${o.minutes} min · ${o.scoreLimit} eliminations to win · ${o.bots} bots · ${BOT_DIFFICULTIES[o.difficulty-1]}`;
 }
 function setupMenu(editing = false, draft = null) {
   if (editing && (!sim || state?.phase === "playing")) return;
@@ -289,11 +294,11 @@ function setupMenu(editing = false, draft = null) {
   const nextRound = editing && state.phase === "results";
   const select = (id,label,items,value) => `<label>${label}<select class="field" id="setup-${id}">${items.map(([key,text])=>`<option value="${key}" ${key === value ? "selected" : ""}>${text}</option>`).join("")}</select></label>`;
   modal(nextRound ? "Set up the next round" : editing ? "Match settings" : "Create Match",
-    `<p>${editing ? "The host sets the rules for everyone. Changes apply before the next round starts." : "Choose your arena, invite friends, and add bots to fill the match."}</p><div class="form-grid match-rules">${select("visibility","VISIBILITY",[["private","Private · invite code only"],["public","Public · listed for everyone"]],o.visibility || net?.visibility || "private")}${select("map","ARENA",(o.mode==='royale'?[getMap('sunnybreak')]:MAPS).map(m=>[m.id,m.name]),o.map)}${select("mode","GAME MODE",MODES.map(m=>[m.id,m.name]),o.mode)}${select("bots","BOTS",Array.from({length:o.mode==='royale'?16:8},(_,n)=>[n,String(n)]),o.bots)}${select("difficulty","BOT DIFFICULTY",[[1,"Relaxed"],[2,"Regular"],[3,"Sharp"]],o.difficulty)}<label>TIME LIMIT (MINUTES)<input class="field" id="setup-minutes" type="number" min="1" max="60" step="1" required value="${o.minutes}"></label><label><span id="target-label">${targetLabel(o.mode)}</span><input class="field" id="setup-scoreLimit" type="number" min="1" max="1000" step="1" required value="${o.scoreLimit}"></label>${select("capacity","ROYALE CONTESTANTS",[[2,"2"],[4,"4"],[8,"8"],[12,"12"],[16,"16"]],o.capacity||16)}${select("storm","STORM PACE",[["normal","Normal · about 10 minutes"],["quick","Quick · about 6 minutes"]],o.storm||"normal")}${select("fill","FILL EMPTY SEATS",[["off","Use chosen bot count"],["on","Fill to contestant limit"]],o.fill?"on":"off")}</div><p class="hint">${o.mode==='royale'?'Last egg standing wins. Two contestants minimum. All loot is found on Sunnybreak.':'The round ends at the time limit or score target.'} ${o.mode==='royale'?'Late arrivals spectate until the next round.':'Up to 8 players including bots; friends replace bots when full.'}</p><button class="primary" style="margin-top:22px" data-action="${nextRound ? "apply-rematch" : editing ? "save-match-settings" : "create-room"}">${nextRound ? "START NEXT ROUND" : editing ? "SAVE SETTINGS" : "CREATE MATCH"}</button>`, "setup");
+    `<p>${editing ? "The host sets the rules for everyone. Changes apply before the next round starts." : "Choose your arena, invite friends, and add bots to fill the match."}</p><div class="form-grid match-rules">${select("visibility","VISIBILITY",[["public","Public · listed for everyone"],["private","Private · invite code only"]],o.visibility || net?.visibility || "public")}${select("map","ARENA",(o.mode==='royale'?[getMap('sunnybreak')]:MAPS).map(m=>[m.id,m.name]),o.map)}${select("mode","GAME MODE",MODES.map(m=>[m.id,m.name]),o.mode)}${select("bots","BOTS",Array.from({length:o.mode==='royale'?16:8},(_,n)=>[n,String(n)]),o.bots)}${select("difficulty","BOT DIFFICULTY",BOT_DIFFICULTIES.map((name,i)=>[i+1,name]),o.difficulty)}<label>TIME LIMIT (MINUTES)<input class="field" id="setup-minutes" type="number" min="1" max="60" step="1" required value="${o.minutes}"></label><label><span id="target-label">${targetLabel(o.mode)}</span><input class="field" id="setup-scoreLimit" type="number" min="1" max="1000" step="1" required value="${o.scoreLimit}"></label>${select("capacity","ROYALE CONTESTANTS",[[2,"2"],[4,"4"],[8,"8"],[12,"12"],[16,"16"]],o.capacity||16)}${select("storm","STORM PACE",[["normal","Normal"],["quick","Quick"]],o.storm||"normal")}${select("fill","FILL EMPTY SEATS",[["off","Use chosen bot count"],["on","Fill to contestant limit"]],o.fill?"on":"off")}</div><p class="hint">${o.mode==='royale'?'Last egg standing wins. Two contestants minimum. All loot is found on Sunnybreak.':'The round ends at the time limit or score target.'} ${o.mode==='royale'?'New players take an available bot’s place. A room full of players cannot be joined.':'Up to 8 players including bots; friends replace bots when full.'}</p><button class="primary" style="margin-top:22px" data-action="${nextRound ? "apply-rematch" : editing ? "save-match-settings" : "create-room"}">${nextRound ? "START NEXT ROUND" : editing ? "SAVE SETTINGS" : "CREATE MATCH"}</button>`, "setup");
   if(editing && !net) $("#setup-visibility").disabled=true;
   const royale=o.mode==='royale';
-  for(const key of ['minutes','scoreLimit'])$(`#setup-${key}`).closest('label').hidden=royale;
-  for(const key of ['capacity','storm','fill'])$(`#setup-${key}`).closest('label').hidden=!royale;
+  for(const key of ['minutes','scoreLimit']){$(`#setup-${key}`).closest('label').hidden=royale;$(`#setup-${key}`).disabled=royale;}
+  for(const key of ['capacity','storm'])$(`#setup-${key}`).closest('label').hidden=!royale;
   $('#setup-map').disabled=royale;
   $('#setup-mode').onchange=e=>{
     const visibility=$('#setup-visibility').value;
@@ -303,7 +308,7 @@ function setupMenu(editing = false, draft = null) {
 
 }
 function getOptions() {
-  if (![...document.querySelectorAll('#dialog input[type="number"]')].every(input=>input.reportValidity())) return null;
+  if (![...document.querySelectorAll('#dialog input[type="number"]')].every(input=>input.disabled||input.reportValidity())) return null;
   return matchOptions({...Object.fromEntries(["map","mode","bots","difficulty","minutes","scoreLimit","capacity","storm","fill"].map(key=>[key,$(`#setup-${key}`).value])),fill:$("#setup-fill").value==='on'});
 }
 function saveMatchSettings(start = false) {
@@ -316,7 +321,7 @@ function saveMatchSettings(start = false) {
     const old=sim;sim=next.mode==='royale'?new RoyaleSimulation(next):new Simulation(next);
     for(const p of old.players.values())if(!p.bot)sim.addPlayer(p.id,p);sim.round=old.round;sim.phase=old.phase;
   }else if(!sim.configure(next))return;
-  if(net)net.maxConnections=next.mode==='royale'?19:7;
+  if(net)net.maxConnections=(next.capacity||8)-1;
   if(autoQueue&&next.mode==='royale'&&!start)sim.queueEnds=sim.time+30;
   options=sim.options;
   net?.setVisibility($("#setup-visibility").value);
@@ -353,26 +358,46 @@ function joinMenu(code = "") {
     if (e.key === "Enter") joinRoom();
   };
 }
+function renamePrompt(){
+  if(dialogType==='rename'&&dialog.open){
+    const button=dialog.querySelector('[data-action="save-room-name"]');button.disabled=false;button.textContent='USE THIS NAME';
+    toast('That name is still taken. Choose another one.');return;
+  }
+  modal('That name is already in this match',`<p>Choose an unused player name to continue.</p><label for="room-name">Player name</label><input id="room-name" class="field" maxlength="18" value="${esc(profile.name)}" autocomplete="off"><button class="primary" data-action="save-room-name">USE THIS NAME</button><button class="plain" data-action="leave">Leave match</button>`,'rename');
+  $('#room-name').focus();$('#room-name').select();$('#room-name').onkeydown=e=>{if(e.key==='Enter')actions['save-room-name']();};
+}
+function roundIntro(){
+  if(!state)return;
+  dialog.close();dialogType='';paused=true;keys.clear();queuedActions.clear();input.fire=input.aim=false;
+  const p=state.players.find(p=>p.id===localId),ranked=state.players.filter(p=>!p.spectating||p.place).sort((a,b)=>b.kills-a.kills||a.deaths-b.deaths||b.points-a.points);
+  const place=state.royale?p?.place:p?1+ranked.filter(other=>other.kills>p.kills||other.kills===p.kills&&other.deaths<p.deaths).length:0;
+  const win=state.royale?state.royale.winnerId===localId:mode(state.options.mode).teams?state.scores[p?.team]>state.scores[1-p?.team]:place===1;
+  const title=state.royale?(win?'VICTORY YOLK ROYALE':place?'YOU PLACED #'+place:'ROUND COMPLETE'):mode(state.options.mode).teams?(state.scores[0]===state.scores[1]?'TEAM DRAW':win?'TEAM VICTORY':'ROUND COMPLETE'):'YOU PLACED #'+place;
+  const banner=$('#round-banner');banner.className=win?'victory':'placement';banner.innerHTML=`<span>${state.royale?'LAST EGG STANDING':mode(state.options.mode).name.toUpperCase()}</span><strong>${esc(title)}</strong><p>${!state.royale&&place?'YOUR PLACE #'+place+' · ':''}${p?.kills||0} ELIMINATIONS</p>`;banner.hidden=false;
+  if(!state.royale)sound.cue(win?'victory':'round-start');
+  resultAt=performance.now()+4200;
+}
 function callbacks() {
   return {
     getChatState: () => sim ? sim.snapshot() : state,
     onChat: message => chat.receive(message),
     onChatStatus: result => chat.feedback(result),
     onChatReport: report => {
-      const text=`${report.reporter} reported ${report.target}: ${report.reason}. Open Chat → Players & safety to review.`;
+      const text=`${report.reporter} reported ${report.target}: ${report.reason}. Open Pause → Player controls to review.`;
       chat.status.textContent=text;toast(text);
     },
-    onJoin: (id, p) => {
-      if (!sim) return false;
-      if(sim.options.mode==='royale')return !!sim.addPlayer(id,p);
-      if (sim.players.size >= 8) {
-        const bot = [...sim.players.values()].find((p) => p.bot);
-        if (bot) sim.removePlayer(bot.id);
-        else return false;
-      }
-      return !!sim.addPlayer(id, p);
+    getCheckpoint:()=>sim?.checkpoint(),
+    onHost:(checkpoint,departed)=>{
+      sim=(checkpoint.options.mode==='royale'?new RoyaleSimulation(checkpoint.options):new Simulation(checkpoint.options)).restore(checkpoint);
+      for(const id of departed)sim.leavePlayer(id);
+      state=sim.snapshot();localId=net.id;pendingInputs=[];predicted=null;
+      const me=sim.players.get(localId);if(me){input.slot=me.slot;input.yaw=me.yaw;input.pitch=me.pitch;}
+      autoQueue=!!sim.queueEnds;lobbyRenderKey='';handleState();
     },
-    onLeave: (id) => sim?.removePlayer(id),
+    onNameRequired:()=>renamePrompt(),
+    onNameAccepted:()=>{if(dialogType==='rename'){dialog.close();dialogType='';if(screen==='game')void resume();}},
+    onJoin: (id, p) => !!sim?.admitPlayer(id,p),
+    onLeave: (id) => sim?.leavePlayer(id),
     onPlayerAction: (id, action) => sim?.playerAction(id, action),
     onInput: (id, i) => sim?.setInput(id, i),
     onProfile: (id, p) => sim?.setProfile(id, p),
@@ -423,7 +448,7 @@ async function createRoom(preset = null, visibilityOverride = null, automatic = 
   const next = preset?.mode ? matchOptions(preset) : getOptions();
   if (!next) return;
   options=next;autoQueue=automatic;
-  const visibility=visibilityOverride||$('#setup-visibility')?.value||'private';
+  const visibility=visibilityOverride||$('#setup-visibility')?.value||'public';
   beginSim();
   busy = true;
   modal(
@@ -432,7 +457,7 @@ async function createRoom(preset = null, visibilityOverride = null, automatic = 
     "connecting",
   );
   const attempt = new Network(callbacks());
-  attempt.maxConnections=options.mode==='royale'?19:7;
+  attempt.maxConnections=(options.capacity||8)-1;
   net = attempt;
   try {
     await attempt.host();
@@ -519,7 +544,7 @@ function renderLobby() {
   if (key === lobbyRenderKey) return;
   lobbyRenderKey = key;
   $("#lobby").innerHTML =
-    `${titleBar()}<section class="panel lobby-panel"><div class="eyebrow">${net?.visibility === "public" ? "PUBLIC" : "PRIVATE"} ROOM</div><h2 style="margin-top:8px">${o.mode==='royale'?'Next stop: Sunnybreak.':'The gang’s all here.'}</h2>${o.mode==='royale'?`<p class="royale-queue">${state.royale?.queueEnds?'EGGSPRESS DEPARTS IN '+Math.max(0,Math.ceil(state.royale.queueEnds-state.time))+'s':'Drop in together. Last egg standing wins.'}</p>`:''}<div class="room-code">${formatCode(net?.code || "--------")}</div><div class="split-actions"><button class="plain" data-action="copy-code">Copy code</button><button class="plain" data-action="copy-link">Copy invite link</button></div><div class="lobby-meta"><strong>${getMap(o.map).name}</strong><span>·</span><span>${mode(o.mode).name}</span></div><div class="roster">${roster.map((p) => `<div class="roster-row"><b><span class="team-dot ${p.team === 1 ? "coral" : ""}"></span>${esc(p.name)}${p.id === localId ? " (you)" : ""}</b><span>${p.bot ? "BOT" : weapon(p.weapon).name}</span>${net?.isHost && p.id !== localId && !p.bot ? `<button data-kick="${esc(p.id)}">Remove</button>` : ""}</div>`).join("")}</div><p class="hint" style="margin-bottom:18px">${net?.isHost ? `${o.bots} bots will fill available spots. Keep this tab open while hosting.` : "Waiting for the host to start. You can choose your loadout while you wait."}</p><p class="hint">${ruleSummary(o)}</p>${net?.isHost ? '<button class="secondary" data-action="match-settings">EDIT MATCH SETTINGS</button>' : ""}${visibilityButton()}<div class="room-bottom">${net?.isHost ? '<button class="primary" data-action="start-match">START MATCH</button>' : '<button class="primary" data-action="loadout">Choose loadout</button>'}<button class="plain" data-action="leave">Leave</button></div></section>`;
+    `${titleBar()}<section class="panel lobby-panel"><div class="eyebrow">${net?.visibility === "public" ? "PUBLIC" : "PRIVATE"} ROOM</div><h2 style="margin-top:8px">${o.mode==='royale'?'Next stop: Sunnybreak.':'The gang’s all here.'}</h2>${o.mode==='royale'?`<p class="royale-queue">${state.royale?.queueEnds?'EGGSPRESS DEPARTS IN '+Math.max(0,Math.ceil(state.royale.queueEnds-state.time))+'s':'Drop in together. Last egg standing wins.'}</p>`:''}<div class="room-code">${formatCode(net?.code || "--------")}</div><div class="split-actions"><button class="plain" data-action="copy-code">Copy code</button><button class="plain" data-action="copy-link">Copy invite link</button></div><div class="lobby-meta"><strong>${getMap(o.map).name}</strong><span>·</span><span>${mode(o.mode).name}</span></div><div class="roster">${roster.map((p) => `<div class="roster-row"><b><span class="team-dot ${p.team === 1 ? "coral" : ""}"></span>${esc(p.name)}${p.id === localId ? " (you)" : ""}</b><span>${p.bot ? "BOT" : weapon(p.weapon).name}</span>${net?.isHost && p.id !== localId && !p.bot ? `<button data-kick="${esc(p.id)}">Remove</button>` : ""}</div>`).join("")}</div><p class="hint" style="margin-bottom:18px">${net?.isHost ? `${o.bots} bots will fill available spots. The next player takes over if the host disconnects.` : "Waiting for the host to start. You can choose your loadout while you wait."}</p><p class="hint">${ruleSummary(o)}</p>${net?.isHost ? '<button class="secondary" data-action="match-settings">EDIT MATCH SETTINGS</button>' : ""}${visibilityButton()}<button class="plain" data-action="chat-controls">Player controls & quick chat</button><div class="room-bottom">${net?.isHost ? '<button class="primary" data-action="start-match">START MATCH</button>' : '<button class="primary" data-action="loadout">Choose loadout</button>'}<button class="plain" data-action="leave">Leave</button></div></section>`;
 }
 function launchRound(){
   if(sim.startRound()===false){toast('Invite another egg or add a bot before launching.');return false;}
@@ -527,6 +552,7 @@ function launchRound(){
 }
 function startLocalMatch() {autoQueue=false;beginSim();launchRound();}
 function enterGame(capture = false) {
+  resultAt=0;$("#round-banner").hidden=true;
   screen = "game";
   $("#menu").hidden = true;
   $("#lobby").hidden = true;
@@ -586,23 +612,16 @@ function playerAction(action) {
 }
 function pauseMenu() {
   if(screen!=='game')return;
-  if(state?.royale){modal('Take a breather',`<p>${net?'The match keeps running while this menu is open.':'The local match is paused.'} One life per round. Eliminated eggs spectate the survivors.</p><button class="primary" data-action="resume">RESUME</button><div class="split-actions"><button data-action="royale-map">Island map</button><button data-action="royale-inventory">Inventory</button><button data-action="settings">Settings</button></div>${net?'<button class="plain" data-action="chat">Chat & player controls</button>':''}${visibilityButton()}<button class="secondary" data-action="leave-confirm">${net?.isHost?'Close room':'Leave match'}</button>`,'pause');return;}
+  if(state?.royale){modal('Take a breather',`<p>${net?'The match keeps running while this menu is open.':'The local match is paused.'} One life per round. Eliminated eggs spectate the survivors.</p><button class="primary" data-action="resume">RESUME</button><div class="split-actions"><button data-action="royale-map">Island map</button><button data-action="royale-inventory">Inventory</button><button data-action="settings">Settings</button></div>${net?'<button class="plain" data-action="chat-controls">Player controls & quick chat</button>':''}${visibilityButton()}<button class="secondary" data-action="leave-confirm">Leave match</button>`,'pause');return;}
 
   modal(
     "Take a breather",
-    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "The local match is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${net ? '<button class="plain" data-action="chat" style="margin-top:12px">Chat & player controls</button>' : ""}${visibilityButton()}${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">${net?.isHost ? "Close room" : "Leave match"}</button>`,
+    `<p>${net ? "The multiplayer match keeps running while this menu is open." : "The local match is paused."}</p><button class="primary" data-action="resume" style="margin-top:22px">RESUME</button><div class="split-actions"><button class="plain" data-action="respawn-player">Respawn</button><button class="plain" data-action="spectate">Spectate</button></div><div class="split-actions"><button class="plain" data-action="loadout">Loadout</button><button class="plain" data-action="settings">Settings</button></div>${net ? '<button class="plain" data-action="chat-controls" style="margin-top:12px">Player controls & quick chat</button>' : ""}${visibilityButton()}${net ? '<button class="plain" data-action="copy-link" style="margin-top:12px">Copy invite link</button>' : ""}<button class="secondary" data-action="leave-confirm" style="margin-top:12px">Leave match</button>`,
     "pause",
   );
 }
 function leave(confirm = false) {
-  if (confirm && net?.isHost) {
-    modal(
-      "Close this room?",
-      `<p>This ends the match for everyone in the room.</p><div class="split-actions"><button class="plain" data-action="pause">Keep playing</button><button class="primary" data-action="leave">Close room</button></div>`,
-      "leave",
-    );
-    return;
-  }
+  resultAt=0;$("#round-banner").hidden=true;damageSources.length=0;
   matchRequest++;autoQueue=false;sound.stopWorld();royaleUI.waypoint=null;royaleUI.root.hidden=true;document.body.classList.remove('in-royale');
   net?.destroy();
   net = null;
@@ -659,7 +678,7 @@ function resultsMenu() {
   }
   modal(
     state.royale ? state.royale.winnerId===localId ? "VICTORY YOLK!" : "Round complete" : "That’s a wrap.",
-    `<div class="results"><div class="eyebrow">${state.royale?`YOUR PLACEMENT ${p?.place?'#'+p.place:'SPECTATOR'} · ${p?.kills||0} ELIMINATIONS`:`ROUND ${state.round} COMPLETE`}</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}${net ? '<button class="plain" data-action="chat">Chat & player controls</button>' : ""}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions">${state.royale?'<button class="plain" data-action="royale-queue">Find public match</button>':'<button class="plain" data-action="loadout">Change loadout</button>'}<button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
+    `<div class="results"><div class="eyebrow">${state.royale?`YOUR PLACEMENT ${p?.place?'#'+p.place:'SPECTATOR'} · ${p?.kills||0} ELIMINATIONS`:`ROUND ${state.round} COMPLETE`}</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}${net ? '<button class="plain" data-action="chat-controls">Player controls & quick chat</button>' : ""}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions">${state.royale?'<button class="plain" data-action="royale-queue">Find public match</button>':'<button class="plain" data-action="loadout">Change loadout</button>'}<button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
     "results",
   );
 }
@@ -671,7 +690,7 @@ function handleState() {
   }
   if (state.phase === "results" && lastPhase !== "results") {
     lastPhase = "results";
-    resultsMenu();
+    roundIntro();
   }
   if (screen === "lobby") renderLobby();
   for (const toggle of document.querySelectorAll('[data-action="toggle-visibility"]')) toggle.textContent = visibilityLabel();
@@ -692,15 +711,18 @@ function processEvents() {
         : 0;
       sound.shot(e.weapon, distance, e.origin);
     }
-    if (e.type === "launch") sound.shot("scatter");
+    if (e.type === "launch") sound.shot(e.popper?"pip":e.weapon, me&&e.origin?Math.hypot(me.x-e.origin.x,me.z-e.origin.z):0,e.origin);
     if (e.type === "explosion")
-      sound.pop(me ? Math.hypot(me.x - e.x, me.z - e.z) : 0);
+      sound.pop(me ? Math.hypot(me.x - e.x, me.z - e.z) : 0,e);
     if (e.type === "hit") {
       if (e.player === localId) {
         sound.hit();
         hitUntil = performance.now() + 150;
       }
-      if (e.target === localId) damageFlash = 0.65;
+      if (e.target === localId) {
+        damageFlash=Math.max(damageFlash,.5+Math.min(.35,e.amount/100));
+        if(Number.isFinite(e.sourceX)&&Number.isFinite(e.sourceZ)){damageSources.push({x:e.sourceX,z:e.sourceZ,until:performance.now()+1400});if(damageSources.length>5)damageSources.shift();}
+      }
     }
     if (e.type === "reload" && e.player === localId) sound.reload(Math.max(.3,(me?.reloadEnd||state.time+1.2)-state.time));
     if (e.type === "pickup" && e.player === localId) {
@@ -709,13 +731,13 @@ function processEvents() {
         e.kind === "ammo"
           ? "Ammo restocked"
           : e.kind === "health"
-            ? "Shell repaired"
+            ? "Shell health restored"
             : "Popper collected",
       );
     }
     if (e.type === "notice") notice(e.text);
     if (e.type === "elimination") {
-      sound.death(me ? Math.hypot(me.x-e.x, me.z-e.z) : 0);
+      sound.death(me ? Math.hypot(me.x-e.x, me.z-e.z) : 0,e);
       const row = document.createElement("div");
       row.className = "kill-line" + (e.player === localId ? " me" : "");
       row.innerHTML = `${esc(e.name)} <span>${esc(e.weapon)}</span> ${esc(e.targetName)}`;
@@ -769,11 +791,7 @@ function hud() {
   $("#score-coral").textContent = m.teams ? state.scores[1] : "";
   $("#objective").textContent =
     m.id==='royale' ? `${state.royale.alive} ALIVE · ${p.kills} ELIMS · ${p.place?'#'+p.place:'LAST EGG STANDING'}` :
-    m.id === "control"
-      ? state.zone.contested
-        ? "ZONE CONTESTED"
-        : `FIRST TO ${state.options.scoreLimit} POINTS · HOLD THE ZONE`
-      : `FIRST TO ${state.options.scoreLimit} ${m.id === "capture" ? "CAPTURES" : "ELIMINATIONS"}`;
+    `FIRST TO ${state.options.scoreLimit} ELIMINATIONS`;
   const vitals=state.royale&&watched?watched:p;
   $("#health").textContent = Math.ceil(vitals.health);
   $("#health-fill").style.width = vitals.health + "%";
@@ -781,9 +799,7 @@ function hud() {
   $("#streak").textContent =
     state.time < p.shieldUntil
       ? "Spawn shield · firing ends it"
-      : p.crown !== null
-        ? "You have the crown!"
-        : p.streak > 1
+      : p.streak > 1
           ? p.streak + " elimination streak"
           : "Freshly hatched";
   $('.quick-controls').innerHTML = [['forward','Move'],['reload','Reload'],['popper','Popper'],['swap','Swap']].map(([id,label]) => `<span><kbd>${esc(controlLabel(id))}</kbd> ${label}</span>`).join('') + '<span><kbd>Esc</kbd> Menu</span>';
@@ -798,17 +814,17 @@ function hud() {
     p.health <= 0 && !p.spectating && state.phase === "playing" ? "block" : "none";
   const killer = p.health <= 0 && state.players.find(k => k.id === p.killerId);
   $("#spectator-stats").textContent = killer
-    ? `${killer.health > 0 ? "Spectating" : "Eliminated"} ${killer.name} · Shell ${Math.ceil(killer.health)} · ${gun(killer).name} · ${killer.kills} K / ${killer.deaths} D · ${Math.floor(killer.points)} pts`
+    ? `${killer.health > 0 ? "Spectating" : "Eliminated"} ${killer.name} · Shell health ${Math.ceil(killer.health)} · ${gun(killer).name} · ${killer.kills} K / ${killer.deaths} D · ${Math.floor(killer.points)} pts`
     : "";
   const watching = !!p.spectating && state.phase === "playing";
   $("#spectate-panel").hidden = !watching;
   $("#hud").classList.toggle("spectating", watching);
   const target = state.players.find(k => k.id === spectateTarget);
   $("#spectate-info").textContent = target && watching
-    ? `${target.name} · Shell ${Math.ceil(target.health)} · ${state.royale?itemInfo(target.inventory?.[target.slot]).name:gun(target).name} · ${target.kills} K / ${target.deaths} D`
+    ? `${target.name} · Shell health ${Math.ceil(target.health)} · ${state.royale?itemInfo(target.inventory?.[target.slot]).name:gun(target).name} · ${target.kills} K / ${target.deaths} D`
     : "Waiting for a player to spawn…";
   const delay = Math.max(0, Math.ceil(p.respawnAt - state.time));
-  $("#spawn-heading").textContent = p.awaitingEntry ? "READY TO HATCH" : "SHELL DOWN";
+  $("#spawn-heading").textContent = p.awaitingEntry ? "READY TO HATCH" : "SHELL HEALTH DEPLETED";
   $("#spawn-status").textContent = p.spawnRequested
     ? (delay ? `Entering in ${delay}…` : "Entering the yard…")
     : delay ? `Respawn available in ${delay}` : "Ready when you are";
@@ -836,7 +852,7 @@ function hud() {
     aiming && (gun(p).optic === "scope" || gun(p).optic === "prism");
   $("#scope").style.display = scoped ? "block" : "none";
   $("#scope-label").textContent = scoped
-    ? `${gun(p).name.toUpperCase()} / OPTIC ${gun(p).magnification}×`
+    ? `${gun(p).name.toUpperCase()} / OPTIC ${gun(p).magnification||2.5}×`
     : "";
   $("#scoreboard").style.display = scoreHeld && !dialog.open ? "block" : "none";
   if (scoreHeld)
@@ -855,7 +871,7 @@ async function copy(text) {
     );
   }
 }
-function royaleHome(){modal('Yolk Royale',`<div class="royale-brief"><div class="eyebrow">SUNNYBREAK ISLAND</div><h3>One island. One surviving egg.</h3><p>Board the Eggspress, choose your drop, and build a five-slot loadout. Find shields, healing, impulse eggs and launch nests. Keep moving as the storm closes.</p><p class="hint">Solo · 16 contestants · Nine districts · One life</p></div><button class="primary" data-action="royale-queue">FIND PUBLIC MATCH</button><button class="secondary" data-action="royale-custom">CREATE PUBLIC / PRIVATE MATCH</button><button class="plain" data-action="royale-local">PLAY LOCAL WITH BOTS</button><p class="hint">Public matchmaking fills empty seats with bots after a 30-second lobby. Private hosts choose their rules. Late arrivals spectate. The host must keep their tab open.</p>`,'royale-home');}
+function royaleHome(){modal('Yolk Royale',`<div class="royale-brief"><div class="eyebrow">SUNNYBREAK ISLAND</div><h3>One island. One surviving egg.</h3><p>Board the Eggspress, choose your drop, and build a five-slot loadout. Find shields, healing, impulse eggs and launch nests. Keep moving as the storm closes.</p><p class="hint">Solo · 16 contestants · Nine districts · One life</p></div><button class="primary" data-action="royale-queue">FIND PUBLIC MATCH</button><button class="secondary" data-action="royale-custom">CREATE PUBLIC / PRIVATE MATCH</button><button class="plain" data-action="royale-local">PLAY LOCAL WITH BOTS</button><p class="hint">Public matchmaking fills empty seats with bots after a 30-second lobby. Private hosts choose their rules. New players replace available bots. Hosting transfers automatically if the host leaves.</p>`,'royale-home');}
 async function quickRoyale(){
  if(state)leave(false);
  const request=++matchRequest;modal('Finding your flight','<div class="spinner"></div><p>Finding a waiting Yolk Royale match…</p><button data-action="cancel-connect">Cancel</button>','matchmaking');
@@ -874,14 +890,15 @@ async function quickRoyale(){
  }catch(e){if(request===matchRequest)modal('Matchmaking unavailable',`<p class="error-box">${esc(e.message)}</p><button class="primary" data-action="royale-local">PLAY LOCAL WITH BOTS</button><button data-action="royale-queue">Try again</button>`,'error');}
 }
 function royaleMap(){if(!state?.royale)return;modal('Sunnybreak Island',royaleUI.mapHTML(),'royale-map');royaleUI.drawMap($('#royale-fullmap'),state,state.players.find(p=>p.id===localId),true);}
-function royaleInventory(){if(!state?.royale)return;const p=state.players.find(p=>p.id===localId);modal('Your inventory',royaleUI.inventoryHTML(p),'royale-inventory');}
-function inventoryAction(action,index){
+function royaleInventory(){if(!state?.royale)return;const p=state.players.find(p=>p.id===localId);royaleUI.inventoryKey='';modal('INVENTORY',royaleUI.inventoryHTML(p),'royale-inventory');royaleUI.updateInventory(p);}
+function inventoryAction(action,index,from){
  const p=state?.players.find(p=>p.id===localId);if(!state?.royale||!p||p.health<=0)return;
- const selected=input.slot;
+ const selected=Number.isInteger(from)?from:input.slot;
  if(action==='slot')input.slot=index;
- const command=action==='slot'?`inventory-select-${index}`:action==='swap'?`inventory-swap-${selected}-${index}`:`inventory-drop-${selected}`;
+ if(action==='swap'){if(input.slot===selected)input.slot=index;else if(input.slot===index)input.slot=selected;}
+ const command=action==='slot'?`inventory-select-${index}`:action==='swap'?`inventory-swap-${selected}-${index}`:`inventory-${action}-${selected}`;
  if(sim){sim.playerAction(localId,command);state=sim.snapshot();}else net?.send({type:'player-action',action:command});
- if(dialogType==='royale-inventory')royaleInventory();
+ if(dialogType==='royale-inventory')royaleUI.updateInventory(state.players.find(p=>p.id===localId));
 }
 const actions = {
  'royale-home':royaleHome,
@@ -893,8 +910,19 @@ const actions = {
  'royale-clear-marker':()=>{royaleUI.waypoint=null;},
  'royale-jump':()=>{if(paused)resume(false);queuedActions.add('jump');sound.unlock();},
  'royale-drop':()=>inventoryAction('drop'),
+ 'royale-drop-one':()=>inventoryAction('drop-one'),
+ 'royale-split':()=>inventoryAction('split'),
 
   chat: () => chat.open(),
+  'chat-controls':()=>{dialog.close();dialogType='';chat.showControls();},
+  'save-room-name':()=>{
+    const raw=$('#room-name').value;const checked=moderateText(raw,{name:true});
+    if(!checked.ok||!raw.trim()){toast('Choose another player name.');return;}
+    profile=safeProfile({...profile,name:raw});save('yolk-profile',profile);
+    if(net){const button=dialog.querySelector('[data-action="save-room-name"]');button.disabled=true;button.textContent='CHECKING NAME…';}
+    if(net)net.submitName(profile);else if(sim?.setProfile(localId,profile)!==false){dialog.close();dialogType='';void resume();}else renamePrompt();
+  },
+  'royale-inspect':()=>{royaleUI.inspect=!royaleUI.inspect;royaleUI.updateInventory(state.players.find(p=>p.id===localId));},
   updates: () => modal("Update history", RELEASES.map(r =>
     `<article class="release-note"><div class="eyebrow">UPDATE ${esc(r.number)}</div><h3>${esc(r.title)}</h3><ul>${r.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul></article>`).join("")),
   "enter-yard": () => playerAction(state?.players.find(p => p.id === localId)?.awaitingEntry ? "rejoin" : "respawn"),
@@ -1014,7 +1042,7 @@ dialog.addEventListener("cancel", (e) => {
     leave();
     return;
   }
-  if (dialogType === "results") return;
+  if (dialogType === "results" || dialogType === "rename") return;
   if (dialogType === "pause" || dialogType === "ready") resume();
   else closeDialog();
 });
@@ -1140,7 +1168,8 @@ document.addEventListener("mouseup", (e) => {
   scoreHeld = actionDown('scores');
 });
 function aimSensitivity() {
-  const aiming = actionDown("aim") || touch.aim;
+  const p=state?.players.find(p=>p.id===localId);
+  const aiming = (actionDown("aim") || touch.aim)&&(!p?.inventory||!!p.inventory[p.slot]?.weapon);
   return aiming ? settings.scopeSensitivity : 1;
 }
 document.addEventListener("mousemove", (e) => {
@@ -1172,6 +1201,17 @@ document.addEventListener('click',e=>{
  }
  if(e.target.closest('button')){sound.unlock();sound.cue('ui-select',null,.45);}
 });
+// Native desktop dragging, touch dragging, and keyboard reordering share one action.
+let touchDrag=null;
+dialog.addEventListener('dragstart',e=>{const slot=e.target.closest('[data-royale-slot]');if(!slot)return;royaleUI.dragging=true;e.dataTransfer.setData('text/plain',slot.dataset.royaleSlot);e.dataTransfer.effectAllowed='move';slot.classList.add('dragging');});
+dialog.addEventListener('dragover',e=>{if(e.target.closest('[data-royale-slot]')){e.preventDefault();e.dataTransfer.dropEffect='move';}});
+dialog.addEventListener('drop',e=>{const slot=e.target.closest('[data-royale-slot]');if(!slot)return;e.preventDefault();const from=Number(e.dataTransfer.getData('text/plain')),to=Number(slot.dataset.royaleSlot);royaleUI.dragging=false;if(Number.isInteger(from)&&from>=0&&from<5&&from!==to)inventoryAction('swap',to,from);});
+dialog.addEventListener('dragend',()=>{royaleUI.dragging=false;royaleUI.inventoryKey='';royaleUI.updateInventory(state?.players.find(p=>p.id===localId));});
+dialog.addEventListener('pointerdown',e=>{const slot=e.target.closest('[data-royale-slot]');if(slot&&e.pointerType==='touch')touchDrag={from:Number(slot.dataset.royaleSlot),x:e.clientX,y:e.clientY};});
+dialog.addEventListener('pointermove',e=>{if(touchDrag&&Math.hypot(e.clientX-touchDrag.x,e.clientY-touchDrag.y)>8){royaleUI.dragging=true;e.preventDefault();}},{passive:false});
+dialog.addEventListener('pointerup',e=>{if(!touchDrag)return;const slot=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-royale-slot]'),from=touchDrag.from;touchDrag=null;const dragged=royaleUI.dragging;royaleUI.dragging=false;if(dragged&&slot&&Number(slot.dataset.royaleSlot)!==from)inventoryAction('swap',Number(slot.dataset.royaleSlot),from);});
+dialog.addEventListener('pointercancel',()=>{touchDrag=null;royaleUI.dragging=false;});
+dialog.addEventListener('keydown',e=>{if(dialogType!=='royale-inventory')return;const slot=e.target.closest('[data-royale-slot]');if(slot&&e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const from=Number(slot.dataset.royaleSlot),to=(from+(e.key==='ArrowRight'?1:4))%5;inventoryAction('swap',to,from);dialog.querySelector(`[data-royale-slot="${to}"]`)?.focus();}});
 document.addEventListener('wheel',e=>{if(screen==='game'&&state?.royale&&!paused&&!dialog.open&&!chat.opened){e.preventDefault();input.slot=(input.slot+(e.deltaY>0?1:4))%5;}},{passive:false});
 document.addEventListener("contextmenu", (e) => {
   if (screen === "game") e.preventDefault();
@@ -1232,7 +1272,7 @@ document.addEventListener("graphics-lost", () => {
   );
 });
 function frameInput() {
-  const active = screen === "game" && !paused && !dialog.open && !chat.opened && state?.players.find(p => p.id === localId)?.health > 0;
+  const active = !net?.migrating && screen === "game" && !paused && !dialog.open && !chat.opened && state?.players.find(p => p.id === localId)?.health > 0;
   const nextInput = {
     seq: ++seq,
     yaw: input.yaw,
@@ -1284,11 +1324,11 @@ function loop(now) {
     accumulator -= 1 / 60;
     const i = frameInput();
     if (sim) {
-      if (!(paused && !net && screen === "game")) {
+      if (!(paused && !net && screen === "game" && !['royale-inventory','royale-map'].includes(dialogType))) {
         sim.setInput(localId, i);
         sim.tick(1 / 60);
       }
-    } else if (net?.ready && state?.phase === "playing") {
+    } else if (net?.ready && !net.migrating && state?.phase === "playing") {
       net.input(i);
       const me = state.players.find((p) => p.id === localId);
       if (me?.health > 0) {
@@ -1312,7 +1352,7 @@ function loop(now) {
 
     if (state.phase === "results" && lastPhase !== "results") {
       lastPhase = "results";
-      resultsMenu();
+      roundIntro();
     }
   }
   if (lobbyClock > 0.5 && screen === "lobby") {
@@ -1351,7 +1391,16 @@ function loop(now) {
     hud();
     hudClock = 0;
   }
-  damageFlash = Math.max(0, damageFlash - dt * 2);
+  if(resultAt&&now>=resultAt){resultAt=0;$('#round-banner').hidden=true;if(state?.phase==='results')resultsMenu();}
+  const current=state?.players.find(p=>p.id===localId);
+  while(damageSources[0]?.until<now)damageSources.shift();
+  $('#damage-directions').innerHTML=current?damageSources.map(source=>{
+    const dx=source.x-current.x,dz=source.z-current.z,yaw=input.yaw;
+    const angle=Math.atan2(dx*Math.cos(yaw)-dz*Math.sin(yaw),-dx*Math.sin(yaw)-dz*Math.cos(yaw))*180/Math.PI;
+    return `<i class="damage-direction" style="transform:rotate(${angle}deg);opacity:${Math.min(1,(source.until-now)/500)}"></i>`;
+  }).join(''):'';
+  $('#hud').classList.toggle('low-health',!!current&&current.health>0&&current.health<25);
+  damageFlash = Math.max(0, damageFlash - dt * 1.5);
   $("#damage").style.opacity = damageFlash;
   $("#notice").style.opacity = now < noticeUntil ? 1 : 0;
   $("#toast").style.opacity = now < toastUntil ? 1 : 0;
@@ -1380,6 +1429,8 @@ if (import.meta.env.DEV && new URL(location.href).searchParams.has("qa"))
     read: () => ({
       state,
       localId,
+      host:!!net?.isHost,
+      migrating:!!net?.migrating,
       screen,
       paused,
       predicted,

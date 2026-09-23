@@ -18,8 +18,9 @@ async function make(name,mobile=false){
   await page.goto('http://127.0.0.1:5173/?qa=1');await page.locator('[data-action="setup"]').waitFor();return page;
 }
 const rows=page=>page.evaluate(()=>window.__yolkTest.chatRead().rows);
-async function open(page){if(!await page.locator('#chat-panel').isVisible())await page.locator('#chat-toggle').click();}
-async function close(page){if(await page.locator('#chat-panel').isVisible())await page.getByRole('button',{name:'Close chat',exact:true}).click();}
+async function open(page){if(!await page.locator('.chat-hud.typing').isVisible())await page.locator('#chat-toggle').click();}
+async function close(page){if(await page.locator('#chat-panel').isVisible())await page.getByRole('button',{name:'Close chat',exact:true}).click();else if(await page.locator('.chat-hud.typing').isVisible())await page.locator('#chat-input').press('Escape');}
+async function controls(page){await close(page);if(await page.locator('[data-action="chat-controls"]:visible').isVisible())await page.locator('[data-action="chat-controls"]:visible').click();else {if(!await page.locator('#dialog').isVisible())await page.keyboard.press('Escape');await page.locator('[data-action="chat-controls"]:visible').click();}}
 async function send(page,text){await open(page);await page.waitForTimeout(1250);await page.locator('#chat-input').fill(text);await page.locator('.chat-send').click();}
 async function has(page,text){await page.waitForFunction(text=>window.__yolkTest.chatRead().rows.some(r=>r.text===text),text);}
 try{
@@ -52,9 +53,9 @@ try{
   await open(guest);await guest.locator('#chat-channel').selectOption('team');
   const hostBefore=(await rows(host)).length;await send(guest,'Defend our side');await has(guest,'Defend our side');
   await host.waitForTimeout(700);assert.equal((await rows(host)).length,hostBefore);
-  await guest.locator('#chat-channel').selectOption('room');await send(guest,'Nice round');await has(host,'Nice round');
+  await open(guest);await guest.locator('#chat-channel').selectOption('room');await send(guest,'Nice round');await has(host,'Nice round');
   console.log('PASS team messages never reach the opposing host');
-  await open(host);await host.locator('.chat-safety summary').click();
+  await controls(host);
   await host.locator('[data-mute]').first().click();const mutedCount=(await rows(host)).length;
   await send(guest,'Wait at the tower');await host.waitForTimeout(500);assert.equal((await rows(host)).length,mutedCount);
   await host.locator('[data-mute]').first().click();
@@ -64,7 +65,7 @@ try{
   await host.locator('[data-room-chat]').click();await guest.waitForFunction(()=>!document.querySelector('#chat-input').disabled);
   await host.locator('#chat-preference').selectOption('quick');
   await send(guest,'Move toward the bridge');await host.waitForTimeout(400);assert.equal((await rows(host)).length,0);
-  await guest.locator('.chat-quick summary').click();await guest.waitForTimeout(1600);await guest.locator('[data-quick="gg"]').click();await has(host,'Good game!');
+  await controls(guest);await guest.locator('.chat-quick summary').click();await guest.waitForTimeout(1600);await guest.locator('[data-quick="gg"]').click();await has(host,'Good game!');
   await host.locator('#chat-preference').selectOption('all');
   await host.screenshot({path:'test-results/chat/desktop-safety.png'});
   await host.locator('.chat-safety summary').click();
@@ -90,13 +91,13 @@ try{
   console.log('PASS typing isolates gameplay input, closing returns control, and spectator chat stays private');
   const mobile=await make('Mobile egg',true);
   await mobile.locator('[data-action="join"]').click();await mobile.locator('#join-code').fill(code);await mobile.locator('[data-action="join-room"]').click();await mobile.locator('#spawn-button').waitFor();
-  await open(mobile);await mobile.locator('.chat-quick summary').click();await mobile.locator('[data-quick="hello"]').click();await has(host,'Hello, eggs!');
+  await controls(mobile);await mobile.locator('.chat-quick summary').click();await mobile.locator('[data-quick="hello"]').click();await has(host,'Hello, eggs!');
   await mobile.screenshot({path:'test-results/chat/mobile.png'});
   const bounds=await mobile.locator('#chat-panel').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=391&&bounds.y>=0&&bounds.y+bounds.height<=845);
-  await mobile.locator('.chat-safety summary').click();await mobile.locator('[data-report]').first().click();await mobile.getByRole('button',{name:'Mute & notify host'}).click();
+  await mobile.locator('[data-report]').first().click();await mobile.getByRole('button',{name:'Mute & notify host'}).click();
   await host.waitForFunction(()=>document.querySelector('#toast').textContent.includes('reported'));
   assert.equal(await mobile.getByRole('button',{name:'Reported',exact:true}).count(),1);
-  await close(mobile);await mobile.locator('[data-action="pause"]').click();await mobile.locator('[data-action="leave-confirm"]').click();
+  await close(mobile);if(!await mobile.locator('#dialog').isVisible())await mobile.locator('[data-action="pause"]').click();await mobile.locator('[data-action="leave-confirm"]').click();
   await mobile.locator('[data-action="setup"]').waitFor();assert.equal((await rows(mobile)).length,0);
   console.log('PASS phone layout, quick messages, host reports, and leaving clears history');
   assert.deepEqual(errors,[]);console.log('PASS no browser exceptions');

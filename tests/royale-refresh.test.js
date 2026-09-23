@@ -66,7 +66,7 @@ test('all loot, architecture, foliage and animated prop families have finite det
  for(const kind of new Set(map.trees.map(t=>t.kind))){const g=new THREE.Group();treeModel(g,map.trees.find(t=>t.kind===kind),kit);models.push(g);}
  for(const kind of new Set(map.buildings.map(t=>t.kind))){const g=new THREE.Group();dressBuilding(g,map.buildings.find(t=>t.kind===kind),kit);models.push(g);}
  for(const model of models){let parts=0;model.traverse(o=>{if(o.isMesh){parts++;assert.ok(o.geometry.getAttribute('position').array.every(Number.isFinite));}});assert.ok(parts>=3,model.name);const box=new THREE.Box3().setFromObject(model);assert.ok([box.min.x,box.max.y,box.max.z].every(Number.isFinite));}
- const chest=models.find(g=>g.userData.lid);assert.ok(chest.userData.glow);chest.userData.lid.rotation.x=-1.7;
+ const chest=models.find(g=>g.userData.lid);assert.equal(chest.userData.glow,undefined);assert.ok(chest.scale.x<1);chest.userData.lid.rotation.x=-1.7;
  const wrap=new THREE.Box3().setFromObject(lootModel({id:'bandage'},kit,{ground:false})),medkit=new THREE.Box3().setFromObject(lootModel({id:'medkit'},kit,{ground:false}));assert.notDeepEqual(wrap.getSize(new THREE.Vector3()).toArray(),medkit.getSize(new THREE.Vector3()).toArray());
  for(const model of models){bake(model,false,true);assert.ok(model.children.length>0);model.traverse(o=>{if(o.isMesh)assert.ok(o.geometry);});}
 });

@@ -144,7 +144,7 @@ export class RoyaleView{
    const fall=chest.landAt?Math.max(0,(chest.landAt-state.time)*4):0;mesh.position.set(chest.x,chest.y+fall,chest.z);
    if(mesh.userData.canopy)mesh.userData.canopy.visible=fall>0;
    mesh.userData.lid.rotation.x+=((chest.opened?-1.7:0)-mesh.userData.lid.rotation.x)*Math.min(1,dt*8);
-   mesh.userData.glow.visible=!chest.opened;mesh.userData.glow.scale.setScalar(1+Math.sin(t*3)*.25);
+
    mesh.visible=!!observer&&(Math.hypot(chest.x-observer.x,chest.z-observer.z)<(this.view.settings.quality==='low'?70:100)||chest.supply);
   }
   for(const p of state.players){

@@ -195,49 +195,6 @@ test("brief actions survive batched network packets and older queued inputs are 
   assert.ok(a.reloadEnd > s.time);
   assert.equal(a.poppers, 1);
 });
-test("capture scores once, resets crown, and disconnect drops a carried crown", () => {
-  const { s, a } = fixture("capture");
-  a.team = 0;
-  const f = s.flags[1];
-  Object.assign(a, { x: f.x, z: f.z, y: 0 });
-  s.objectives(0.1);
-  assert.equal(a.crown, 1);
-  assert.equal(f.carrier, "a");
-  Object.assign(a, { x: s.flags[0].x, z: s.flags[0].z });
-  s.objectives(0.1);
-  assert.equal(s.scores[0], 1);
-  s.objectives(0.1);
-  assert.equal(s.scores[0], 1);
-  assert.equal(f.home, true);
-  Object.assign(a, { x: f.x, z: f.z });
-  s.objectives(0.1);
-  s.removePlayer("a");
-  assert.equal(f.carrier, null);
-  assert.equal(f.home, false);
-  s.time += 19;
-  s.objectives(0.1);
-  assert.equal(f.home, true);
-});
-test("zone contest stops scoring; owner earns points and round ends", () => {
-  const { s, a, b } = fixture("control");
-  Object.assign(a, { team: 0, x: 0, y: 2, z: 0 });
-  Object.assign(b, { team: 1, x: 0, y: 2, z: 0 });
-  s.zone.owner = 0;
-  s.objectives(1);
-  assert.equal(s.zone.contested, true);
-  assert.equal(s.scores[0], 0);
-  b.x = 20;
-  s.objectives(1);
-  assert.equal(s.scores[0], 1);
-  s.scores[0] = 90;
-  s.tick(1 / 60);
-  assert.equal(s.phase, "results");
-  assert.equal(s.winner, "Blue team wins");
-  s.startRound();
-  for (const p of s.players.values()) s.spawn(p);
-  assert.equal(s.phase, "playing");
-  assert.equal(s.scores[0], 0);
-});
 test("all maps have safe spawns and connected bot routes", () => {
   for (const map of MAPS) {
     const nav = navigation(map);
@@ -261,7 +218,7 @@ test("all maps have safe spawns and connected bot routes", () => {
   }
 });
 test("bots complete full rounds without non-finite state or exceeding room capacity", () => {
-  for (const m of ["ffa", "teams", "capture", "control"]) {
+  for (const m of ["ffa", "teams"]) {
     const s = new Simulation({ mode: m, bots: 7, seed: 19 });
     s.addPlayer("host", {});
     s.startRound();
@@ -295,7 +252,8 @@ test("all seven primary classes can fire and serialize projectiles safely", () =
 test("bolts have finite travel, start at the muzzle, and keep a straight trajectory", () => {
   const { s, a, b } = fixture();
   b.z = -30;
-  s.random = () => 0;
+  s.random = () => .5;
+  a.pitch = Math.atan2(.9 - 1.43, 38);
   s.fire(a);
   const bolt = s.projectiles[0],
     m = muzzleOrigin(a, weapon(a.weapon));
@@ -309,8 +267,8 @@ test("bolts have finite travel, start at the muzzle, and keep a straight traject
   assert.ok(
     Math.abs(bolt.y - (y + vy * 0.05 - 0.5 * bolt.gravity * 0.05 ** 2)) < 1e-8,
   );
-  advance(s, 30);
-  assert.equal(b.health, 100, "Target is beyond the 20-unit rifle range");
+  advance(s, 90);
+  assert.ok(b.health < 100, "Direct long-range shots must reach the target");
   assert.equal(s.projectiles.length, 0);
 });
 test("clear eye shots retract an obstructed muzzle without bypassing cover", () => {
@@ -458,13 +416,11 @@ test("spectators stay out of play and rejoin through a countdown", () => {
   assert.equal(a.health,100);
   assert.ok(a.shieldUntil>s.time);
 });
-test("manual respawn drops objectives without awarding an elimination", () => {
-  const {s,a,b}=fixture("capture");
-  a.crown=1; s.flags[1].carrier=a.id;
+test("manual respawn does not award an elimination", () => {
+  const {s,a,b}=fixture();
   s.playerAction(a.id,"respawn");
   assert.equal(a.health,0);
   assert.equal(a.crown,null);
-  assert.equal(s.flags[1].carrier,null);
   assert.equal(b.kills,0);
   const ready=a.respawnAt;
   s.playerAction(a.id,"respawn");

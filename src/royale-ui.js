@@ -1,4 +1,5 @@
-import {ITEMS,RARITIES,itemInfo,transportAt} from './royale-data.js';
+import {gun} from './data.js';
+import {ITEMS,RARITIES,itemInfo,transportAt,ammoType} from './royale-data.js';
 import {ROYALE_MAP} from './royale-map.js';
 import {wallDistance,dist} from './physics.js';
 import {groundAt} from './terrain.js';
@@ -22,10 +23,28 @@ export class RoyaleUI{
  }
  slotMarkup(p,inventory=false){return (p.inventory||Array(5).fill(null)).map((item,index)=>{
   const info=itemInfo(item),rarity=RARITIES[item?.rarity||0];
-  return `<button class="royale-slot ${index===p.slot?'selected':''}" data-royale-slot="${index}" style="--rarity:${item?info.color:'#58636c'}" aria-label="Slot ${index+1}: ${escape(info.name)}" aria-pressed="${index===p.slot}"><kbd>${index+1}</kbd>${item?.weapon?`<img src="${this.preview(item.id)}" alt="">`:`<span class="item-glyph">${info.icon||'＋'}</span>`}<span class="slot-name">${escape(info.name)}</span>${item?`<b>${item.weapon?item.ammo:item.count+'×'}</b>`:''}${inventory&&item?`<small>${item.weapon?rarity.name:'Utility'}${item.weapon?' · '+'★'.repeat((item.rarity||0)+1):''}</small>`:''}</button>`;
+  return `<button class="royale-slot ${index===p.slot?'selected':''}" data-royale-slot="${index}" ${inventory?'draggable="true"':''} style="--rarity:${item?info.color:'#58636c'}" aria-label="Slot ${index+1}: ${escape(info.name)}" aria-pressed="${index===p.slot}"><kbd>${index+1}</kbd>${item?`<img src="${this.preview(item)}" alt="${escape(info.name)}" draggable="false">`:'<span class="empty-slot-mark">＋</span>'}<span class="slot-name">${escape(info.name)}</span>${item?`<b>${item.weapon?item.ammo:item.count+'×'}</b>`:''}${inventory&&item?`<small>${item.weapon?rarity.name:'Utility'}${item.weapon?' · '+'★'.repeat((item.rarity||0)+1):''}</small>`:''}</button>`;
  }).join('');}
  mapHTML(){return `<p class="hint">Choose a landing spot or plan your next rotation. Click the island to mark a waypoint.</p><canvas id="royale-fullmap" class="royale-fullmap" width="720" height="720" aria-label="Sunnybreak island map"></canvas><div class="map-legend"><span>● You</span><span>◯ Safe area</span><span>◌ Next circle</span><span>◆ Supply</span></div><div class="split-actions"><button data-action="royale-clear-marker">Clear marker</button><button class="primary" data-action="resume">RETURN TO GAME</button></div>`;}
- inventoryHTML(p){return `<p>Five slots. Select a slot, then choose another slot to swap, or drop the selected item.</p><div class="royale-inventory-grid">${this.slotMarkup(p,true)}</div><div class="royale-swap-row">${Array.from({length:5},(_,i)=>`<button data-royale-swap="${i}">Swap → ${i+1}</button>`).join('')}</div><p class="ammo-bank">${Object.entries(p.bank||{}).map(([k,v])=>`<span>${escape(k)} <b>${v}</b></span>`).join('')}</p><p class="hint">Select a consumable and press Fire to use it. Sprinting, taking damage, or changing slots cancels use. Picking up an item with all five slots full replaces the selected slot.</p><div class="split-actions"><button data-action="royale-drop">Drop selected</button><button class="primary" data-action="resume">RETURN TO GAME</button></div>`;}
+ ammoHTML(p){return Object.entries(p.bank||{}).map(([id,count])=>`<div class="inventory-ammo"><img src="${this.preview({id,ammoType:id})}" alt=""><span>${escape(id)}</span><b>${count}</b></div>`).join('');}
+ inspectHTML(p){
+  const item=p.inventory[p.slot],info=itemInfo(item);if(!item)return '<div class="inspect-empty">Select an item to inspect it.</div>';
+  const rarity=RARITIES[item.rarity||0],w=item.weapon?gun(p):null,def=ITEMS[item.id];
+  return `<div class="inspect-heading" style="--rarity:${info.color}"><span>${item.weapon?rarity.name+' · '+info.role:'UTILITY'}</span><h3>${escape(info.name)}</h3><img src="${this.preview(item)}" alt="${escape(info.name)}"></div><p>${escape(w?.desc||({heal:'Restores shell health.',shield:'Restores shield protection.',splash:'Restores nearby shell health and shields.',popper:'A throwable grenade with a short fuse.',impulse:'Launches you into the air.',launchpad:'Place a reusable launch pad.'}[def?.kind]))}</p>${w?`<dl class="weapon-stats"><div><dt>Damage</dt><dd>${(w.damage*w.pellets*(w.burst||1)).toFixed(0)}${w.pellets>1?' total pellets':w.burst?' per burst':''}</dd></div><div><dt>Fire rate</dt><dd>${(1/w.interval).toFixed(1)} / s</dd></div><div><dt>Magazine</dt><dd>${w.magazine}</dd></div><div><dt>Reload</dt><dd>${w.reload.toFixed(2)} s</dd></div><div><dt>Ammo</dt><dd>${ammoType(item.id)}</dd></div><div><dt>Reserve</dt><dd>${p.bank[ammoType(item.id)]||0}</dd></div></dl>`:`<dl class="weapon-stats"><div><dt>Use time</dt><dd>${def?.duration||0}s</dd></div><div><dt>Stack</dt><dd>${item.count} / ${def?.stack||1}</dd></div>${def?.amount?`<div><dt>Restores</dt><dd>${def.amount}</dd></div>`:''}</dl>`}`;
+ }
+ inventoryHTML(p){return `<div class="inventory-content"><section class="inventory-ammo-section"><h3>AMMUNITION</h3><div class="ammo-bank">${this.ammoHTML(p)}</div></section><section class="inventory-inspect" id="inventory-inspect" ${this.inspect?'':'hidden'}>${this.inspectHTML(p)}</section><section class="inventory-equipment"><div class="inventory-section-title"><h3>EQUIPMENT</h3><span>Drag to reorder</span></div><div class="royale-inventory-grid">${this.slotMarkup(p,true)}</div><p id="inventory-selected-name">${escape(itemInfo(p.inventory[p.slot]).name)}</p></section></div><footer class="inventory-actions"><button data-action="royale-split">SPLIT</button><button data-action="royale-drop-one">DROP ONE</button><button data-action="royale-drop">DROP STACK</button><button data-action="royale-inspect" aria-pressed="${!!this.inspect}">INSPECT</button><button data-action="resume">BACK</button></footer>`;}
+ updateInventory(p){
+  const grid=document.querySelector('.royale-inventory-grid');if(!grid||!p||this.dragging)return;
+  const key=JSON.stringify([p.inventory,p.slot,p.bank,this.inspect]);
+  if(this.inventoryKey===key)return;this.inventoryKey=key;grid.innerHTML=this.slotMarkup(p,true);
+  document.querySelector('.ammo-bank').innerHTML=this.ammoHTML(p);
+  const inspect=document.querySelector('#inventory-inspect');inspect.hidden=!this.inspect;inspect.innerHTML=this.inspectHTML(p);
+  document.querySelector('#inventory-selected-name').textContent=itemInfo(p.inventory[p.slot]).name;
+  const item=p.inventory[p.slot];document.querySelector('[data-action="royale-split"]').disabled=!item||item.weapon||item.count<2||p.inventory.every(Boolean);
+  document.querySelector('[data-action="royale-drop-one"]').disabled=!item;
+  document.querySelector('[data-action="royale-drop"]').disabled=!item;
+  document.querySelector('[data-action="royale-inspect"]').setAttribute('aria-pressed',String(!!this.inspect));
+ }
  drawMap(canvas,state,p,full=false){
   if(!canvas||!state.royale)return;
   const c=canvas.getContext('2d'),w=canvas.width,h=canvas.height,size=512,s=w/size,map=ROYALE_MAP,r=state.royale;
@@ -59,8 +78,7 @@ export class RoyaleUI{
   this.drawMap($('royale-mini'),state,p);this.drawMap($('royale-fullmap'),state,p,true);
   $('royale-shield').textContent=Math.ceil(p.shield||0);$('royale-shield-fill').style.width=(p.shield||0)+'%';$('royale-stamina').textContent=Math.ceil(p.stamina||0);$('royale-stamina-fill').style.width=(p.stamina||0)+'%';
   const key=JSON.stringify([p.inventory,p.slot]);if(key!==this.lastKey){$('royale-hotbar').innerHTML=this.slotMarkup(p);this.lastKey=key;}
-  const grid=document.querySelector('.royale-inventory-grid');
-  if(grid&&this.inventoryKey!==key){grid.innerHTML=this.slotMarkup(local,true);this.inventoryKey=key;const bank=document.querySelector('.ammo-bank');if(bank)bank.innerHTML=Object.entries(local.bank||{}).map(([k,v])=>`<span>${escape(k)} <b>${v}</b></span>`).join('');}
+  this.updateInventory(local);
   const flight=['transport','dive','glide','launch'].includes(local.flight)&&local.health>0;
   $('royale-flight').hidden=!flight;$('royale-flight').classList.toggle('airborne',local.flight!=='transport');
   $('royale-flight-title').textContent=local.flight==='transport'?`${r.elapsed<3?'Doors open in '+Math.ceil(3-r.elapsed):'Choose your landing spot'}${r.elapsed>=3?' · '+Math.ceil(35-r.elapsed)+'s':''}`:local.flight==='dive'?'Freefall':'Shell glider deployed';

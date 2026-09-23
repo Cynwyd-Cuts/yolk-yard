@@ -1,6 +1,17 @@
 # Yolk Royale — implementation design
 
-Design locked before implementation, 21 September 2026. A complete solo, no-building battle royale inside Yolk Yard, with original art, island, item names, transport and sound. The familiar loop is airborne insertion → loot → rotate with the storm → survive → spectate → rematch.
+Original design dated 21 September 2026; the update below supersedes the historical design where behavior changed. A complete solo, no-building battle royale inside Yolk Yard, with original art, island, item names, transport and sound. The familiar loop is airborne insertion → loot → rotate with the storm → survive → spectate → rematch.
+
+## Update 26: current rules
+
+- Public is the default. Capacity counts the whole roster. A human replaces an available bot, inheriting its current life and inventory; a full human roster rejects additional joins. Bot fill replaces departures without granting another life.
+- Hosts transfer in human join order on departure or connection loss. Half-second checkpoints preserve the round, storm, inventory and chat controls; the new host reclaims the original room code. Duplicate human names require an unused replacement name.
+- Royale has no match timer. The storm closes to zero and continues damaging contestants until one remains. Countdown ticks play only in the final five seconds. Combat and object sounds have finite audible radii.
+- The right-side inventory has five image-based rarity slots, drag reordering, ammunition counts, split/drop actions and inspection. Screen chat uses Enter to type; preferences and player controls live in Pause. A victory/placement banner precedes results, and the kill feed stays visible during Royale.
+- Easy, Normal, Hard and Impossible tune reaction, aim, movement, cover and utility choices. Bots commit to item use and popper throws before switching back to weapons. New players start with a plain egg; bot appearances are randomized.
+- Loot spreads into reachable, separated positions. Chests are smaller without the protruding glow sphere. Only suitable houses get stairs, connected to their landing. Shell health and directional red damage feedback identify incoming hits.
+
+## Historical initial design
 
 ## Product and round contract
 

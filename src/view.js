@@ -229,7 +229,6 @@ export class View {
     this.projectiles = new Map();
     this.shotOffsets = new Map();
     this.pickupMeshes = new Map();
-    this.flagMeshes = [];
     this.fx = [];
     this.recoil = 0;
     this.clock = 0;
@@ -352,18 +351,6 @@ export class View {
       ring.position.set(x, 0.06, z);
       this.world.add(ring);
     }
-    this.zoneMesh = new THREE.Mesh(
-      new THREE.RingGeometry(4.9, 5.1, 64),
-      new THREE.MeshBasicMaterial({
-        color: 0xfbd15a,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.8,
-      }),
-    );
-    this.zoneMesh.rotation.x = -Math.PI / 2;
-    this.zoneMesh.position.set(map.zone[0], map.zone[2] + 0.035, map.zone[1]);
-    this.world.add(this.zoneMesh);
     this.pickupMeshes.clear();
     for (const [id, [x, z, type]] of map.pickups.entries()) {
       const group = new THREE.Group();
@@ -380,7 +367,7 @@ export class View {
         block(group, 0, 0, 0, 0.55, 0.44, 0.4, 0xf5bf4f);
         for (let j = 0; j < 3; j++)
           cylinder(group, (j - 1) * 0.16, 0.29, 0, 0.05, 0.23, 0xf9e7ab);
-      } else ball(group, 0, 0, 0, 0.3, 0.38, 0.3, 0xbca1df);
+      } else {const popper=this.royaleView.itemModel({id:'popper',count:1},false);popper.scale.setScalar(.9);group.add(popper);}
       const pad = cylinder(
         group,
         0,
@@ -393,26 +380,7 @@ export class View {
       this.world.add(group);
       this.pickupMeshes.set(id, group);
     }
-    this.flagMeshes = [];
-    for (let i = 0; i < 2; i++) {
-      const g = new THREE.Group();
-      cylinder(g, 0, 0.15, 0, 0.34, 0.24, TEAM_COLORS[i]);
-      for (let j = 0; j < 5; j++) {
-        const a = (j * Math.PI * 2) / 5;
-        block(
-          g,
-          Math.sin(a) * 0.29,
-          0.37,
-          Math.cos(a) * 0.29,
-          0.11,
-          0.32,
-          0.11,
-          TEAM_COLORS[i],
-        );
-      }
-      this.world.add(g);
-      this.flagMeshes.push(g);
-    }
+
   }
   preview(profile) {
     const signature = JSON.stringify(profile);
@@ -475,6 +443,27 @@ export class View {
       this.portraits.set(id, weaponPortrait(this.renderer, id));
     return this.portraits.get(id);
   }
+  rocketModel(){
+    const g=new THREE.Group(),body=new THREE.MeshStandardMaterial({color:0x587c6d,metalness:.55,roughness:.35}),trim=new THREE.MeshStandardMaterial({color:0xf3c45b,metalness:.45,roughness:.3});
+    const cylinder=new THREE.Mesh(new THREE.CylinderGeometry(.10,.10,.5,12),body);g.add(cylinder);
+    const nose=new THREE.Mesh(new THREE.ConeGeometry(.11,.23,12),trim);nose.position.y=.365;g.add(nose);
+    const collar=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.075,12),trim);collar.position.y=-.16;g.add(collar);
+    for(let i=0;i<4;i++){const fin=new THREE.Mesh(new THREE.BoxGeometry(.035,.2,.26),body.clone());fin.rotation.y=i*Math.PI/2;fin.position.set(Math.sin(i*Math.PI/2)*.09,-.23,Math.cos(i*Math.PI/2)*.09);g.add(fin);}
+    const flame=new THREE.Mesh(new THREE.ConeGeometry(.075,.6,10),new THREE.MeshBasicMaterial({color:0xffad45,transparent:true,opacity:.9,depthWrite:false,toneMapped:false}));flame.rotation.z=Math.PI;flame.position.y=-.54;g.add(flame);g.userData.flame=flame;
+    const core=new THREE.Mesh(new THREE.ConeGeometry(.04,.4,10),new THREE.MeshBasicMaterial({color:0xfff1b0,transparent:true,opacity:.95,depthWrite:false,toneMapped:false}));core.rotation.z=Math.PI;core.position.y=-.40;g.add(core);
+    return g;
+  }
+  itemPreview(item) {
+    if(item.weapon)return this.weaponPreview(item.id);
+    const key='item:'+item.id;if(this.portraits.has(key))return this.portraits.get(key);
+    if(!this.portraitRenderer){this.portraitRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true});this.portraitRenderer.setPixelRatio(1);}
+    this.portraitRenderer.setSize(192,144);
+    const scene=new THREE.Scene();scene.add(new THREE.HemisphereLight(0xffffff,0x7d8c82,2.8));
+    const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(-3,5,4);scene.add(light);
+    const model=this.royaleView.itemModel(item,false);model.rotation.y=-.35;scene.add(model);
+    const camera=new THREE.PerspectiveCamera(35,4/3,.05,10);camera.position.set(1.1,1,1.8);camera.lookAt(0,.2,0);
+    this.portraitRenderer.render(scene,camera);const image=this.portraitRenderer.domElement.toDataURL();this.portraits.set(key,image);this.disposeGroup(model);return image;
+  }
   clearOutgoing(owner) {
     if(!owner.outgoing)return;
     const {group}=owner.outgoing;
@@ -535,15 +524,19 @@ export class View {
   event(e, localId) {
     this.royaleView.event(e);
     if (e.type === "hit" && e.player === localId && Number.isFinite(e.x)) {
-      const mesh = label(String(e.amount) + (e.precision ? "!" : ""), e.precision ? "#ffcf52" : "#ffffff", true, e.precision);
-      mesh.material.sizeAttenuation = false;
-      mesh.material.needsUpdate = true;
-      // Keep a 44 CSS-pixel label canvas regardless of distance or camera FOV.
-      const height = 88 / Math.max(1, this.canvas.clientHeight) / this.camera.projectionMatrix.elements[5];
-      mesh.scale.set(height * 512 / 96, height, 1);
-      mesh.position.set(e.x + (e.id % 3 - 1) * 0.16, e.y, e.z);
-      this.effects.add(mesh);
-      this.fx.push({mesh, life: 0.85, max: 0.85, damageText: true, critical: e.precision, drift: (e.id % 5 - 2) * 0.2});
+      const key=e.shotId!=null?e.player+':'+e.shotId+':'+e.target:null;
+      const previous=key&&this.fx.find(f=>f.damageText&&f.shotKey===key&&f.life>0);
+      const total=(previous?.amount||0)+e.amount,critical=!!(e.precision||previous?.critical);
+      const next=label(String(Math.max(1,Math.round(total)))+(critical?'!':''),critical?'#ffcf52':'#ffffff',true,critical);
+      next.material.sizeAttenuation=false;next.material.needsUpdate=true;
+      if(previous){
+        previous.mesh.material.map?.dispose();previous.mesh.material.dispose();previous.mesh.material=next.material;
+        previous.amount=total;previous.critical=critical;previous.life=previous.max=.9;
+      }else{
+        const height=88/Math.max(1,this.canvas.clientHeight)/this.camera.projectionMatrix.elements[5];
+        next.scale.set(height*512/96,height,1);next.position.set(e.x,e.y,e.z);this.effects.add(next);
+        this.fx.push({mesh:next,life:.9,max:.9,damageText:true,critical,drift:0,shotKey:key,amount:total});
+      }
     }
 
     if (e.type === "shot" || e.type === "launch") {
@@ -750,7 +743,8 @@ export class View {
       this.gunGroup.visible=this.gunGroup.visible&&draw.visible;
       const w = gun(local),
         scoped = w.optic === "scope" || w.optic === "prism";
-      const aiming = aim && (!local.inventory||local.flight==='ground'&&local.inventory[local.slot]?.weapon) && local.health > 0 && local.reloadEnd <= state.time && !draw.active;
+      const aiming = !!(aim && (!local.inventory||local.flight==='ground'&&local.inventory[local.slot]?.weapon) && local.health > 0 && local.reloadEnd <= state.time && !draw.active);
+      if(!Number.isFinite(this.aimBlend))this.aimBlend=0;
       this.aimBlend += (Number(aiming) - this.aimBlend) * Math.min(1, dt * 14);
       const fov = aiming
         ? scoped
@@ -789,7 +783,7 @@ export class View {
         hands.rotation[1] + draw.rotation[1],
         hands.rotation[2] + draw.rotation[2],
       );
-      this.scopeActive = aiming && scoped && this.aimBlend > 0.1 && (!local.inventory||!!local.inventory[local.slot]?.weapon);
+      this.scopeActive = !!aiming && scoped && this.aimBlend > 0.1 && (!local.inventory||!!local.inventory[local.slot]?.weapon);
       if(local.inventory){
         const heldItem=local.inventory[local.slot];
         this.localModel.visible=!!heldItem?.weapon;
@@ -863,7 +857,7 @@ export class View {
         const walking = p.health > 0 && p.grounded && p.moving;
         const gait = model.userData.gait = THREE.MathUtils.lerp(
           model.userData.gait || 0, walking ? 1 : 0, 1 - Math.exp(-dt * 6));
-        const stride = model.userData.stride = (model.userData.stride || 0) + dt * 5.2 * gait;
+        const stride = model.userData.stride = (model.userData.stride || 0) + dt * 4.4 * gait;
         const bob = (1 - Math.cos(stride * 2)) * 0.014 * gait;
         const deathAge = p.health <= 0 ? state.time - (p.eliminatedAt ?? p.respawnAt - 3) : 0;
         model.visible = p.health > 0 || deathAge < 0.75;
@@ -898,7 +892,7 @@ export class View {
           model.scale.set(1 + collapse * 0.25, 1 - collapse * 0.95, 1 + collapse * 0.25);
           model.rotation.z = collapse * 0.35;
         } else {
-          model.rotation.z = Math.sin(stride) * 0.19 * gait;
+          model.rotation.z = Math.sin(stride) * 0.27 * gait;
           model.rotation.x = Math.cos(stride * 2) * 0.015 * gait;
           // Rotate around the shell center, not its feet: the wide waddle no
           // longer swings the visible upper body outside the collision shell.
@@ -934,15 +928,9 @@ export class View {
             pip: [0.02, 0.075, 0.25],
           };
           const [radius, length, trail] = profiles[b.weapon] || profiles.sprinter;
-          mesh = new THREE.Mesh(
-            bolt ? new THREE.CapsuleGeometry(radius, length, 3, 6)
-              : b.popper ? new THREE.SphereGeometry(0.14, 12, 8)
-              : new THREE.CapsuleGeometry(0.075, 0.16, 4, 10),
-            new THREE.MeshStandardMaterial({
-              color: b.popper ? 0xb79bea : bolt ? 0xe4bc78 : 0x9871b5,
-              roughness: 0.4, metalness: bolt ? 0.55 : 0.25,
-            }),
-          );
+          if(bolt)mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius,length,3,6),new THREE.MeshStandardMaterial({color:0xe4bc78,roughness:.4,metalness:.55}));
+          else if(b.popper){mesh=this.royaleView.itemModel({id:'popper',count:1},false);mesh.scale.setScalar(.65);}
+          else mesh=this.rocketModel();
           this.effects.add(mesh);
           this.projectiles.set(b.id, mesh);
           if (bolt) {
@@ -962,6 +950,14 @@ export class View {
           b.y + b.vy * this.snapshotAge,
           b.z + b.vz * this.snapshotAge,
         );
+        if(!b.popper&&b.kind!=='bolt'){
+          if(mesh.userData.flame)mesh.userData.flame.scale.y=.75+Math.sin(this.clock*45)*.25;
+          if(state.phase==='playing'&&this.clock>(mesh.userData.smokeAt||0)){
+            mesh.userData.smokeAt=this.clock+.07;
+            const smoke=new THREE.Mesh(new THREE.SphereGeometry(.12,7,5),new THREE.MeshBasicMaterial({color:0xc7cbd3,transparent:true,opacity:.4,depthWrite:false}));
+            smoke.position.copy(mesh.position);this.effects.add(smoke);this.fx.push({mesh:smoke,life:.6,max:.6,smoke:true,ownedMaterial:true,ownedGeometry:true});
+          }
+        }
         const offset = this.shotOffsets.get(b.id);
         if (offset) {
           const blend = Math.max(0, 1 - (this.clock - offset.born) / 0.08);
@@ -994,27 +990,6 @@ export class View {
             mesh.userData.baseY + Math.sin(this.clock * 2) * 0.1;
         }
       }
-      for (let i = 0; i < 2; i++) {
-        const f = state.flags[i],
-          mesh = this.flagMeshes[i];
-        mesh.visible = state.options.mode === "capture" && !!f;
-        if (f) {
-          mesh.position.set(
-            f.x,
-            f.y + (f.carrier ? 2.2 : 0.9) + Math.sin(this.clock * 2) * 0.1,
-            f.z,
-          );
-          mesh.rotation.y = this.clock;
-        }
-      }
-      this.zoneMesh.visible = state.options.mode === "control";
-      if (this.zoneMesh.visible)
-        this.zoneMesh.material.color.setHex(
-          state.zone.owner >= 0 ? TEAM_COLORS[state.zone.owner] : 0xfbd15a,
-        );
-    } else {
-      this.zoneMesh.visible = false;
-      this.flagMeshes.forEach((m) => (m.visible = false));
     }
     for (const [id, offset] of this.shotOffsets)
       if (this.clock - offset.born > 0.12) this.shotOffsets.delete(id);
@@ -1035,6 +1010,8 @@ export class View {
           f.mesh.material.dispose();
         }
         this.fx.splice(i, 1);
+      } else if (f.smoke) {
+        f.mesh.scale.multiplyScalar(1+dt*1.8);f.mesh.position.y+=dt*.3;f.mesh.material.opacity=.4*f.life/f.max;
       } else if (f.damageText) {
         const age = f.max - f.life;
         const pop = (f.critical ? 1.18 : 1) * (1 + 0.4 * Math.sin(Math.min(1, age / 0.18) * Math.PI));
@@ -1068,7 +1045,7 @@ export class View {
       this.scopeCamera.fov = THREE.MathUtils.radToDeg(
         2 *
           Math.atan(
-            (aperture * VIEWMODEL.scale) / depth / gun(local).magnification,
+            (aperture * VIEWMODEL.scale) / depth / (gun(local).magnification||2.5),
           ),
       );
       this.scopeCamera.updateProjectionMatrix();
@@ -1082,4 +1059,3 @@ export class View {
     this.renderer.render(this.scene, this.camera);
   }
 }
-

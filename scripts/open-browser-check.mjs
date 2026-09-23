@@ -136,17 +136,18 @@ try{
  await host.evaluate(()=>window.__yolkTest.finish());
  await host.locator('[data-action="rematch"]').waitFor();
  await host.locator('[data-action="rematch"]').click();
- await host.locator('#setup-mode').selectOption('capture');
- assert.equal(await host.locator('#setup-scoreLimit').inputValue(),'3');
+ await host.locator('#setup-mode').selectOption('teams');
+ assert.equal(await host.locator('#setup-scoreLimit').inputValue(),'35');
  await host.locator('#setup-scoreLimit').fill('5');await host.locator('#setup-minutes').fill('8');
  await host.locator('#setup-map').selectOption({index:1});await host.locator('#setup-bots').selectOption('1');
  await host.screenshot({path:'test-results/match-rematch-settings.png'});
  await host.locator('[data-action="apply-rematch"]').click();
- await guest.waitForFunction(()=>{const s=window.__yolkTest.read().state;return s.round===2&&s.options.mode==='capture'&&s.options.minutes===8&&s.options.scoreLimit===5;});
+ await guest.waitForFunction(()=>{const s=window.__yolkTest.read().state;return s.round===2&&s.options.mode==='teams'&&s.options.minutes===8&&s.options.scoreLimit===5;});
  assert.equal(await guest.evaluate(()=>window.__yolkTest.read().state.players.filter(p=>p.bot).length),1);
  console.log('PASS rematch setup changes arena, mode, time, target and bots without losing guests');
  await host.close();
- await guest.locator('[data-action="close"]').first().click();
+ await guest.waitForFunction(()=>window.__yolkTest.read().host);
+ await guest.keyboard.press('Escape');await guest.locator('[data-action="leave-confirm"]').click();
  // A remaining browser must take over discovery after its coordinator closes.
  await guest.locator('[data-action="setup"]').click();await guest.locator('#setup-visibility').selectOption('public');await guest.locator('[data-action="create-room"]').click();
  await guest.locator('.room-code').waitFor();
