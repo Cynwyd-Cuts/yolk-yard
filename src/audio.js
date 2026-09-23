@@ -67,7 +67,12 @@ export class Sound {
   this.ctx?.resume().catch(()=>{});
  }
  setVolumes(settings){this.volume=settings.volume??this.volume;this.effectsVolume=settings.effectsVolume??.85;this.ambienceVolume=settings.ambienceVolume??.5;this.musicVolume=settings.musicVolume??.3;if(this.master)this.master.gain.setTargetAtTime(this.enabled?this.volume:0,this.ctx.currentTime,.03);}
- spatial(position){if(!position||!this.listener)return {gain:1,pan:0};const dx=position.x-this.listener.x,dz=position.z-this.listener.z,d=Math.hypot(dx,dz);return {gain:1/(1+(d/18)**1.4),pan:Math.max(-.9,Math.min(.9,(dx*Math.cos(this.listener.yaw)-dz*Math.sin(this.listener.yaw))/Math.max(1,d)))};}
+ spatial(position){
+  if(!position||!this.listener)return {gain:1,pan:0};
+  const dx=position.x-this.listener.x,dz=position.z-this.listener.z,dy=(position.y||0)-(this.listener.y||0),d=Math.hypot(dx,dy,dz),radius=position.radius||65;
+  if(d>=radius)return {gain:0,pan:0};
+  return {gain:(1-d/radius)**2/(1+(d/22)**1.1),pan:Math.max(-.95,Math.min(.95,(dx*Math.cos(this.listener.yaw)-dz*Math.sin(this.listener.yaw))/Math.max(1,d)))};
+ }
  layer(p,position,category='effects',scale=1){
   if(!this.ctx||!this.enabled||this.volume<=0||this.voices.size>=56)return;
   const c=this.ctx,at=c.currentTime+(p.at||0),sp=this.spatial(position),volume=p.v*scale*sp.gain*(category==='music'?this.musicVolume:category==='ambience'?this.ambienceVolume:this.effectsVolume);
@@ -86,13 +91,14 @@ export class Sound {
   const category=id==='victory'||id==='defeat'?'music':id.startsWith('ambient')?'ambience':'effects';
   const key=id+(position?Math.round(position.x/5)+':'+Math.round(position.z/5):'');
   if((this.cooldowns.get(key)||0)>this.clock)return;this.cooldowns.set(key,this.clock+.05);
-  preset.forEach(p=>this.layer(p,position,category,scale));
+  const radius=id.includes('chest')?16:id.includes('impact')||id.includes('hit')||id==='ricochet'?30:id==='supply-land'?110:id==='ambient-bell'?95:id.includes('glider')?24:id==='land'||id==='jump'?20:45;
+  preset.forEach(p=>this.layer(p,position?{...position,radius}:null,category,scale));
  }
  tone(freq,duration=.09,type='sine',volume=.15,end=0){this.layer(note(freq,duration,volume,type,end));}
- shot(id,distance=0,position=null){const [f,filter,d]=SHOT_PALETTE[id]||SHOT_PALETTE.sprinter;const scale=position?1:1/(1+distance/15);this.layer(note(f,d,.16,id==='comet'?'sine':'triangle',id==='comet'?180:35),position,'effects',scale);this.layer(noise(filter,d*.65,.15),position,'effects',scale);this.layer(note(filter*.65,.045,.025,'square',140),position,'effects',scale);if(distance<15)this.cue('shell-casing',position,.7);}
- death(distance=0){this.cue('shell-down',null,1/(1+distance/12));}
+ shot(id,distance=0,position=null){if(!position&&distance>160)return;if(position)position={...position,radius:id==='thumper'?190:['needle','anchor','peeper'].includes(id)?170:125};const [f,filter,d]=SHOT_PALETTE[id]||SHOT_PALETTE.sprinter;const scale=position?1:1/(1+distance/15);this.layer(note(f,d,.16,id==='comet'?'sine':'triangle',id==='comet'?180:35),position,'effects',scale);this.layer(noise(filter,d*.65,.15),position,'effects',scale);this.layer(note(filter*.65,.045,.025,'square',140),position,'effects',scale);if(distance<15)this.cue('shell-casing',position,.7);}
+ death(distance=0,position=null){if(distance>38)return;this.cue('shell-down',position,1/(1+distance/12));}
  hit(){this.layer(note(950,.065,.11,'sine',1400));}
- pop(distance=0){const scale=1/(1+distance/18);this.layer(noise(160,.38,.25),null,'effects',scale);this.layer(note(70,.4,.17,'triangle',25),null,'effects',scale);}
+ pop(distance=0,position=null){if(distance>190)return;const source=position?{...position,radius:190}:null,scale=source?1:1/(1+distance/18);this.layer(noise(160,.38,.25),source,'effects',scale);this.layer(note(70,.4,.17,'triangle',25),source,'effects',scale);}
  pickup(){this.cue('pickup-1');}eliminate(){this.cue('elimination');}
  reload(duration=1.2){this.cue('reload-out');for(const p of SOUND_CUES['reload-in'])this.layer({...p,at:Math.max(.1,duration*.68)+(p.at||0)});}
  loop(id,target,{freq=300,volume=.06,noise:useNoise=true}={}){
@@ -104,7 +110,7 @@ export class Sound {
   }
   if(loop){loop.gain.gain.setTargetAtTime(Math.max(0,target)*volume*this.ambienceVolume,this.ctx.currentTime,.3);if(!target){if(!loop.silentAt)loop.silentAt=this.clock;if(this.clock-loop.silentAt>1.5){loop.source.stop();loop.source.disconnect();loop.filter.disconnect();loop.gain.disconnect();this.loops.delete(id);}}else loop.silentAt=0;}
  }
- stopWorld(){for(const loop of this.loops.values()){loop.source.stop();loop.source.disconnect();loop.filter.disconnect();loop.gain.disconnect();}this.loops.clear();this.wasStorm=false;this.lastAlive=0;}
+ stopWorld(){for(const loop of this.loops.values()){loop.source.stop();loop.source.disconnect();loop.filter.disconnect();loop.gain.disconnect();}this.loops.clear();this.wasStorm=false;this.lastAlive=0;this.lastStormTick=null;}
  event(e,me,state){
   if(e.type==='round')this.cue('round-start');
   if(e.type==='royale-cue'){
@@ -128,7 +134,9 @@ export class Sound {
   this.loop('wind',me.flight==='dive'?1:me.flight==='glide'?.5:0,{freq:me.flight==='dive'?1700:700,volume:.14});
   const outside=!!royale?.storm?.active&&me.health>0&&Math.hypot(me.x-royale.storm.x,me.z-royale.storm.z)>royale.storm.radius;
   this.loop('storm',outside?1:0,{freq:650,volume:.13});
-  if(outside&&this.clock-(this.lastStormTick||0)>1){this.lastStormTick=this.clock;this.cue('storm-tick');}
+  const countdown=royale?.storm&&!royale.storm.closing?Math.ceil(royale.storm.seconds):0;
+  const countdownKey=royale?.storm?.index+':'+countdown;
+  if(countdown>=1&&countdown<=5&&countdownKey!==this.lastStormTick){this.lastStormTick=countdownKey;this.cue('countdown');}
   if(me.flight==='glide'&&this.clock-(this.lastFlap||0)>2.4){this.lastFlap=this.clock;this.cue('glider-flap');}
   if(outside!==this.wasStorm){this.cue(outside?'storm-enter':'storm-exit');this.wasStorm=outside;}
   if(me.exhausted&&!this.wasExhausted)this.cue('stamina-empty');if(!me.exhausted&&this.wasExhausted)this.cue('stamina-ready');this.wasExhausted=!!me.exhausted;

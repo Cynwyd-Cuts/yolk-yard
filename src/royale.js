@@ -1,7 +1,8 @@
+import {botInput as tacticalBotInput} from './bots.js';
 import {beginEquip} from './equip.js';
 import {Simulation} from './simulation.js';
-import {gun,weapon,clamp} from './data.js';
-import {movePlayer,dist,direction,wallDistance,EYE} from './physics.js';
+import {gun,weapon,clamp,safeProfile,randomAppearance,nameKey} from './data.js';
+import {movePlayer,dist,direction,wallDistance,EYE,canStand} from './physics.js';
 import {surfaceAt} from './maps.js';
 import {groundAt} from './terrain.js';
 import {ITEMS,ROYALE_GUN_IDS,ammoType,AMMO_CAPS,randomRarity,makeStorm,stormAt,makeFlight,transportAt} from './royale-data.js';
@@ -14,21 +15,22 @@ export class RoyaleSimulation extends Simulation {
  addPlayer(id,profile,bot=false){
   if(this.players.has(id))return this.players.get(id);
   const playing=this.phase==='playing',capacity=this.options.capacity;
-  if(this.players.size>=(playing?capacity+4:capacity))return null;
-  this.maxPlayers=playing?capacity+4:capacity;
+  if(this.players.size>=(capacity))return null;
+  this.maxPlayers=capacity;
   const p=super.addPlayer(id,profile,bot);if(!p)return null;
   p.inventory=Array(5).fill(null);p.ammo=Array(5).fill(0);p.reserve=Array(5).fill(0);p.accuracyState=Array.from({length:5},()=>({}));
   p.bank={light:0,medium:0,shells:0,heavy:0,rockets:0};p.shield=0;p.stamina=100;p.flight='lobby';p.use=null;p.place=0;p.eliminated=false;p.spectating=playing;p.awaitingEntry=false;p.health=playing?0:100;
   return p;
  }
  spawn(p){
-  if(!p.inventory){super.spawn(p);return;}
+  // Entrants wait in the lobby, then start on the transport. Arena spawn
+  // searches are both irrelevant here and expensive over the whole island.
+  if(!p.inventory){p.health=100;p.grounded=true;return;}
   // No external action can turn a spawn call into a second Royale life.
   if(this.phase==='playing')return;
  }
  setProfile(id,profile){
-  if(this.phase==='playing')return;
-  super.setProfile(id,profile);
+  return super.setProfile(id,profile);
  }
  configure(options){
   if(!super.configure({...options,mode:'royale'}))return false;
@@ -43,12 +45,12 @@ export class RoyaleSimulation extends Simulation {
   if(Math.min(humans.length,this.options.capacity)+Math.max(0,count)<2){this.emit('notice',{text:'Invite another egg or add a bot to launch.'});return false;}
   this.maxPlayers=this.options.capacity;const savedBots=this.options.bots;this.options.bots=Math.max(0,count);this.addBots();this.options.bots=savedBots;
   this.phase='playing';this.round++;this.startedAt=this.time;this.elapsed=0;this.winner='';this.winnerId=null;this.placements=[];this.projectiles=[];this.events=[];this.inputs.clear();this.loot=[];this.lootId=0;this.lootVersion++;this.pads=[];this.supplyAt=135;this.queueEnds=0;
-  this.route=makeFlight(this.random);this.stormSteps=makeStorm(this.random,this.options.storm);this.storm=stormAt(this.stormSteps,0);this.remaining=this.stormSteps.at(-1).end+15;
+  this.route=makeFlight(this.random);this.stormSteps=makeStorm(this.random,this.options.storm);this.storm=stormAt(this.stormSteps,0);this.remaining=0;
   const landingSpots=this.map.floorLoot.filter((point,index)=>index%3===0&&!point.roof);
   const seats=[...this.players.values()].sort((a,b)=>Number(a.bot)-Number(b.bot));
   for(const [index,p] of seats.entries()){
    const contestant=index<this.options.capacity;
-   Object.assign(p,{health:contestant?100:0,shield:0,stamina:100,sprintRest:0,exhausted:false,sprinting:false,flight:contestant?'transport':'out',flightLatch:false,grounded:false,eliminated:!contestant,spectating:!contestant,awaitingEntry:false,spawnRequested:false,place:0,eliminatedAt:null,kills:0,deaths:0,points:0,streak:0,slot:0,poppers:0,reloadEnd:0,burstLeft:0,nextShot:0,fireLatch:false,shieldUntil:0,lastDamage:-100,respawnAt:0,killerId:null,crown:null,inventory:Array(5).fill(null),ammo:Array(5).fill(0),reserve:Array(5).fill(0),accuracyState:Array.from({length:5},()=>({})),bank:{light:0,medium:0,shells:0,heavy:0,rockets:0},use:null,chestId:null,chestProgress:0,interactLatch:false,dropLatch:false,useLatch:false,botThink:0,botPath:[],botDrop:4+this.random()*27,botLand:landingSpots[Math.floor(index*landingSpots.length/this.options.capacity)%landingSpots.length]});
+   Object.assign(p,{health:contestant?100:0,shield:0,stamina:100,sprintRest:0,exhausted:false,sprinting:false,flight:contestant?'transport':'out',flightLatch:false,grounded:false,eliminated:!contestant,spectating:!contestant,awaitingEntry:false,spawnRequested:false,place:0,eliminatedAt:null,kills:0,deaths:0,points:0,streak:0,slot:0,poppers:0,reloadEnd:0,burstLeft:0,nextShot:0,fireLatch:false,shieldUntil:0,lastDamage:-100,respawnAt:0,killerId:null,crown:null,inventory:Array(5).fill(null),ammo:Array(5).fill(0),reserve:Array(5).fill(0),accuracyState:Array.from({length:5},()=>({})),bank:{light:0,medium:0,shells:0,heavy:0,rockets:0},use:null,chestId:null,chestProgress:0,interactLatch:false,dropLatch:false,useLatch:false,botThink:0,botPath:[],brain:null,botDrop:4+this.random()*27,botLand:landingSpots[Math.floor(index*landingSpots.length/this.options.capacity)%landingSpots.length]});
    Object.assign(p,transportAt(this.route,0));p.pitch=0;p.vy=0;
   }
   this.alive=seats.filter(p=>p.health>0).length;
@@ -65,7 +67,20 @@ export class RoyaleSimulation extends Simulation {
   // Covers every authored floor spawn + chest, supply drops and all death drops.
   // Rendering remains distance-limited and unchanged world loot is not re-sent.
   if(this.loot.length>=1400)return null;
-  const drop={...item,uid:++this.lootId,x:point.x,y:Math.max(point.y||0,groundAt(this.map,point.x,point.z)),z:point.z};this.loot.push(drop);this.lootVersion++;return drop;
+  let spot=null,best=-Infinity;
+  for(let i=0;i<80;i++){
+   const a=i*2.399963,r=i===0?0:1.8+Math.sqrt(i)*.55;
+   const x=point.x+Math.cos(a)*r,z=point.z+Math.sin(a)*r;
+   const y=surfaceAt(this.map,x,z),candidate={x,y,z};
+   if(Math.abs(y-(point.y||0))>1.1||!canStand(this.map,candidate,.4))continue;
+   const d=Math.hypot(x-point.x,z-point.z)||1;
+   if(wallDistance(this.map,{x:point.x,y:(point.y||0)+.65,z:point.z},{x:(x-point.x)/d,y:0,z:(z-point.z)/d},d)<d-.1)continue;
+   const separation=Math.min(5,...this.loot.filter(o=>Math.abs(o.y-y)<1.5).map(o=>Math.hypot(o.x-x,o.z-z)));
+   if(separation>=2.15){spot=candidate;break;}
+   if(separation>best){best=separation;spot=candidate;}
+  }
+  spot??={x:point.x,y:Math.max(point.y||0,groundAt(this.map,point.x,point.z)),z:point.z};
+  const drop={...item,uid:++this.lootId,...spot};this.loot.push(drop);this.lootVersion++;return drop;
  }
  dropWeapon(point,id,rarity=0,ammo=weapon(id).magazine){return this.dropLoot(point,{id,weapon:true,rarity,count:1,ammo});}
  dropAmmo(point,type,count){return this.dropLoot(point,{id:type,ammoType:type,count,rarity:0});}
@@ -153,15 +168,15 @@ export class RoyaleSimulation extends Simulation {
   const item=p.inventory[p.slot];if(!item?.weapon||p.flight!=='ground'||p.use)return;
   super.fire(p,burst);item.ammo=p.ammo[p.slot];
  }
- damage(victim,attacker,amount,source,precision=false){
+ damage(victim,attacker,amount,source,precision=false,shotId=null){
   if(victim.health<=0||victim.flight==='transport')return;
   amount=Math.max(0,amount);const old=victim.health;let absorbed=0;
   if(source!=='Storm'&&victim.shield>0){absorbed=Math.min(victim.shield,amount);victim.shield-=absorbed;amount-=absorbed;
    this.emit('royale-cue',{cue:victim.shield===0?'shield-break':'shield-hit',player:victim.id,x:victim.x,y:victim.y,z:victim.z});
   }
   this.cancelUse(victim);victim.chestProgress=0;victim.lastDamage=this.time;
-  if(amount>0)super.damage(victim,attacker,amount,source,precision);
-  if(absorbed>0)this.emit('hit',{player:attacker?.id,target:victim.id,amount:Math.round(absorbed),x:victim.x,y:victim.y+2.7,z:victim.z,precision,shield:true});
+  if(amount>0)super.damage(victim,attacker,amount,source,precision,shotId);
+  if(absorbed>0)this.emit('hit',{player:attacker?.id,target:victim.id,amount:absorbed,shotId,sourceX:attacker?.x,sourceY:attacker?.y,sourceZ:attacker?.z,x:victim.x,y:victim.y+2.7,z:victim.z,precision,shield:true});
   if(old>0&&victim.health<=0)this.eliminate(victim);
  }
  eliminate(p){
@@ -173,15 +188,38 @@ export class RoyaleSimulation extends Simulation {
   this.placements.push({id:p.id,name:p.name,place:p.place,kills:p.kills});this.alive=Math.max(0,this.alive-1);
   this.emit('royale-eliminated',{player:p.id,place:p.place});
  }
+ admitPlayer(id,profile){
+  if(this.players.has(id))return this.players.get(id);
+  if([...this.players.values()].some(p=>!p.bot&&nameKey(p.name)===nameKey(profile.name)))return null;
+  if(this.phase!=='playing')return super.admitPlayer(id,profile);
+  const bot=[...this.players.values()].find(p=>p.bot&&p.health>0&&!p.spectating)||[...this.players.values()].find(p=>p.bot);
+  if(!bot){if(this.players.size>=this.options.capacity)return null;return this.addPlayer(id,profile);}
+  this.players.delete(bot.id);this.inputs.delete(bot.id);
+  const oldId=bot.id;Object.assign(bot,safeProfile(profile),{id,bot:false,joinedOrder:++this.joinOrder,brain:null,ack:0,fireLatch:false});
+  for(const b of this.projectiles)if(b.owner===oldId)b.owner=id;
+  this.players.set(id,bot);this.emit('join',{player:id,name:bot.name});return bot;
+ }
+ leavePlayer(id){
+  const p=this.players.get(id);if(!p)return;
+  if(this.phase==='playing'&&(this.options.fill||this.options.bots>0)){
+   this.players.delete(id);this.inputs.delete(id);
+   let botId='bot-fill-'+this.joinOrder++;while(this.players.has(botId))botId+='x';
+   Object.assign(p,randomAppearance(this.random),{id:botId,bot:true,name:this.uniqueBotName('Sunny'),brain:null,ack:0,botThink:0,botPath:[],botLand:p.botLand||this.map.floorLoot[0],botDrop:this.elapsed+2});
+   for(const b of this.projectiles)if(b.owner===id)b.owner=botId;
+   this.players.set(botId,p);this.emit('leave',{name:p.name});
+  }else this.removePlayer(id);
+ }
  removePlayer(id){const p=this.players.get(id);if(p&&this.phase==='playing'&&p.health>0){p.health=0;this.eliminate(p);}super.removePlayer(id);}
  playerAction(id,action){
   const p=this.players.get(id);if(!p||this.phase!=='playing')return;
-  const change=/^inventory-(select|drop|swap)-([0-4])(?:-([0-4]))?$/.exec(action);
+  const change=/^inventory-(select|drop|drop-one|split|swap)-([0-4])(?:-([0-4]))?$/.exec(action);
   if(change&&p.health>0&&!p.spectating&&p.flight==='ground'){
    const from=Number(change[2]),to=Number(change[3]);
    if(change[1]==='select'){p.slot=from;beginEquip(p,this.time,true);}
    else if(change[1]==='drop')this.dropSlot(p,from);
-   else if(Number.isInteger(to)&&to>=0&&to<5){[p.inventory[from],p.inventory[to]]=[p.inventory[to],p.inventory[from]];beginEquip(p,this.time,true);}
+   else if(change[1]==='drop-one'){const item=p.inventory[from];if(item&&!item.weapon&&item.count>1){this.dropLoot(p,{...item,count:1});item.count--;}else this.dropSlot(p,from);}
+   else if(change[1]==='split'){const item=p.inventory[from],empty=p.inventory.findIndex(i=>!i);if(item&&!item.weapon&&item.count>1&&empty>=0){const count=Math.floor(item.count/2);item.count-=count;p.inventory[empty]={...item,count};}}
+   else if(Number.isInteger(to)&&to>=0&&to<5){[p.inventory[from],p.inventory[to]]=[p.inventory[to],p.inventory[from]];if(p.slot===from)p.slot=to;else if(p.slot===to)p.slot=from;beginEquip(p,this.time,true);}
    this.cancelUse(p);p.reloadEnd=0;p.burstLeft=0;this.syncInventory(p);this.emit('royale-cue',{player:p.id,cue:'weapon-swap'});return;
   }
   if(action==='spectate'&&p.health>0){this.damage(p,null,p.health+p.shield+1,'Left round');if(p.flight==='transport'){p.health=0;this.eliminate(p);}}
@@ -189,7 +227,7 @@ export class RoyaleSimulation extends Simulation {
  tick(dt){
   dt=clamp(dt,0,1/30);this.time+=dt;
   if(this.phase!=='playing'){const count=Math.ceil(this.queueEnds-this.time);if(this.queueEnds&&count>0&&count<=5&&this.lastCountdown!==count){this.lastCountdown=count;this.emit('royale-cue',{cue:'countdown'});}return;}
-  this.elapsed=this.time-this.startedAt;this.remaining=Math.max(0,this.stormSteps.at(-1).end+15-this.elapsed);
+  this.elapsed=this.time-this.startedAt;this.remaining=0;
   const oldIndex=this.storm.index,oldClosing=this.storm.closing;
   this.storm=stormAt(this.stormSteps,this.elapsed);
   if(oldIndex!==this.storm.index||oldClosing!==this.storm.closing)this.emit('royale-cue',{cue:this.storm.closing?'storm-closing':'storm-reveal'});
@@ -213,7 +251,7 @@ export class RoyaleSimulation extends Simulation {
    if(input.swapSlot>=0&&input.swapSlot<5&&input.swapSlot!==p.slot&&!p.swapLatch){const j=input.swapSlot;[p.inventory[p.slot],p.inventory[j]]=[p.inventory[j],p.inventory[p.slot]];p.reloadEnd=0;this.cancelUse(p);this.syncInventory(p);}
    p.swapLatch=input.swapSlot>=0;
    if(input.sprint)this.cancelUse(p);
-   movePlayer(p,input,this.map,dt);p.moving=Math.hypot(p.x-previous.x,p.z-previous.z)>.001;p.aim=!!input.aim&&p.flight==='ground'&&!p.use;
+   movePlayer(p,input,this.map,dt);p.moving=Math.hypot(p.x-previous.x,p.z-previous.z)>.001;p.aim=!!input.aim&&p.flight==='ground'&&!p.use&&!!p.inventory[p.slot]?.weapon;p.vx=(p.x-previous.x)/dt;p.vz=(p.z-previous.z)/dt;
    if(wasFlight!==p.flight)this.emit('royale-cue',{player:p.id,cue:p.flight==='ground'?'land':p.flight==='dive'?'glider-cut':'glider-deploy',x:p.x,y:p.y,z:p.z});
    else if(!oldGrounded&&p.grounded)this.emit('royale-cue',{player:p.id,cue:'land',x:p.x,y:p.y,z:p.z});
    else if(oldGrounded&&!p.grounded&&p.vy>0)this.emit('royale-cue',{player:p.id,cue:'jump',x:p.x,y:p.y,z:p.z});
@@ -232,8 +270,8 @@ export class RoyaleSimulation extends Simulation {
     if(p.use&&this.time>=p.use.end)this.finishUse(p);
     for(const pad of this.pads)if(this.time>=(p.nextLaunch||0)&&dist(p,pad)<2){p.flight='launch';p.vy=38;p.grounded=false;p.nextLaunch=this.time+3;this.emit('royale-cue',{player:p.id,cue:'launch',x:pad.x,y:pad.y,z:pad.z});}
    }
-   if(this.storm.active&&Math.hypot(p.x-this.storm.x,p.z-this.storm.z)>this.storm.radius){this.damage(p,null,this.storm.dps*dt,'Storm');}
-   else if(this.remaining===0)this.damage(p,null,30*dt,'Storm');
+   if(this.storm.active&&(this.storm.radius<=.01||Math.hypot(p.x-this.storm.x,p.z-this.storm.z)>this.storm.radius)){if(this.alive>1)this.damage(p,null,this.storm.dps*dt,'Storm');}
+
   }
   for(const chest of this.chests)if(chest.landAt&&this.time>=chest.landAt&&!chest.landed){chest.landed=true;this.emit('royale-cue',{cue:'supply-land',x:chest.x,y:chest.y,z:chest.z});}
   this.pads=this.pads.filter(p=>p.until>this.time);
@@ -277,18 +315,16 @@ export class RoyaleSimulation extends Simulation {
   let step=clear?goal:p.botPath?.[0]||goal;
   let dx=step.x-p.x,dz=step.z-p.z,len=Math.hypot(dx,dz)||1;
   input.yaw=Math.atan2(-dx,-dz);input.forward=len>.5?1:0;input.sprint=(danger||len>12)&&!needGun;
-  input.jump=this.time%2<.025;
+  input.jump=!!p.botPath?.[0]&&p.botPath[0].y>p.y+.35;
   if(chest&&this.accessible(p,chest,3.3))input.interact=true;
   else if(items[0]&&this.accessible(p,items[0]))input.interact=!p.interactLatch;
   if(weaponSlot>=0)input.slot=weaponSlot;
   const heal=p.inventory.findIndex(i=>i&&!i.weapon&&((ITEMS[i.id]?.kind==='heal'&&p.health<65)||(ITEMS[i.id]?.kind==='shield'&&p.shield<50)));
   if(heal>=0&&(!enemy||dist(p,enemy)>25)&&!danger){input.slot=heal;input.fire=!p.use;input.sprint=false;input.forward=0;return input;}
   if(enemy&&weaponSlot>=0){
-   const to={x:enemy.x-p.x,y:enemy.y+.9-p.y-EYE,z:enemy.z-p.z},distance=Math.hypot(to.x,to.y,to.z);
-   if(distance<105&&wallDistance(this.map,{x:p.x,y:p.y+EYE,z:p.z},{x:to.x/distance,y:to.y/distance,z:to.z/distance},distance)>=distance-.3){
-    input.yaw=Math.atan2(-to.x,-to.z)+Math.sin(this.time*1.5+p.botDrop)*.01*(4-this.options.difficulty);input.pitch=Math.atan2(to.y,Math.hypot(to.x,to.z));input.fire=this.time%1.4<.35+this.options.difficulty*.2;input.aim=true;input.sprint=false;
-    input.forward=-Math.sin(input.yaw)*dx/len-Math.cos(input.yaw)*dz/len;input.strafe=Math.cos(input.yaw)*dx/len-Math.sin(input.yaw)*dz/len;
-   }
+   const tactics=tacticalBotInput(this,p,{goal:danger?goal:null,enemy,travel:danger});
+   Object.assign(input,tactics);input.interact=!!input.interact;
+   if(danger)input.sprint=!input.fire;
   }
   return input;
  }

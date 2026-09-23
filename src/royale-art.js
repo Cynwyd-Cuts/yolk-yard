@@ -178,7 +178,7 @@ export function chestModel(raw,supply=false){
  rounded(g,0,.86,.68,.38,.4,.1,trim,.035);rock(g,0,.89,.75,.11,.15,.055,supply?0x94eef1:0x64cfc3,1);
  for(const x of [-.67,.67])for(const z of [-.43,.43])box(g,x,.035,z,.3,.12,.3,0x536169);
  if(supply){for(const x of [-.5,.5])box(g,x,.5,0,.07,1.05,1.33,0xf8e1a1);box(g,0,.43,.68,.4,.19,.025,0xf5edcc);}
- const glow=rock(g,0,1.65,0,.12,.17,.12,0xffdf89,1);glow.userData.keepDynamic=true;g.userData.glow=glow;
+ g.scale.setScalar(supply?.85:.68);
  return g;
 }
 export function launchpadModel(raw){
@@ -222,8 +222,12 @@ export function lootModel(item,raw,{ground=true}={}){
  }else if(item.id==='launchpad'){
   const p=launchpadModel(raw);p.scale.setScalar(.37);p.position.y=.06;g.add(p);
  }else if(item.id==='popper'){
-  rock(g,0,.17,0,.23,.31,.23,0x9178b6,1);cylinder(g,0,.47,0,.11,.1,0xe5d19a,8);
-  const r=torus(g,.07,.59,0,.08,.022,0x6a7682);r.rotation.y=Math.PI/2;rounded(g,.17,.4,0,.08,.25,.11,0xe5d19a,.015);
+  // Segmented grenade body, collar, safety lever, and a visible pull ring.
+  cylinder(g,0,.18,0,.24,.48,0x496b56,12);cone(g,0,.46,0,.24,.14,0x6d8965,.55);
+  cylinder(g,0,-.06,0,.19,.06,0x334c43,12);cylinder(g,0,.58,0,.11,.13,0x35454e,10);
+  for(let row=0;row<3;row++)for(let j=0;j<8;j++){const a=j*Math.PI/4;const m=rounded(g,Math.cos(a)*.235,.02+row*.15,Math.sin(a)*.235,.16,.12,.06,0x80996d,.01);m.rotation.y=Math.PI/2-a;}
+  const r=torus(g,-.08,.72,0,.12,.025,0xc9d4cf);r.rotation.y=Math.PI/2;
+  rounded(g,.17,.57,0,.32,.055,.13,0xd6b466,.012);const lever=rounded(g,.30,.38,0,.055,.38,.13,0xd6b466,.012);lever.rotation.z=-.18;
  }else rock(g,0,.2,0,.3,.35,.3,c,1);
  if(ground){const ring=new THREE.Mesh(geo('loot-ring',()=>new THREE.RingGeometry(.4,.51,32)),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.7,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.y=-.28;ring.userData.ownedMaterial=true;g.add(ring);}
  return g;

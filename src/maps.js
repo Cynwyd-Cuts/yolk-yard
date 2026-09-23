@@ -1,3 +1,4 @@
+import {addArenaLayers} from './arena-layers.js';
 import {ROYALE_MAP} from './royale-map.js';
 import {groundAt} from './terrain.js';
 const box = (x, z, w, d, h, color = "sand", y = 0, kind = "wall") => ({
@@ -300,6 +301,8 @@ export const MAPS = [
     ],
   },
 ];
+
+for(const map of MAPS)addArenaLayers(map);
 
 // Visible garden posts also participate in movement and shot collision.
 for (const map of MAPS)

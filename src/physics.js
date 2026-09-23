@@ -74,20 +74,27 @@ function overlaps(p, b) {
     Math.abs(p.z - b.z) < b.d / 2 + RADIUS
   );
 }
-function pushAxis(p, map, axis, delta) {
-  p[axis] += delta;
-  for (const b of candidates(map,p))
-    if (overlaps(p, b)) {
-      const top = b.y + b.h;
-      if (p.grounded && top - p.y <= 0.43 && top - p.y > 0) {
-        p.y = top;
-        continue;
-      }
-      if (delta > 0)
-        p[axis] = b[axis] - (axis === "x" ? b.w : b.d) / 2 - RADIUS;
-      else if (delta < 0)
-        p[axis] = b[axis] + (axis === "x" ? b.w : b.d) / 2 + RADIUS;
-    }
+export function canStand(map,p,margin=RADIUS) {
+ if(Math.abs(p.x)>map.size-margin||Math.abs(p.z)>map.size-margin)return false;
+ return ![...candidates(map,p,null,0,margin)].some(b=>p.y+.035<b.y+b.h&&p.y+HEIGHT>b.y+.02&&Math.abs(p.x-b.x)<b.w/2+margin&&Math.abs(p.z-b.z)<b.d/2+margin);
+}
+function pushAxis(p,map,axis,delta) {
+ if(Math.abs(delta)<1e-10)return;
+ const start=p[axis],base=p.y,other=axis==='x'?'z':'x',size=axis==='x'?'w':'d';
+ let target=start+delta;
+ const nearby=[...candidates(map,{...p,[axis]:target})];
+ const hits=nearby.filter(b=>p.y<b.y+b.h-.015&&p.y+HEIGHT>b.y+.02&&Math.abs(p[other]-b[other])<(other==='x'?b.w:b.d)/2+RADIUS&&Math.abs(target-b[axis])<b[size]/2+RADIUS);
+ // One stair rise per axis. Never stack multiple step corrections in one move.
+ const top=Math.max(base,...hits.map(b=>b.y+b.h));
+ if(hits.length&&p.grounded&&top-base>0&&top-base<=.43&&canStand(map,{...p,[axis]:target,y:top})) {
+  p[axis]=target;p.y=top;return;
+ }
+ for(const b of hits){
+  const edge=b[axis]-Math.sign(delta)*(b[size]/2+RADIUS+.001);
+  // Clamp against the entry face; an unrelated box cannot teleport the player.
+  target=delta>0?Math.min(target,Math.max(start,edge)):Math.max(target,Math.min(start,edge));
+ }
+ p[axis]=target;
 }
 export function movePlayer(p, input, map, dt) {
   if (p.health <= 0) return;
@@ -137,7 +144,7 @@ export function movePlayer(p, input, map, dt) {
   const speed =
     (p.inventory ? ROYALE_MOVEMENT[p.sprinting ? 'sprint' : 'walk'] : weapon(p.weapon).speed) *
     (input.aim ? 0.7 : 1) *
-    (p.crown !== null ? 0.88 : 1);
+    (p.crown != null ? 0.88 : 1);
   const dx = (-Math.sin(p.yaw) * f + Math.cos(p.yaw) * s) * speed * dt,
     dz = (-Math.cos(p.yaw) * f - Math.sin(p.yaw) * s) * speed * dt;
   if (input.jump && p.grounded && !p.jumpLatch) {

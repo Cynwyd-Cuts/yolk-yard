@@ -1,11 +1,11 @@
 # Weapon reference
 
-Verified on 2026-09-21 against the live public client served by
+Projectile speeds reverified on 2026-09-23 (other constants verified 2026-09-21) against the live public client served by
 https://shellshock.io/ (`js/shellshock.js?1788294560`). These are numeric gameplay
 facts, implemented in Yolk Yard's own simulation. No reference-game code, models,
 textures, audio, or other assets are included.
 
-| Yolk Yard | Shell Shockers class | Max damage per projectile | Magazine | Reserve | Pickup | Shot interval (s) | Tactical reload (s) | Empty reload (s) | Range | Speed (units/s) |
+| Yolk Yard | Shell Shockers class | Max damage per projectile | Magazine | Reserve | Pickup | Shot interval (s) | Tactical reload (s) | Empty reload (s) | Reference range constant | Speed (units/s) |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Sprinter | EggK-47 | 30 | 30 | 240 | 30 | 0.1 | 2.667 | 3.433 | 20 | 45 |
 | Scatter | Scrambler | 8.5 × 20 pellets | 2 | 24 | 8 | 0.267 | 2.6 | 2.6 | 8 | 30 |
@@ -49,9 +49,18 @@ Thus the recorded weapon constants match the public client, but the complete
 cross-engine gameplay is not a frame-for-frame replica. Shell Shockers cosmetic
 recoil animations and scope transitions are not copied.
 
-Protocol version is raised to 3 so clients using the earlier balance cannot join
+Protocol version is raised to 10 so clients using the earlier balance cannot join
 updated hosts. The existing main-branch workflow tests and deploys GitHub Pages.
 
 Yolk Yard intentionally removes movement and jumping bloom while aiming, including
 accumulated movement bloom when entering a scope. Firing bloom and reload instability
 remain. This scoped movement rule is a custom gameplay choice.
+
+
+The reference range constant is not an unconditional projectile lifetime: the live
+client extends shots to world intersections. Previously Yolk Yard incorrectly
+expired rifle rounds after 20 units. Separate finite travel limits now cover long
+sight lines (320 units for standard rounds, 600 for scopes, 65 for pellets and 180
+for rockets), with swept character/world collision on every segment. Royale no
+longer overrides the verified velocities with a shared minimum of 110 units/s.
+Original Royale-only blasters inherit their reciprocal base class velocity.

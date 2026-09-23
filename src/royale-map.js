@@ -35,7 +35,15 @@ function house(x,z,kind,index,n,outer=false){
     const rh=.12+(k%4)*.32,rz=z-d/2-.25+(k+.5)*(d+.5)/12;
     const b=box(x-w/4,rz,w/2+.6,(d+.5)/12,rh,'stone',h+.35,'roof');b.building=buildings.length-1;
   }
-  for(let k=0;k<Math.ceil(h/.4);k++)wall(x-w/2-2,z+d/2+1-k*.9,2,.92,Math.min(h+.35,(k+1)*.4),'stone');
+  // Only designated terrace houses have access stairs. The top landing meets
+  // an opening in the side wall and the half-roof exactly, with no floating gap.
+  building.stairs=roof==='terrace'&&(index+n)%3!==1;
+  if(building.stairs){
+   const count=Math.ceil((h+.35)/.4),rise=(h+.35)/count,topZ=z-d/2+2;
+   for(let k=0;k<count;k++)wall(x-w/2-1.55,topZ+(count-1-k)*.8,3.2,.82,(k+1)*rise,'stone');
+   wall(x-w/2,topZ,3.4,3.2,.35,'stone',h);
+  }
+
   chests.push({x:x+2.5,y:0,z:z-2});
   if(roof==='sawtooth')roofLootY=Math.max(...boxes.filter(b=>b.kind==='roof'&&b.building===buildings.length-1&&Math.abs((z-2)-b.z)<=b.d/2+.01).map(b=>b.y+b.h));
   floorLoot.push({x:x+2,y:0,z:z+3},{x:x+w/2+4,y:0,z:z+5},{x:x-w/4,y:roofLootY,z:z-2,roof:true});

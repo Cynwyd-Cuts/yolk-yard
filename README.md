@@ -42,10 +42,10 @@ Version 2 uses a new multiplayer protocol and separate room namespace.
 - Seven primary classes: Sprinter, Scatter, Needle, Zipper, Thumper, Anchor, Duet.
 - Pip sidearm, timed poppers, ammunition, reloads, modeled optics, hit feedback.
 - Three original arenas: The Yard, Cargo Club, Sunset Social.
-- Free for all, Team scramble, Capture the crown, Sunny side zone control.
-- Bot practice and optional bots in private rooms, with three difficulty levels.
+- Yolk Royale, Free for all and Team scramble. Arena maps have connected galleries, stairs and an upper crossing.
+- Bot practice and optional bot-filled matches, with Easy, Normal, Hard and Impossible difficulty.
 - Arena spawn protection, manual respawn, health regeneration and health/ammo pickups.
-- Timed rounds, scoreboards, results, rematches, saved local match totals.
+- Timed arena rounds; Royale continues until one survivor. Placement banners lead into scoreboards and rematches.
 - Shell colors, patterns, finishes, headwear and eyewear; all unlocked, no purchases.
 - Mouse sensitivity, field of view, sound, graphics, and drag-look settings.
 - Touch movement/look/action controls and responsive menus.
@@ -117,12 +117,11 @@ included. A TURN deployment is required for networks that need a relay; it
 still needs to be permitted by the network. TURN credentials in static files
 are public, so use short-lived credentials from your own service.
 
-The host must keep the tab in front. Background throttling or the host losing
-connectivity can pause or end a match. Rooms and public listings are ephemeral. No central accounts, cross-device progression, ranked service, or voice chat. Text chat is moderated and scoped to the current room.
+The oldest connected human takes over after the host leaves or stops sending snapshots. Half-second checkpoints preserve simulation state, inventory, storm progress and chat controls. The original invite code is reclaimed through signaling; recovery can briefly pause the game. All remaining browsers must still be able to reach one another. Rooms and public listings are ephemeral. No central accounts, cross-device progression, ranked service, or voice chat. Text chat is moderated and scoped to the current room.
 
 ## Chat and safety
 
-Press **Enter** or **T**, or tap **Chat**. Use Room or Team chat; spectators in an active match speak only to other spectators. Quick messages work on desktop and touch devices. Chat can be disabled, or limited to quick messages, in Settings or Players & safety.
+Messages stay on screen; press **Enter** or **T**, or tap **Enter to chat**, to type. Open **Pause → Player controls & quick chat** for quick messages, preferences and room controls. Use Room or Team chat; spectators in an active match speak only to other spectators. Quick messages work on desktop and touch devices. Chat can be disabled, or limited to quick messages, in Settings or Players & safety.
 
 All messages are checked before leaving the sender, at the host, and at the recipient. Names are filtered on save, profile admission, public listings, snapshots, events and result displays. Blocked input is not echoed into shared chat or saved to an abuse log. Common contact details, links, addresses, numeric identifiers, personal-information disclosures, common real names/locations, profanity, slurs, harassment and obfuscated variants are filtered. Typed chat supports English with normalized Latin characters; unsupported scripts fail closed and can use quick messages.
 

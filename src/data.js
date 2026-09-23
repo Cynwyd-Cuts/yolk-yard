@@ -1,6 +1,6 @@
 import { safeName } from './moderation.js';
 // The rebuilt island and movement model must not mix with older clients.
-export const VERSION = 9;
+export const VERSION = 10;
 export const WEAPONS = [
   {
     id: "sprinter",
@@ -182,6 +182,7 @@ export const WEAPONS = [
     boltSpeed: 52.5,
     gravity: 0,
     optic: "scope",
+    magnification: 2.5,
     name: "Anchor",
     role: "MARKSMAN",
     desc: "A scoped semi-automatic rifle for deliberate follow-up shots.",
@@ -267,6 +268,9 @@ export const WEAPONS = [
     secondary: true,
   },
 ];
+// Maximum flight distance is separate from the balance/effective-range stat.
+// Full swept collision remains active until the projectile reaches this limit.
+for(const w of WEAPONS) w.flightRange=w.projectile?180:w.pellets>1?65:w.optic==='scope'?600:320;
 export const ROYALE_WEAPONS = [
  {...WEAPONS[2],id:'peeper',name:'Peeper',role:'MARKSMAN',desc:'A repeating long-range shell scout.',damage:68,magazine:8,reserve:60,interval:.36,reload:2.2,reloadEmpty:2.5,spread:.008,range:110,boltSpeed:100,optic:'scope',magnification:2.5,color:0x94de9a},
  {...WEAPONS[1],id:'doubleyolk',name:'Double Yolk',role:'TACTICAL',desc:'A quick cycling tactical scatter blaster.',damage:7,pellets:10,magazine:6,reserve:48,interval:.5,reload:2.4,reloadEmpty:2.7,range:22,boltSpeed:60,color:0xec99c5},
@@ -291,23 +295,7 @@ export const MODES = [
     limit: 35,
     teams: true,
   },
-  {
-    id: "capture",
-    name: "Capture the crown",
-    short: "CAPTURE",
-    description:
-      "Bring the other team’s crown home. Your crown must be at base. First to 3.",
-    limit: 3,
-    teams: true,
-  },
-  {
-    id: "control",
-    name: "Sunny side",
-    short: "CONTROL",
-    description: "Hold the golden zone with your team. First to 90 points.",
-    limit: 90,
-    teams: true,
-  },
+
 ];
 export const COLORS = [
   "#fff6da",
@@ -336,7 +324,7 @@ export const gun = (p) => {
  if (!p.inventory) return weapon(p.slot === 1 ? "pip" : p.weapon);
  const item=p.inventory[p.slot], base=weapon(item?.weapon ? item.id : 'pip');
  const rarity=Math.max(0,Math.min(4,item?.rarity||0)),key=base.id+rarity;
- if(!royaleStats.has(key)) royaleStats.set(key,{...base,damage:base.damage*.72*(1+rarity*.06),range:Math.max(base.range,base.id==='scatter'||base.id==='doubleyolk'?25:base.id==='thumper'?130:140),boltSpeed:Math.max(base.boltSpeed,base.pellets>1?65:110),reload:base.reload*(1-rarity*.035),reloadEmpty:base.reloadEmpty*(1-rarity*.035)});
+ if(!royaleStats.has(key)) royaleStats.set(key,{...base,damage:base.damage*.72*(1+rarity*.06),range:Math.max(base.range,base.id==='scatter'||base.id==='doubleyolk'?25:base.id==='thumper'?130:140),boltSpeed:base.boltSpeed,reload:base.reload*(1-rarity*.035),reloadEmpty:base.reloadEmpty*(1-rarity*.035)});
  return royaleStats.get(key);
 };
 export const mode = (id) => MODES.find((m) => m.id === id) || MODES.find(m => m.id === "ffa");
@@ -350,16 +338,26 @@ export function safeProfile(p = {}) {
     hat: cosmeticIndex(p.hat, HATS),
     pattern: cosmeticIndex(p.pattern, PATTERNS),
     finish: cosmeticIndex(p.finish, FINISHES),
-    eyewear: cosmeticIndex(p.eyewear, EYEWEAR),
+    eyewear: p.eyewear == null ? NO_EYEWEAR : cosmeticIndex(p.eyewear, EYEWEAR),
     accent: COLORS.includes(p.accent) ? p.accent : COLORS[1],
   };
 }
 export function rng(seed) {
   let s = seed >>> 0;
-  return () => {
+  const random = () => {
     s += 0x6d2b79f5;
     let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+  random.state = () => s;
+  random.restore = value => { s = value >>> 0; };
+  return random;
 }
+
+export const nameKey = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
+export function randomAppearance(random = Math.random) {
+ const pick = list => list[Math.floor(random() * list.length)];
+ return {color:pick(COLORS),accent:pick(COLORS),hat:Math.floor(random()*HATS.length),pattern:Math.floor(random()*PATTERNS.length),finish:Math.floor(random()*FINISHES.length),eyewear:Math.floor(random()*EYEWEAR.length)};
+}
+export const BOT_DIFFICULTIES = ['Easy','Normal','Hard','Impossible'];

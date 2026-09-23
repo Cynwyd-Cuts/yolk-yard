@@ -1515,3 +1515,55 @@ button:disabled { opacity: 0.55; cursor: default; }
 @media(pointer:coarse){.in-royale .chat-toggle{left:160px;bottom:138px;padding:8px 10px;min-height:34px;font-size:11px}.in-royale .chat-peek{bottom:365px}}
 @media(pointer:coarse) and (max-width:600px){.royale-flight.airborne{top:227px;width:86vw}.royale-flight.airborne p{font-size:10px}}
 @media(pointer:coarse) and (max-width:600px) and (max-height:740px){.royale-flight.airborne{top:170px}}
+/* Gameplay HUD: messages live on the playfield; moderation stays in Pause. */
+.chat-hud{position:fixed;left:22px;top:110px;width:min(370px,35vw);z-index:12;color:white;pointer-events:none;text-shadow:0 2px 4px #000}
+.chat-hud .chat-log{height:165px;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;overflow:hidden;background:transparent;padding:0;border:0;mask-image:linear-gradient(transparent,#000 12%)}
+.chat-hud .chat-message{background:transparent;padding:0;border:0;animation:chat-arrive .15s ease}
+.chat-hud .chat-message-head{display:inline;font-size:13px;color:#aee5ff}
+.chat-hud .chat-message-head span{margin-left:5px;color:#d9e6f0;font-size:10px}
+.chat-hud .chat-message p{display:inline;margin:0 0 0 6px;font-size:14px;line-height:1.5;color:#fff}
+.chat-hud .chat-empty{display:none}.chat-hud .chat-toolbar,.chat-hud .chat-compose,.chat-hud .chat-input-meta,.chat-hud .chat-audience,.chat-hud .chat-status{display:none}
+.chat-hud.typing{background:#102337e8;padding:14px;border-radius:8px;pointer-events:auto;text-shadow:none;width:min(430px,90vw)}
+.chat-hud.typing .chat-log{overflow-y:auto;justify-content:initial;mask-image:none;height:210px}
+.chat-hud.typing .chat-compose,.chat-hud.typing .chat-toolbar{display:flex}.chat-hud.typing .chat-status{display:block;color:#ffcf83}
+.chat-hud.typing input{color:#fff;background:#213952;border:1px solid #6c8094}
+.chat-hud.typing select{color:#fff;background:#213952}.chat-hud .chat-shield{display:none}
+.chat-toggle,.in-game .chat-toggle,.in-royale .chat-toggle{top:278px;bottom:auto;left:22px;z-index:13;padding:6px 10px;min-height:28px;background:#13273b95;color:#e3edf4;font-size:12px;border:1px solid #ffffff24}
+.chat-hud.typing~.chat-toggle{display:none}#chat-panel{z-index:70}#chat-panel .chat-safety{border:0}
+.killfeed,.in-royale .killfeed{top:360px;left:24px;right:auto;max-width:340px;z-index:8;display:block}
+.hit-flash{position:absolute;inset:0;pointer-events:none;z-index:9;background:radial-gradient(ellipse at center,transparent 40%,#ea233426 64%,#ed1830d9 100%);box-shadow:inset 0 0 60px #ff2746}
+#damage-directions{position:absolute;inset:0;pointer-events:none;z-index:10}.damage-direction{position:absolute;left:50%;top:50%;width:190px;height:190px;margin:-95px;display:block}
+.damage-direction:before{content:'';position:absolute;left:55px;top:0;width:80px;height:24px;border-top:6px solid #ff2946;border-radius:50%;filter:drop-shadow(0 0 5px #a5001b)}
+.low-health .health-card{box-shadow:0 0 0 2px #ff526a,0 0 22px #e2214266}.low-health .health-label{color:#ffb2bd}
+#round-banner{position:absolute;top:20%;left:50%;transform:translateX(-50%);width:min(740px,88vw);text-align:center;padding:24px 32px;color:white;background:linear-gradient(115deg,#152f5bd9,#267abeed,#172f5dd9);border-block:3px solid #9ad9ff;box-shadow:0 18px 80px #0005;z-index:30;animation:round-arrive .6s cubic-bezier(.16,1,.3,1)}
+#round-banner.victory{background:linear-gradient(115deg,#825111ed,#e7ad35f5,#825111ed);border-color:#ffe8a3}
+#round-banner span{font-size:14px;font-weight:800;letter-spacing:.25em}#round-banner strong{display:block;font-size:clamp(28px,4.3vw,56px);font-weight:950;line-height:1.05;margin:12px 0;letter-spacing:-.035em;font-style:italic}#round-banner p{margin:0;font-size:15px;font-weight:800}
+@keyframes round-arrive{from{opacity:0;transform:translate(-50%,-50px) scale(.85)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@media(max-width:650px){.chat-hud{left:12px;top:85px;width:45vw}.chat-hud .chat-log{height:115px}.chat-toggle,.in-game .chat-toggle,.in-royale .chat-toggle{left:12px;top:207px}.killfeed,.in-royale .killfeed{top:250px;left:12px;max-width:45vw;font-size:11px}}
+@media(prefers-reduced-motion:reduce){#round-banner{animation:none}}
+/* Right-side equipment panel keeps the island visible behind the inventory. */
+#dialog[data-kind="royale-inventory"]{position:fixed;inset:0 0 0 auto;margin:0;width:min(620px,55vw);height:100dvh;max-height:100dvh;max-width:100vw;border:0;border-radius:0;background:linear-gradient(100deg,#0d2035dd,#102438f5);color:#fff;box-shadow:-35px 0 110px #10203344;padding:32px 30px 22px;overflow-y:auto}
+#dialog[data-kind="royale-inventory"]::backdrop{background:linear-gradient(90deg,transparent 15%,#08162722)}
+#dialog[data-kind="royale-inventory"] .dialog-head{margin:0 0 30px;border-bottom:1px solid #b1d0ed44;padding-bottom:16px}
+#dialog[data-kind="royale-inventory"] h2{font-size:28px;font-style:italic;letter-spacing:.02em;color:white}
+#dialog[data-kind="royale-inventory"] h3{font-size:14px;letter-spacing:.09em;color:#eff7ff;margin:0 0 15px}
+#dialog[data-kind="royale-inventory"] .dialog-body{display:flex;flex-direction:column;min-height:calc(100dvh - 130px)}
+.inventory-content{display:flex;flex-direction:column;flex:1;gap:28px}.inventory-ammo-section{padding-top:4px}
+#dialog[data-kind="royale-inventory"] .ammo-bank{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:0;flex-wrap:unset}
+.inventory-ammo{min-width:0;display:flex;flex-direction:column;align-items:center;background:#c2d7eb0a;border:1px solid #b4cee32a;padding:4px}
+.inventory-ammo img{height:49px;max-width:100%;object-fit:contain}.inventory-ammo span{font-size:10px;color:#a6c0d7;text-transform:uppercase}.inventory-ammo b{font-size:18px;font-weight:850}
+.inventory-equipment{margin-top:auto;padding-top:26px}.inventory-section-title{display:flex;justify-content:space-between;align-items:baseline}.inventory-section-title span{font-size:12px;color:#bfd2e4}
+#dialog[data-kind="royale-inventory"] .royale-inventory-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+#dialog[data-kind="royale-inventory"] .royale-slot{height:112px;min-width:0;padding:4px;background:linear-gradient(145deg,color-mix(in srgb,var(--rarity) 38%,#0b253a),color-mix(in srgb,var(--rarity) 80%,#23384b));border:2px solid #ffffff22;border-bottom:5px solid var(--rarity);border-radius:0;position:relative;cursor:grab;touch-action:none;box-shadow:inset 0 0 28px #fff1}
+#dialog[data-kind="royale-inventory"] .royale-slot.selected{outline:3px solid white;outline-offset:3px;transform:translateY(-3px)}
+#dialog[data-kind="royale-inventory"] .royale-slot img{height:70px;width:100%;object-fit:contain;pointer-events:none;filter:drop-shadow(0 5px 4px #0005)}
+#dialog[data-kind="royale-inventory"] .royale-slot .slot-name{display:none}#dialog[data-kind="royale-inventory"] .royale-slot small{font-size:9px;position:absolute;bottom:4px;left:4px;right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+#dialog[data-kind="royale-inventory"] .royale-slot b{position:absolute;right:6px;bottom:20px;font-size:19px;color:#fff}#dialog[data-kind="royale-inventory"] .royale-slot kbd{background:#0004;color:#fff;border:0}
+#dialog[data-kind="royale-inventory"] .royale-slot.dragging{opacity:.3}.empty-slot-mark{font-size:28px;opacity:.4}
+#inventory-selected-name{text-transform:uppercase;font-size:17px;font-weight:850;letter-spacing:.05em;color:#fff;margin:23px 0 10px}
+.inventory-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px;border-top:1px solid #ffffff30;padding-top:18px}
+.inventory-actions button{border:0!important;background:transparent!important;color:#eaf5ff!important;border-radius:3px!important;padding:8px 6px!important;min-height:36px;font-size:10px;font-weight:800}.inventory-actions button:last-child{margin-left:auto}.inventory-actions button:hover{background:#ffffff22!important}.inventory-actions button:disabled{opacity:.28}
+.inventory-inspect{border-top:1px solid #ffffff30;padding-top:18px}.inspect-heading{position:relative;border-left:4px solid var(--rarity);padding:0 110px 4px 14px;min-height:74px}.inspect-heading span{color:var(--rarity);text-transform:uppercase;font-size:12px;font-weight:800}.inspect-heading h3{font-size:27px!important;margin:4px 0!important;letter-spacing:0!important;font-style:italic}.inspect-heading img{position:absolute;right:0;top:-10px;width:120px;height:85px;object-fit:contain}.inventory-inspect p{color:#bdd0df;font-size:13px;line-height:1.5}.weapon-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin:16px 0}.weapon-stats div{display:flex;justify-content:space-between;border-bottom:1px solid #ffffff20;padding-bottom:7px;font-size:13px}.weapon-stats dt{color:#adbed0}.weapon-stats dd{font-weight:800;margin:0}.inspect-empty{color:#aec4d6}
+.royale-hotbar .royale-slot img{width:100%;height:49px;object-fit:contain}
+@media(max-width:760px){#dialog[data-kind="royale-inventory"]{width:min(560px,100vw);padding:20px 18px}#dialog[data-kind="royale-inventory"] .royale-slot{height:98px}#dialog[data-kind="royale-inventory"] .royale-slot img{height:59px}.inventory-content{gap:20px}.inventory-inspect p{margin-bottom:8px}.weapon-stats{gap:8px}}
+@media(max-height:650px){#dialog[data-kind="royale-inventory"] .dialog-head{margin-bottom:16px}#dialog[data-kind="royale-inventory"] .dialog-body{min-height:calc(100dvh - 100px)}.inventory-content{gap:12px}.inventory-equipment{padding-top:12px}.inventory-actions{margin-top:8px;padding-top:8px}}
