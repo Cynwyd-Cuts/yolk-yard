@@ -1,0 +1,49 @@
+name: Publish connection test pages
+on:
+  push:
+    branches: [main]
+    paths:
+      - public/room-test.html
+      - public/room-test.js
+      - public/server-check.html
+      - public/server-check.js
+      - .github/workflows/publish-room-test.yml
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-publish
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Only publish isolated connection test changes
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          git diff --name-only "$BEFORE" HEAD > /tmp/changed-files
+          if grep -Ev '^(public/(room-test|server-check)\.(html|js)|\.github/workflows/(publish-room-test|pages)\.yml)$' /tmp/changed-files; then
+            echo 'Gameplay changes must use the full release workflow.'
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node --check public/room-test.js && node --check public/server-check.js
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - uses: actions/deploy-pages@v4
+        id: deployment

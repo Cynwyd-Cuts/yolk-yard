@@ -2,6 +2,13 @@ name: Test and publish Yolk Yard
 on:
   push:
     branches: [main, match-setup]
+    paths-ignore:
+      - public/room-test.html
+      - public/room-test.js
+      - public/server-check.html
+      - public/server-check.js
+      - .github/workflows/publish-room-test.yml
+      - .github/workflows/pages.yml
   pull_request:
   workflow_dispatch:
 permissions:
