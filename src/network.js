@@ -4,6 +4,7 @@ import { VERSION, safeProfile, nameKey } from "./data.js";
 import { ChatRoom, chatPayload } from './chat.js';
 import { FILTER_VERSION, moderateText, safeName, safeSystemText, SAFETY_MESSAGES } from './moderation.js';
 import { matchOptions } from './match-options.js';
+import { HostHeartbeat } from './host-heartbeat.js';
 const PREFIX = "yolk-yard-v3-";
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomCode = () =>
@@ -47,6 +48,7 @@ export class Network {
     this.ready = false;
     this.latency = 0;
     this.lastState = 0;
+    this.hostHeartbeat = new HostHeartbeat(performance.now());
     this.lastPing = 0;
     this.timers = new Set();
     this.chatRoom = new ChatRoom();
@@ -246,7 +248,7 @@ export class Network {
         }),
       );
       conn.on("data", (msg) => {
-        if (!msg || typeof msg !== "object") return;
+        if (this.hostConnection !== conn || !msg || typeof msg !== "object") return;
         if (msg.type === "welcome" && msg.version === VERSION) {
           clearTimeout(timer);
           this.timers.delete(timer);
@@ -254,6 +256,7 @@ export class Network {
           this.hostId=msg.hostId||"host";this.members=msg.members||[];if(msg.checkpoint)this.lastCheckpoint=msg.checkpoint;
           this.ready = true;
           this.lastState = performance.now();
+          this.hostHeartbeat.contact(this.lastState);
           resolve();
         } else if(msg.type==='name-required'){
           clearTimeout(timer);this.timers.delete(timer);this.nameJoining=msg.joining;
@@ -272,6 +275,7 @@ export class Network {
           )
             return;
           this.lastState = performance.now();
+          this.hostHeartbeat.contact(this.lastState);
           // Names also occur in past events and result headlines, not just the
           // roster. Sanitize before any UI or Three.js nameplate sees them.
           s.players=s.players.map(p=>{
@@ -301,8 +305,10 @@ export class Network {
           this.callbacks.onChat?.(msg.message);
         } else if (msg.type==='chat-status' && this.ready && Object.hasOwn(SAFETY_MESSAGES,msg.reason)) {
           this.callbacks.onChatStatus?.({ok:false,reason:msg.reason,retryAfter:Math.min(120,Math.max(0,Number(msg.retryAfter)||0))});
-        } else if (msg.type === "pong")
-          this.latency = Math.max(0, Math.round(performance.now() - msg.time));
+        } else if (msg.type === "pong" && Number.isFinite(msg.time)) {
+          const now=performance.now();this.hostHeartbeat.contact(now);
+          this.latency = Math.max(0, Math.round(now - msg.time));
+        }
         else if(msg.type==='host-left')this.beginMigration();
         else if(msg.type==='kicked') {this.callbacks.onError?.('You were removed from this room.');this.destroy();}
       });
@@ -321,10 +327,11 @@ export class Network {
   }
   startHeartbeat() {
     clearInterval(this.heartbeat);
+    this.hostHeartbeat = new HostHeartbeat(performance.now());
     this.heartbeat = setInterval(() => {
       if (this.closed || this.isHost || this.migrating) return;
-      this.send({ type: "ping", time: performance.now() });
-      if (this.ready && performance.now() - this.lastState > 6500)this.beginMigration();
+      const now=performance.now();this.send({ type: "ping", time: now });
+      if (this.ready && this.hostHeartbeat.expired(now))this.beginMigration();
     }, 2000);
   }
   send(msg) {
@@ -439,17 +446,19 @@ export class Network {
       if(msg.type==='welcome'&&msg.version===VERSION){
         if(msg.checkpoint)this.lastCheckpoint=msg.checkpoint;
         welcomed=true;clearTimeout(timer);this.timers.delete(timer);this.migrating=false;this.hostId=msg.hostId;this.members=msg.members;this.lastState=performance.now();
+        this.hostHeartbeat=new HostHeartbeat(this.lastState);
         this.callbacks.onStatus?.('New host connected. Match continues.');
       }else if(msg.type==='state'&&welcomed){
         const s=msg.state;if(s?.version!==VERSION||!Array.isArray(s.players)||s.players.length>20)return;
         s.players=s.players.map(p=>({...p,...safeProfile(p)}));s.options=matchOptions(s.options);s.winner=safeSystemText(s.winner,'Round complete');
         s.events=(s.events||[]).slice(-120).map(e=>{const next={...e};for(const key of ['name','targetName'])if(key in next)next[key]=safeName(next[key]);for(const key of ['text','winner','weapon'])if(key in next)next[key]=safeSystemText(next[key]);return next;});
         this.lastState=performance.now();this.snapshot=s;this.members=s.network?.members||this.members;this.hostId=s.network?.hostId||this.hostId;
+        this.hostHeartbeat.contact(this.lastState);
         this.chatEnabled=s.chatEnabled!==false;this.chatMuted=s.chatMuted||[];
         if(msg.checkpoint)this.lastCheckpoint=msg.checkpoint;this.callbacks.onState?.(s);
       }else if(msg.type==='chat-message')this.callbacks.onChat?.(msg.message);
       else if(msg.type==='chat-status')this.callbacks.onChatStatus?.(msg);
-      else if(msg.type==='pong')this.latency=Math.max(0,Math.round(performance.now()-msg.time));
+      else if(msg.type==='pong'&&Number.isFinite(msg.time)){const now=performance.now();this.hostHeartbeat.contact(now);this.latency=Math.max(0,Math.round(now-msg.time));}
       else if(msg.type==='host-left'&&welcomed)this.beginMigration();
       else if(msg.type==='kicked'){this.callbacks.onError?.('You were removed from this room.');this.destroy();}
       else if(msg.type==='name-required'){this.nameJoining=msg.joining;this.callbacks.onNameRequired?.();}

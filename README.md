@@ -117,7 +117,7 @@ included. A TURN deployment is required for networks that need a relay; it
 still needs to be permitted by the network. TURN credentials in static files
 are public, so use short-lived credentials from your own service.
 
-The oldest connected human takes over after the host leaves or stops sending snapshots. Half-second checkpoints preserve simulation state, inventory, storm progress and chat controls. The original invite code is reclaimed through signaling; recovery can briefly pause the game. All remaining browsers must still be able to reach one another. Rooms and public listings are ephemeral. No central accounts, cross-device progression, ranked service, or voice chat. Text chat is moderated and scoped to the current room.
+The oldest connected human takes over after the host leaves or stops responding. Heartbeat replies keep a healthy room connected when rendering delays snapshots; silent connections get a short probe grace period, while closed connections transfer immediately. Half-second checkpoints preserve simulation state, inventory, storm progress and chat controls. The original invite code is reclaimed through signaling; recovery can briefly pause the game. All remaining browsers must still be able to reach one another. Rooms and public listings are ephemeral. No central accounts, cross-device progression, ranked service, or voice chat. Text chat is moderated and scoped to the current room.
 
 ## Chat and safety
 
@@ -180,4 +180,3 @@ metadata, and peers can learn each other's network addresses through WebRTC.
 No analytics, advertisements, camera, microphone, or payment systems are used.
 
 See `THIRD_PARTY.md` for open-source notices. Original code is MIT licensed.
-

@@ -26,6 +26,11 @@ try{
  const code=(await host.locator('.room-code').innerText()).replace('-','').trim();
  const guest=await make('Captain Sunny');await guest.locator('[data-action="royale-home"]').click();await guest.locator('[data-action="royale-queue"]').click();await guest.locator('#room-name').waitFor();await guest.locator('[data-action="save-room-name"]').click();await guest.locator('#room-name').waitFor();await guest.locator('#room-name').fill('Scout Egg');await guest.locator('[data-action="save-room-name"]').click();await guest.locator('.room-code').waitFor();assert.equal((await guest.locator('.room-code').innerText()).replace('-','').trim(),code);pass('Public matchmaking joins the waiting Royale lobby');
  await host.screenshot({path:'test-results/royale-lobby.png'});
+ // Rendering may delay snapshots while WebRTC can still answer heartbeats.
+ // This previously triggered an unwanted second host after 6.5 seconds.
+ await host.evaluate(async()=>{const {Network}=await import('/src/network.js');const broadcast=Network.prototype.broadcast;Network.prototype.broadcast=function(){};setTimeout(()=>{Network.prototype.broadcast=broadcast;},9000);});
+ await guest.waitForTimeout(10000);
+ assert.equal(await guest.evaluate(()=>{const q=window.__yolkTest.read();return q.host||q.migrating;}),false);pass('Delayed snapshots with heartbeat replies do not transfer a healthy host');
  await host.locator('[data-action="start-match"]').click();await guest.locator('#royale-hud').waitFor();
  await guest.waitForFunction(()=>window.__yolkTest.read().state.players.length===4);assert.ok(await guest.evaluate(()=>window.__yolkTest.read().state.royale.loot.length>200));assert.equal(await guest.locator('#spawn-button').isVisible(),false);
  await host.screenshot({path:'test-results/royale-flight.png'});pass('Four contestants share the empty starting inventory and Eggspress flight');
