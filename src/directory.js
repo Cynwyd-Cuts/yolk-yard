@@ -1,3 +1,4 @@
+import { connectionReport } from './connection-report.js';
 import Peer from 'peerjs';
 import { safeName } from './moderation.js';
 import { VERSION } from './data.js';
@@ -101,10 +102,11 @@ class Directory {
     if(this.connection?.open)this.connection.send({type:'publish',room:this.room});
   }
   async list() {
+    connectionReport.set("directory","Checking","Requesting public listings.");
     this.start();
     const deadline=Date.now()+18000;
     while(Date.now()<deadline){
-      if(this.leader)return {rooms:this.rows()};
+      if(this.leader){const rooms=this.rows();connectionReport.set("directory","Local coordinator",rooms.length+" visible rooms. This browser coordinates listings; remote reachability is not verified.");return {rooms};}
       if(this.connection?.open){
         const id=++this.sequence;
         const rooms=await new Promise(resolve=>{
@@ -112,10 +114,11 @@ class Directory {
           this.waiters.set(id,rows=>{clearTimeout(timer);resolve(rows);});
           this.connection.send({type:'list',id});
         });
-        if(rooms)return {rooms};
+        if(rooms){connectionReport.set("directory","Passed",rooms.length+" rooms returned by the remote directory browser.");return {rooms};}
       }
       await new Promise(resolve=>setTimeout(resolve,200));
     }
+    connectionReport.set("directory","Failed","No directory response within 18 seconds. Service or peer connectivity may be unavailable.");
     throw new Error('Public matches could not be reached. Try again, join by room code, or play practice.');
   }
 }

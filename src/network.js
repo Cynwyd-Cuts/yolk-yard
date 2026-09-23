@@ -1,3 +1,4 @@
+import { connectionReport, errorCode, watchConnection } from './connection-report.js';
 import Peer from "peerjs";
 import { directory } from "./directory.js";
 import { VERSION, safeProfile, nameKey } from "./data.js";
@@ -58,6 +59,7 @@ export class Network {
     this.kicked = new Set();
   }
   makePeer(id) {
+    connectionReport.set("service","Checking","Opening matchmaking connection.");
     const config = window.YOLK_NETWORK || {};
     this.peer = new Peer(id, {
       debug: 0,
@@ -71,6 +73,7 @@ export class Network {
     this.peer.on("error", (err) => {
       if (this.closed) return;
       const message = errorText(err);
+      connectionReport.set(err.type === "peer-unavailable" || err.type === "webrtc" ? "host" : "service", "Failed", errorCode(err));
       if (!this.ready) this.rejectOpen?.(new Error(message));
       else if (!this.migrating && err.type === "peer-unavailable")
         this.callbacks.onError?.(message);
@@ -86,18 +89,20 @@ export class Network {
     return new Promise((resolve, reject) => {
       this.rejectOpen = reject;
       const timer = setTimeout(
-        () =>
+        () => {
+          connectionReport.set("service","Failed","Matchmaking timed out after 14 seconds.");
           reject(
             new Error(
               "The room service did not respond. Your network may block it; practice is available.",
             ),
-          ),
-        14000,
+          );
+        }, 14000,
       );
       this.timers.add(timer);
       this.peer.on("open", (id) => {
         clearTimeout(timer);
         this.timers.delete(timer);
+        connectionReport.set("service","Passed","Matchmaking service assigned a peer address.");
         resolve(id);
       });
     });
@@ -222,6 +227,7 @@ export class Network {
     this.code = cleanCode(code);
     if (this.code.length !== 8)
       throw new Error("Enter the 8-character room code.");
+    connectionReport.set("host","Not checked","Waiting for matchmaking before contacting host.");
     await this.makePeer(undefined);
     await new Promise((resolve, reject) => {
       this.rejectOpen = reject;
@@ -230,14 +236,17 @@ export class Network {
         serialization: "binary",
       });
       this.hostConnection = conn;
+      connectionReport.set("host","Checking","Contacting the requested host.");
+      watchConnection(conn);
       const timer = setTimeout(
-        () =>
+        () => {
+          connectionReport.set("host","Failed","Host handshake timed out after 18 seconds. " + connectionReport.rows.host.detail);
           reject(
             new Error(
               "Could not reach the host. The network may block direct player connections.",
             ),
-          ),
-        18000,
+          );
+        }, 18000,
       );
       this.timers.add(timer);
       conn.on("open", () =>
@@ -252,6 +261,7 @@ export class Network {
         if (msg.type === "welcome" && msg.version === VERSION) {
           clearTimeout(timer);
           this.timers.delete(timer);
+          connectionReport.set("host","Passed","Host accepted the game handshake.");
           this.id = msg.id;
           this.hostId=msg.hostId||"host";this.members=msg.members||[];if(msg.checkpoint)this.lastCheckpoint=msg.checkpoint;
           this.ready = true;
@@ -259,10 +269,12 @@ export class Network {
           this.hostHeartbeat.contact(this.lastState);
           resolve();
         } else if(msg.type==='name-required'){
+          connectionReport.set('host','Passed','Host reached; choose another nickname to join.');
           clearTimeout(timer);this.timers.delete(timer);this.nameJoining=msg.joining;
           this.callbacks.onNameRequired?.();
         } else if(msg.type==='name-accepted'){this.callbacks.onNameAccepted?.();
         } else if (msg.type === "reject") {
+          connectionReport.set("host","Rejected","Host reached but declined admission (for example full room or version mismatch).");
           clearTimeout(timer);
           reject(new Error(safeSystemText(msg.reason, 'This room is unavailable. Refresh and try again.')));
         } else if (msg.type === "state" && this.ready) {
@@ -314,10 +326,11 @@ export class Network {
       });
       conn.on("close", () => {
         if(this.closed||this.hostConnection!==conn)return;
-        if(!this.ready)reject(new Error('The host closed the connection.'));
+        if(!this.ready){if(!['Failed','Rejected'].includes(connectionReport.rows.host.status))connectionReport.set('host','Failed','Host connection closed before acceptance.');reject(new Error('The host closed the connection.'));}
         else this.beginMigration();
       });
       conn.on("error", (e) => {
+        connectionReport.set("host","Failed",errorCode(e));
         if (!this.ready) reject(new Error(errorText(e)));
       });
     });

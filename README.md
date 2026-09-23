@@ -91,6 +91,17 @@ The `dist` folder from `npm run build` is also ready for any ordinary static
 HTTPS host. Do not open `index.html` directly with `file://`; browser module
 and WebRTC security requirements need a web server.
 
+## Connection reports
+
+Choose **Check connection** on the home screen, public-match browser, or connection
+error. **Run service & directory check** checks signaling and listing retrieval.
+To check a particular host, join normally with its code, then open the report
+from the error screen. The latest host result survives a service/directory recheck.
+A local directory coordinator result does not verify connectivity from other
+computers. Copy the report or take a screenshot; no developer tools are needed.
+Reports stay in memory and omit room codes, names, addresses and credentials.
+A failure identifies the observed stage, not the cause of a network policy.
+
 ## Multiplayer architecture and limits
 
 GitHub Pages hosts static game files. **It does not run the match server.**

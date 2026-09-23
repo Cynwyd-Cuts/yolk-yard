@@ -1,3 +1,4 @@
+import { connectionReport } from './connection-report.js';
 import {RoyaleSimulation} from './royale.js';
 import {RoyaleUI} from './royale-ui.js';
 import {SLIDERS, SLIDER_DEFAULTS, resetSliders, royalePanelAction} from './settings.js';
@@ -164,7 +165,7 @@ function titleBar() {
 function renderMenu() {
   const w = weapon(profile.weapon);
   $("#menu").innerHTML =
-    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="name-safety"><p class="name-safety" id="name-safety" role="status">Use a nickname. Keep personal details private.</p><button class="primary royale-home" data-action="royale-home">YOLK ROYALE <span>↗</span><small>DROP IN · LOOT UP · LAST EGG STANDING</small></button><button class="secondary" data-action="setup">CREATE MATCH <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div><p class="hint">Create a room. Share the code. 8 in arenas. 16 in Royale.<br>No accounts or downloads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
+    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="name-safety"><p class="name-safety" id="name-safety" role="status">Use a nickname. Keep personal details private.</p><button class="primary royale-home" data-action="royale-home">YOLK ROYALE <span>↗</span><small>DROP IN · LOOT UP · LAST EGG STANDING</small></button><button class="secondary" data-action="setup">CREATE MATCH <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div>${connectionButton}<p class="hint">Create a room. Share the code. 8 in arenas. 16 in Royale.<br>No accounts or downloads.</p></section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
       (w) => !w.secondary,
     )
       .map(
@@ -336,6 +337,39 @@ function visibilityLabel() {
 function visibilityButton() {
   return net?.isHost ? `<button class="plain" data-action="toggle-visibility" style="margin:12px 0">${visibilityLabel()}</button>` : "";
 }
+
+let checkingConnection = false;
+const connectionButton = '<button class="plain" data-action="connection-report" style="margin-top:12px">Check connection</button>';
+function showConnectionReport() {
+  modal('Connection report', `<p>Check matchmaking and public discovery here. To test another computer, join its room normally, then return here. Keep the host’s tab open.</p>
+    <div role="status" aria-live="polite">${checkingConnection ? '<p>Checking… This can take about 35 seconds.</p>' : ''}</div>
+    <label for="connection-report-text">Latest results</label>
+    <textarea id="connection-report-text" class="field" readonly rows="12" style="width:100%;font-size:.85rem;white-space:pre-wrap">${esc(connectionReport.text(__BUILD_ID__))}</textarea>
+    <button class="primary" data-action="run-connection-check" ${checkingConnection ? 'disabled' : ''}>RUN SERVICE & DIRECTORY CHECK</button>
+    <button class="secondary" data-action="copy-connection-report">COPY REPORT</button>
+    <button class="plain" data-action="join">Test a host: join by code</button>
+    <p class="hint">Results stay in this tab. Copy the report or take a screenshot. A timeout alone does not prove a firewall block.</p>`, 'connection-report');
+}
+async function runConnectionCheck() {
+  if(checkingConnection || busy)return;
+  checkingConnection=true;
+  showConnectionReport();
+  const probe=new Network();
+  try { await probe.makePeer(undefined); } catch { /* Network records the stage. */ }
+  finally { probe.destroy(); }
+  if(dialogType==='connection-report')showConnectionReport();
+  try { await directory.list(); } catch { /* Directory records the stage. */ }
+  finally {
+    checkingConnection=false;
+    if(dialogType==='connection-report')showConnectionReport();
+  }
+}
+async function copyConnectionReport() {
+  const field=$('#connection-report-text');
+  try { await navigator.clipboard.writeText(field.value); toast('Connection report copied.'); }
+  catch { field.focus();field.select();toast('Select and copy the report, or take a screenshot.'); }
+}
+
 let roomListRequest = 0;
 async function publicRooms() {
   const request = ++roomListRequest;
@@ -343,9 +377,9 @@ async function publicRooms() {
   try {
     const result = await directory.list();
     if (dialogType !== "public-rooms" || request !== roomListRequest) return;
-    modal("Public matches", `<p>Open to everyone. Private rooms are only reachable by invite code.</p><button class="icon-btn" data-action="refresh-rooms" aria-label="Refresh public matches">↻</button><div class="public-room-list">${result.rooms.map(r => `<article class="public-room"><div><strong>${esc(r.host)}’s room</strong><p>${esc(getMap(r.map).name)} · ${esc(mode(r.mode).name)}</p><span class="hint">${r.players}/${r.capacity} players · ${r.phase === "playing" ? "In progress" : r.phase === "results" ? "Between rounds" : "In lobby"}</span></div><button class="secondary" data-join-room="${esc(r.code)}" ${r.players >= r.capacity ? "disabled" : ""}>${r.players >= r.capacity ? "Full" : "Join"}</button></article>`).join('') || '<p class="empty-rooms">No public matches yet. Create a room and set it to public.</p>'}</div><button class="primary" data-action="setup">CREATE A ROOM</button>`, "public-rooms");
+    modal("Public matches", `<p>Open to everyone. Private rooms are only reachable by invite code.</p>${connectionButton}<button class="icon-btn" data-action="refresh-rooms" aria-label="Refresh public matches">↻</button><div class="public-room-list">${result.rooms.map(r => `<article class="public-room"><div><strong>${esc(r.host)}’s room</strong><p>${esc(getMap(r.map).name)} · ${esc(mode(r.mode).name)}</p><span class="hint">${r.players}/${r.capacity} players · ${r.phase === "playing" ? "In progress" : r.phase === "results" ? "Between rounds" : "In lobby"}</span></div><button class="secondary" data-join-room="${esc(r.code)}" ${r.players >= r.capacity ? "disabled" : ""}>${r.players >= r.capacity ? "Full" : "Join"}</button></article>`).join('') || '<p class="empty-rooms">No public matches yet. Create a room and set it to public.</p>'}</div><button class="primary" data-action="setup">CREATE A ROOM</button>`, "public-rooms");
   } catch(e) {
-    if (dialogType === "public-rooms" && request === roomListRequest) modal("Public matches", `<p class="error-box">${esc(e.message)}</p><button class="primary" data-action="refresh-rooms">Try again</button>`, "public-rooms");
+    if (dialogType === "public-rooms" && request === roomListRequest) modal("Public matches", `<p class="error-box">${esc(e.message)}</p>${connectionButton}<button class="primary" data-action="refresh-rooms">Try again</button>`, "public-rooms");
   }
 }
 function joinMenu(code = "") {
@@ -480,7 +514,7 @@ async function createRoom(preset = null, visibilityOverride = null, automatic = 
     state = null;
     modal(
       "Room could not open",
-      `<div class="error-box">${esc(e.message)}</div><button class="primary" data-action="start-local">START LOCAL MATCH</button><button class="plain" data-action="setup" style="margin-top:12px">Try creating a room again</button>`,
+      `<div class="error-box">${esc(e.message)}</div>${connectionButton}<button class="primary" data-action="start-local">START LOCAL MATCH</button><button class="plain" data-action="setup" style="margin-top:12px">Try creating a room again</button>`,
       "error",
     );
   } finally {
@@ -488,6 +522,7 @@ async function createRoom(preset = null, visibilityOverride = null, automatic = 
   }
 }
 async function joinRoom(publicCode, quiet=false) {
+  if (checkingConnection) { toast('Wait for the connection check to finish.'); return; }
   if (busy) return;
   const code = cleanCode(typeof publicCode === "string" ? publicCode : $("#join-code")?.value);
   if (code.length !== 8) {
@@ -528,7 +563,7 @@ async function joinRoom(publicCode, quiet=false) {
     if(quiet)return false;
     modal(
       "Could not join",
-      `<div class="error-box">${esc(e.message)}</div><button class="primary" data-action="join">Check the code & retry</button><button class="plain" data-action="setup" style="margin-top:12px">Create a match</button>`,
+      `<div class="error-box">${esc(e.message)}</div>${connectionButton}<button class="primary" data-action="join">Check the code & retry</button><button class="plain" data-action="setup" style="margin-top:12px">Create a match</button>`,
       "error",
     );
   } finally {
@@ -895,7 +930,7 @@ async function quickRoyale(){
    }
    if(request!==matchRequest)return;
    await createRoom({mode:'royale',bots:15,capacity:16,fill:true},'public',true);
- }catch(e){if(request===matchRequest)modal('Matchmaking unavailable',`<p class="error-box">${esc(e.message)}</p><button class="primary" data-action="royale-local">PLAY LOCAL WITH BOTS</button><button data-action="royale-queue">Try again</button>`,'error');}
+ }catch(e){if(request===matchRequest)modal('Matchmaking unavailable',`<p class="error-box">${esc(e.message)}</p>${connectionButton}<button class="primary" data-action="royale-local">PLAY LOCAL WITH BOTS</button><button data-action="royale-queue">Try again</button>`,'error');}
 }
 function royaleMap(){if(!state?.royale)return;modal('Sunnybreak Island',royaleUI.mapHTML(),'royale-map');royaleUI.drawMap($('#royale-fullmap'),state,state.players.find(p=>p.id===localId),true);}
 function royaleInventory(){if(!state?.royale)return;const p=state.players.find(p=>p.id===localId);royaleUI.inventoryKey='';modal('INVENTORY',royaleUI.inventoryHTML(p),'royale-inventory');royaleUI.updateInventory(p);}
@@ -909,6 +944,9 @@ function inventoryAction(action,index,from){
  if(dialogType==='royale-inventory')royaleUI.updateInventory(state.players.find(p=>p.id===localId));
 }
 const actions = {
+  'connection-report': showConnectionReport,
+  'run-connection-check': runConnectionCheck,
+  'copy-connection-report': copyConnectionReport,
  'royale-home':royaleHome,
  'royale-queue':quickRoyale,
  'royale-custom':()=>{options=matchOptions({mode:'royale'});setupMenu();},
