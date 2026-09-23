@@ -49,7 +49,7 @@ try{
  assert.doesNotMatch(report,/127\.0\.0\.1|Host egg/);
  await host.screenshot({path:'test-results/connection-report.png'});
  await closeModal(host);
- await host.locator('[data-action="join"]').click();
+ await host.locator('#menu [data-action="join"]').click();
  await host.locator('#join-code').fill('ZZZZZZZZ');
  await host.locator('[data-action="join-room"]').click();
  await host.getByRole('heading',{name:'Could not join',exact:true}).waitFor();
