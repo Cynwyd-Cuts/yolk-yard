@@ -26,6 +26,20 @@ try{
  const code=(await host.locator('.room-code').innerText()).replace('-','').trim();
  const guest=await make('Captain Sunny');await guest.locator('[data-action="royale-home"]').click();await guest.locator('[data-action="royale-queue"]').click();await guest.locator('#room-name').waitFor();await guest.locator('[data-action="save-room-name"]').click();await guest.locator('#room-name').waitFor();await guest.locator('#room-name').fill('Scout Egg');await guest.locator('[data-action="save-room-name"]').click();await guest.locator('.room-code').waitFor();assert.equal((await guest.locator('.room-code').innerText()).replace('-','').trim(),code);pass('Public matchmaking joins the waiting Royale lobby');
  await host.screenshot({path:'test-results/royale-lobby.png'});
+ const lobbyScroll=await host.evaluate(()=>{
+  const style=document.createElement('style');style.id='lobby-scroll-regression';style.textContent='#lobby .lobby-panel{height:180px!important;max-height:none!important}';document.head.append(style);
+  const panel=document.querySelector('#lobby .lobby-panel');panel.scrollTop=panel.scrollHeight;
+  return {scrollTop:panel.scrollTop,maxScroll:panel.scrollHeight-panel.clientHeight};
+ });
+ assert.ok(lobbyScroll.maxScroll>20,'Lobby panel should be scrollable for this regression check');
+ await host.evaluate(()=>window.__yolkTest.fixture(s=>{s.queueEnds=s.time+30;}));
+ await host.waitForFunction(()=>document.querySelector('#royale-queue')?.textContent.includes('DEPARTS IN'));
+ const queueText=await host.locator('#royale-queue').innerText();
+ await host.waitForFunction(previous=>document.querySelector('#royale-queue')?.textContent!==previous,queueText);
+ const lobbyScrollAfter=await host.locator('#lobby .lobby-panel').evaluate(panel=>panel.scrollTop);
+ assert.ok(lobbyScrollAfter>=lobbyScroll.scrollTop-2,`Lobby scroll position reset from ${lobbyScroll.scrollTop} to ${lobbyScrollAfter}`);
+ await host.locator('#lobby-scroll-regression').evaluate(style=>style.remove());
+ pass('Lobby countdown updates preserve the scroll position');
  // Rendering may delay snapshots while WebRTC can still answer heartbeats.
  // This previously triggered an unwanted second host after 6.5 seconds.
  await host.evaluate(async()=>{const {Network}=await import('/src/network.js');const broadcast=Network.prototype.broadcast;Network.prototype.broadcast=function(){};setTimeout(()=>{Network.prototype.broadcast=broadcast;},9000);});
