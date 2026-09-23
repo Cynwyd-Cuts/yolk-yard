@@ -321,7 +321,7 @@ function saveMatchSettings(start = false) {
     const old=sim;sim=next.mode==='royale'?new RoyaleSimulation(next):new Simulation(next);
     for(const p of old.players.values())if(!p.bot)sim.addPlayer(p.id,p);sim.round=old.round;sim.phase=old.phase;
   }else if(!sim.configure(next))return;
-  if(net)net.maxConnections=next.mode==='royale'?19:7;
+  if(net)net.maxConnections=(next.capacity||8)-1;
   if(autoQueue&&next.mode==='royale'&&!start)sim.queueEnds=sim.time+30;
   options=sim.options;
   net?.setVisibility($("#setup-visibility").value);
@@ -359,6 +359,10 @@ function joinMenu(code = "") {
   };
 }
 function renamePrompt(){
+  if(dialogType==='rename'&&dialog.open){
+    const button=dialog.querySelector('[data-action="save-room-name"]');button.disabled=false;button.textContent='USE THIS NAME';
+    toast('That name is still taken. Choose another one.');return;
+  }
   modal('That name is already in this match',`<p>Choose an unused player name to continue.</p><label for="room-name">Player name</label><input id="room-name" class="field" maxlength="18" value="${esc(profile.name)}" autocomplete="off"><button class="primary" data-action="save-room-name">USE THIS NAME</button><button class="plain" data-action="leave">Leave match</button>`,'rename');
   $('#room-name').focus();$('#room-name').select();$('#room-name').onkeydown=e=>{if(e.key==='Enter')actions['save-room-name']();};
 }
@@ -915,6 +919,7 @@ const actions = {
     const raw=$('#room-name').value;const checked=moderateText(raw,{name:true});
     if(!checked.ok||!raw.trim()){toast('Choose another player name.');return;}
     profile=safeProfile({...profile,name:raw});save('yolk-profile',profile);
+    if(net){const button=dialog.querySelector('[data-action="save-room-name"]');button.disabled=true;button.textContent='CHECKING NAME…';}
     if(net)net.submitName(profile);else if(sim?.setProfile(localId,profile)!==false){dialog.close();dialogType='';void resume();}else renamePrompt();
   },
   'royale-inspect':()=>{royaleUI.inspect=!royaleUI.inspect;royaleUI.updateInventory(state.players.find(p=>p.id===localId));},

@@ -124,7 +124,8 @@ export class Simulation {
     const p = this.players.get(id);
     if (!p) return;
     const safe = safeProfile(profile);
-    if([...this.players.values()].some(other=>other.id!==id&&nameKey(other.name)===nameKey(safe.name)))return false;
+    if([...this.players.values()].some(other=>other.id!==id&&!other.bot&&nameKey(other.name)===nameKey(safe.name)))return false;
+    for(const other of this.players.values())if(other.id!==id&&other.bot&&nameKey(other.name)===nameKey(safe.name))other.name=this.uniqueBotName(other.name+' Bot');
     p.nextProfile = safe;
     p.name=safe.name;
     if (this.phase === "lobby" || p.health <= 0) Object.assign(p, safe);

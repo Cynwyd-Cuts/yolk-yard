@@ -20,7 +20,7 @@ async function make(name,mobile=false){
 const rows=page=>page.evaluate(()=>window.__yolkTest.chatRead().rows);
 async function open(page){if(!await page.locator('.chat-hud.typing').isVisible())await page.locator('#chat-toggle').click();}
 async function close(page){if(await page.locator('#chat-panel').isVisible())await page.getByRole('button',{name:'Close chat',exact:true}).click();else if(await page.locator('.chat-hud.typing').isVisible())await page.locator('#chat-input').press('Escape');}
-async function controls(page){await close(page);if(await page.locator('[data-action="chat-controls"]').isVisible())await page.locator('[data-action="chat-controls"]').click();else {if(!await page.locator('#dialog').isVisible())await page.keyboard.press('Escape');await page.locator('[data-action="chat-controls"]').click();}}
+async function controls(page){await close(page);if(await page.locator('[data-action="chat-controls"]:visible').isVisible())await page.locator('[data-action="chat-controls"]:visible').click();else {if(!await page.locator('#dialog').isVisible())await page.keyboard.press('Escape');await page.locator('[data-action="chat-controls"]:visible').click();}}
 async function send(page,text){await open(page);await page.waitForTimeout(1250);await page.locator('#chat-input').fill(text);await page.locator('.chat-send').click();}
 async function has(page,text){await page.waitForFunction(text=>window.__yolkTest.chatRead().rows.some(r=>r.text===text),text);}
 try{

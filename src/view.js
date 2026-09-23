@@ -743,7 +743,8 @@ export class View {
       this.gunGroup.visible=this.gunGroup.visible&&draw.visible;
       const w = gun(local),
         scoped = w.optic === "scope" || w.optic === "prism";
-      const aiming = aim && (!local.inventory||local.flight==='ground'&&local.inventory[local.slot]?.weapon) && local.health > 0 && local.reloadEnd <= state.time && !draw.active;
+      const aiming = !!(aim && (!local.inventory||local.flight==='ground'&&local.inventory[local.slot]?.weapon) && local.health > 0 && local.reloadEnd <= state.time && !draw.active);
+      if(!Number.isFinite(this.aimBlend))this.aimBlend=0;
       this.aimBlend += (Number(aiming) - this.aimBlend) * Math.min(1, dt * 14);
       const fov = aiming
         ? scoped
@@ -1058,4 +1059,3 @@ export class View {
     this.renderer.render(this.scene, this.camera);
   }
 }
-

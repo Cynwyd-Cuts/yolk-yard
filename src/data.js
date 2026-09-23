@@ -272,9 +272,9 @@ export const WEAPONS = [
 // Full swept collision remains active until the projectile reaches this limit.
 for(const w of WEAPONS) w.flightRange=w.projectile?180:w.pellets>1?65:w.optic==='scope'?600:320;
 export const ROYALE_WEAPONS = [
- {...WEAPONS[2],id:'peeper',name:'Peeper',role:'MARKSMAN',desc:'A repeating long-range shell scout.',damage:68,magazine:8,reserve:60,interval:.36,reload:2.2,reloadEmpty:2.5,spread:.008,range:110,boltSpeed:100,optic:'scope',magnification:2.5,color:0x94de9a},
- {...WEAPONS[1],id:'doubleyolk',name:'Double Yolk',role:'TACTICAL',desc:'A quick cycling tactical scatter blaster.',damage:7,pellets:10,magazine:6,reserve:48,interval:.5,reload:2.4,reloadEmpty:2.7,range:22,boltSpeed:60,color:0xec99c5},
- {...WEAPONS[0],id:'comet',name:'Comet',role:'ENERGY',desc:'A precise energy carbine with luminous rounds.',damage:27,magazine:24,reserve:240,interval:.14,reload:2.1,reloadEmpty:2.4,spread:.013,range:95,boltSpeed:110,color:0x8bafff},
+ {...WEAPONS[2],id:'peeper',name:'Peeper',role:'MARKSMAN',desc:'A repeating long-range shell scout.',damage:68,magazine:8,reserve:60,interval:.36,reload:2.2,reloadEmpty:2.5,spread:.008,range:110,optic:'scope',magnification:2.5,color:0x94de9a},
+ {...WEAPONS[1],id:'doubleyolk',name:'Double Yolk',role:'TACTICAL',desc:'A quick cycling tactical scatter blaster.',damage:7,pellets:10,magazine:6,reserve:48,interval:.5,reload:2.4,reloadEmpty:2.7,range:22,color:0xec99c5},
+ {...WEAPONS[0],id:'comet',name:'Comet',role:'ENERGY',desc:'A precise energy carbine with luminous rounds.',damage:27,magazine:24,reserve:240,interval:.14,reload:2.1,reloadEmpty:2.4,spread:.013,range:95,color:0x8bafff},
 ];
 const royaleStats = new Map();
 export const MODES = [

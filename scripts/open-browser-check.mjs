@@ -137,7 +137,7 @@ try{
  await host.locator('[data-action="rematch"]').waitFor();
  await host.locator('[data-action="rematch"]').click();
  await host.locator('#setup-mode').selectOption('teams');
- assert.equal(await host.locator('#setup-scoreLimit').inputValue(),'40');
+ assert.equal(await host.locator('#setup-scoreLimit').inputValue(),'35');
  await host.locator('#setup-scoreLimit').fill('5');await host.locator('#setup-minutes').fill('8');
  await host.locator('#setup-map').selectOption({index:1});await host.locator('#setup-bots').selectOption('1');
  await host.screenshot({path:'test-results/match-rematch-settings.png'});
