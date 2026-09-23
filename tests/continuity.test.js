@@ -29,3 +29,13 @@ test('Royale checkpoints retain inventory and storm; replacing a bot preserves i
  assert.equal(copy.setProfile('guest',{name:'New Egg'}),true);assert.equal(copy.players.get('guest').name,'New Egg');
  const dead=[...copy.players.values()].find(p=>p.bot);dead.health=0;dead.spectating=true;const alive=copy.alive;copy.leavePlayer(dead.id);assert.equal(copy.alive,alive);
 });
+
+test('a Royale bot finishes a queued popper throw after firing a weapon',()=>{
+ const s=new RoyaleSimulation({capacity:2,bots:1,fill:true,seed:17});s.addPlayer('host',{name:'Host Egg'});s.startRound();
+ const bot=[...s.players.values()].find(p=>p.bot);
+ Object.assign(bot,{x:70,y:0,z:0,flight:'ground',grounded:true,slot:0,useLatch:true,brain:{utility:{slot:1,yaw:0,pitch:.35,until:s.time+1}}});
+ bot.inventory[0]={id:'pip',weapon:true,ammo:7,count:1,rarity:0};bot.inventory[1]={id:'popper',count:2,rarity:1};s.syncInventory(bot);
+ for(let i=0;i<30;i++)s.tick(1/60);
+ assert.equal(bot.inventory[1].count,1);assert.equal(bot.use,null);
+ assert.ok(s.projectiles.some(p=>p.owner===bot.id&&p.popper));
+});

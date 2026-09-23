@@ -297,6 +297,12 @@ export class RoyaleSimulation extends Simulation {
    const dx=goal.x-p.x,dz=goal.z-p.z;input.yaw=Math.atan2(-dx,-dz);input.forward=Math.hypot(dx,dz)>4?1:0;
    input.jump=p.flight==='dive'&&p.y<95;return input;
   }
+  // Finish a committed item action before choosing a gun again. A throw may
+  // also need one released trigger frame after firing the previous weapon.
+  if(p.use){if(p.brain)p.brain.utility=null;return {...input,slot:p.use.slot,pitch:p.pitch};}
+  const utility=p.brain?.utility;
+  if(utility&&utility.until>this.time&&p.inventory[utility.slot]?.id==='popper')return {...input,slot:utility.slot,yaw:utility.yaw,pitch:utility.pitch,fire:!p.useLatch};
+  if(utility)p.brain.utility=null;
   const needGun=!p.inventory.some(i=>i?.weapon);
   const danger=this.storm.active&&Math.hypot(p.x-this.storm.nextX,p.z-this.storm.nextZ)>this.storm.nextRadius*.82;
   const targets=[...this.players.values()].filter(e=>e!==p&&e.health>0&&!e.spectating&&e.flight==='ground').sort((a,b)=>dist(p,a)-dist(p,b));

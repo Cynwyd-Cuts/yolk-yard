@@ -113,6 +113,7 @@ export function botInput(sim,p,{goal:externalGoal=null,enemy:preferred=null,trav
  const dt=clamp(now-brain.turnAt,0,.1);brain.turnAt=now;
  yaw=p.yaw+clamp(wrap(yaw-p.yaw),-skill.turn*dt,skill.turn*dt);
  if(canSee&&Math.abs(wrap(yaw-(Math.atan2(-(target.x-p.x),-(target.z-p.z)))))>.24)fire=false;
+ if(p.inventory?.[slot]?.id==='popper'&&fire)brain.utility={slot,yaw,pitch,until:now+1};
  if(jump){brain.nextJump=now+1.1+r();}
  const ml=Math.max(1,Math.hypot(mx,mz));mx/=ml;mz/=ml;
  return {yaw,pitch,forward:-Math.sin(yaw)*mx-Math.cos(yaw)*mz,strafe:Math.cos(yaw)*mx-Math.sin(yaw)*mz,fire,aim:canSee&&slot===p.slot&&sim.options.difficulty>=2&&!popper,reload:p.ammo[slot]===0,jump,popper,slot,swapSlot:-1};

@@ -51,7 +51,7 @@ export function wallDistance(map, o, d, max = 200) {
   return t;
 }
 // Small shell margin covers the centered waddle and bounded render smoothing.
-export const EGG_HIT = { radius: 0.62, height: 0.94, center: 0.9 };
+export const EGG_HIT = { radius: 0.64, height: 0.94, center: 0.9 };
 export function rayEgg(o, d, p) {
   const r = [EGG_HIT.radius, EGG_HIT.height, EGG_HIT.radius],
     a = [(o.x - p.x) / r[0], (o.y - p.y - EGG_HIT.center) / r[1], (o.z - p.z) / r[2]],

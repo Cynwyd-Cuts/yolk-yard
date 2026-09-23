@@ -16,7 +16,7 @@ async function make(name,mobile=false){
  await ctx.addInitScript(name=>{if(location.origin==='null')return;localStorage.setItem('yolk-profile',JSON.stringify({name}));localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:.15}));},name);
  await ctx.route('**/network-config.js',route=>route.fulfill({contentType:'application/javascript',body:"window.YOLK_NETWORK={peer:{host:'127.0.0.1',port:9002,path:'/peer',secure:false},iceServers:[]};"}));
  const page=await ctx.newPage();pages.push(page);page.setDefaultTimeout(60000);page.on('pageerror',e=>{errors.push(e.message);console.error('BROWSER',e.message);});
- await page.goto('http://127.0.0.1:5182/?qa=1');await page.locator('[data-action="royale-home"]').waitFor();return page;
+ await page.goto('http://127.0.0.1:5182/?qa=1',{waitUntil:'domcontentloaded'});await page.locator('[data-action="royale-home"]').waitFor();return page;
 }
 try{
  const host=await make('Captain Sunny');
@@ -63,6 +63,9 @@ try{
  await host.evaluate(()=>window.__yolkTest.fixture(s=>{const living=[...s.players.values()].filter(p=>p.health>0);for(const p of living.slice(1))s.damage(p,living[0],1000,'Comet');s.tick(1/60);}));await host.locator('#round-banner').waitFor();assert.equal(await host.locator('.results').isVisible(),false);await host.locator('[data-action="rematch"]').waitFor();await guest.locator('.results').waitFor();await host.screenshot({path:'test-results/royale-results.png'});
  await host.locator('[data-action="rematch"]').click();await host.locator('[data-action="apply-rematch"]').click();await late.waitForFunction(()=>{const q=window.__yolkTest.read();const p=q.state.players.find(p=>p.id===q.localId);return q.state.round===2&&p.health===100&&p.inventory.every(i=>i===null);});pass('Results and rematch reset storm, placement, inventory and spectator participation');
  await host.keyboard.press('Escape');await host.locator('[data-action="leave-confirm"]').click();await guest.waitForFunction(()=>window.__yolkTest.read().host);await late.waitForFunction(()=>!window.__yolkTest.read().migrating&&window.__yolkTest.read().state?.round===2);pass('Host departure transfers the match to the oldest remaining player');
+ // The departed host is no longer part of this scenario. Release its software
+ // renderer before bringing up the new independent client on the CI runner.
+ await host.context().close();
  const newcomer=await make('New Egg');await newcomer.locator('[data-action="join"]').click();await newcomer.locator('#join-code').fill(code);await newcomer.locator('[data-action="join-room"]').click();await newcomer.waitForFunction(()=>{const q=window.__yolkTest.read();return q.state?.round===2&&q.state.players.some(p=>p.id===q.localId);});pass('Original invite code still admits players after host transfer');
  await guest.close();await late.waitForFunction(()=>window.__yolkTest.read().host);await newcomer.waitForFunction(()=>!window.__yolkTest.read().migrating&&window.__yolkTest.read().state?.round===2);pass('Closing the replacement host transfers authority again in join order');
  await late.close();await newcomer.close();

@@ -12,11 +12,11 @@ Choose **Yolk Royale** on the home screen:
 
 Ride the Eggspress over the 512 × 512 Sunnybreak island, choose one of nine districts, skydive and deploy your shell glider. Start empty, search chests and collect floor loot. Five slots hold eleven blasters and eight healing, shield, explosive or mobility items. Sprinting uses regenerating stamina. Eight nested storm stages close the island until one egg survives.
 
-One life per round. Eliminated players and late arrivals spectate living contestants, with target switching and their health, shields and inventory. The host can start a fresh rematch through editable setup. Four additional spectator seats are available during a round.
+One life per contestant. A late join replaces a bot and inherits its existing life and inventory; a full room of humans rejects additional joins. Departing humans become bots when bot fill is enabled. Eliminated contestants spectate until the rematch. If the host disconnects, the oldest connected player takes over with the same room code and saved match state.
 
-The original sound system contains 79 named effect cues, eleven weapon palettes and five continuous environmental layers. It covers transport, gliding, surfaces, stamina, combat, reloads, chests, loot, consumables, mobility, supply drops, storm, spectating and results. Settings have separate master, effects, ambience and music controls. Audio starts after user interaction.
+The original sound system contains 73 named effect cues, eleven weapon palettes and five continuous environmental layers. World sounds fade out beyond their appropriate radius; storm countdown ticks play only during the last five seconds. Settings have separate master, effects, ambience and music controls. Audio starts after user interaction.
 
-See [the complete design and rules](docs/BATTLE_ROYALE.md). Arena modes retain their original maps, loadouts, eight-player limit and respawn rules.
+Inventory opens on the right with actual item images, drag-and-drop slot reordering, stack splitting, dropping and inspection. Victory and placement banners appear before results. See [the complete design and rules](docs/BATTLE_ROYALE.md). Arena modes keep loadouts, an eight-player limit and respawns, with connected new upper routes on all three arena maps.
 
 ## Version 2 quality update
 
@@ -180,5 +180,4 @@ metadata, and peers can learn each other's network addresses through WebRTC.
 No analytics, advertisements, camera, microphone, or payment systems are used.
 
 See `THIRD_PARTY.md` for open-source notices. Original code is MIT licensed.
-
 
