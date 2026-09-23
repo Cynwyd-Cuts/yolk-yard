@@ -16,7 +16,10 @@ async function make(name,mobile=false){
  await ctx.addInitScript(name=>{if(location.origin==='null')return;localStorage.setItem('yolk-profile',JSON.stringify({name}));localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:.15}));},name);
  await ctx.route('**/network-config.js',route=>route.fulfill({contentType:'application/javascript',body:"window.YOLK_NETWORK={peer:{host:'127.0.0.1',port:9002,path:'/peer',secure:false},iceServers:[]};"}));
  const page=await ctx.newPage();pages.push(page);page.setDefaultTimeout(60000);page.on('pageerror',e=>{errors.push(e.message);console.error('BROWSER',e.message);});
- await page.goto('http://127.0.0.1:5182/?qa=1',{waitUntil:'commit'});await page.locator('[data-action="royale-home"]').waitFor();return page;
+ await page.goto('http://127.0.0.1:5182/?qa=1',{waitUntil:'commit'});// Later clients initialize while two software-rendered islands are active.
+ // Failure screenshots show startup eventually succeeds beyond 60 seconds on CI.
+ // Keep interaction deadlines unchanged; allow only initial menu creation longer.
+ await page.locator('[data-action="royale-home"]').waitFor({timeout:180000});return page;
 }
 try{
  const host=await make('Captain Sunny');
