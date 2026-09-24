@@ -1,0 +1,1 @@
+{"name":"yolk-connection-server","private":true,"type":"module","scripts":{"build":"node build.mjs"},"devDependencies":{"drizzle-kit":"^0.31.0","drizzle-orm":"^0.44.0"}}

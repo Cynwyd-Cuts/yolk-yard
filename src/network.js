@@ -1,12 +1,13 @@
 import { connectionReport, errorCode, watchConnection } from './connection-report.js';
 import Peer from "peerjs";
+import { RelayPeer, relayURL } from "./relay-peer.js";
 import { directory } from "./directory.js";
 import { VERSION, safeProfile, nameKey } from "./data.js";
 import { ChatRoom, chatPayload } from './chat.js';
 import { FILTER_VERSION, moderateText, safeName, safeSystemText, SAFETY_MESSAGES } from './moderation.js';
 import { matchOptions } from './match-options.js';
 import { HostHeartbeat } from './host-heartbeat.js';
-const PREFIX = "yolk-yard-v3-";
+const PREFIX = `yolk-yard-v${VERSION}-`;
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomCode = () =>
   Array.from(
@@ -61,7 +62,7 @@ export class Network {
   makePeer(id) {
     connectionReport.set("service","Checking","Opening matchmaking connection.");
     const config = window.YOLK_NETWORK || {};
-    this.peer = new Peer(id, {
+    this.peer = relayURL() ? new RelayPeer(id) : new Peer(id, {
       debug: 0,
       ...config.peer,
       config: {
@@ -84,7 +85,8 @@ export class Network {
         this.callbacks.onStatus?.(
           "Reconnecting to the room service…",
         );
-      if(!this.closed)this.later(()=>{if(this.peer?.disconnected&&!this.peer.destroyed)this.peer.reconnect();},1200);
+      if(!this.closed && relayURL()){this.callbacks.onError?.('The game server connection ended. Rejoin the room or create another match.');}
+      else if(!this.closed)this.later(()=>{if(this.peer?.disconnected&&!this.peer.destroyed)this.peer.reconnect();},1200);
     });
     return new Promise((resolve, reject) => {
       this.rejectOpen = reject;
@@ -102,7 +104,7 @@ export class Network {
       this.peer.on("open", (id) => {
         clearTimeout(timer);
         this.timers.delete(timer);
-        connectionReport.set("service","Passed","Matchmaking service assigned a peer address.");
+        connectionReport.set("service","Passed","Room service connected.");
         resolve(id);
       });
     });
@@ -243,7 +245,7 @@ export class Network {
           connectionReport.set("host","Failed","Host handshake timed out after 18 seconds. " + connectionReport.rows.host.detail);
           reject(
             new Error(
-              "Could not reach the host. The network may block direct player connections.",
+              "Could not reach the host. The room may have closed or the connection may be unavailable.",
             ),
           );
         }, 18000,
@@ -410,7 +412,9 @@ export class Network {
     const s = this.snapshot;
     const humans=s?.players.filter(p=>!p.bot)||[];
     const capacity=s?.options.capacity||8;
-    directory.publish(this.visibility === "public" && s ? {code:this.code,host:s.players.find(p=>p.id === this.id)?.name || "Egg",map:s.options.map,mode:s.options.mode,players:humans.length,capacity,phase:s.phase} : null);
+    const listing=this.visibility === "public" && s ? {version:VERSION,code:this.code,host:s.players.find(p=>p.id === this.id)?.name || "Egg",map:s.options.map,mode:s.options.mode,players:humans.length,capacity,phase:s.phase} : null;
+    if(relayURL())(this.aliasPeer?.id===PREFIX+this.code?this.aliasPeer:this.peer)?.publish?.(listing);
+    else directory.publish(listing);
   }
   broadcast(state) {
     this.snapshot = state;
@@ -419,7 +423,12 @@ export class Network {
     const checkpointDue=performance.now()-(this.lastCheckpointSent||0)>500;
     let checkpoint;
     if(checkpointDue){this.lastCheckpointSent=performance.now();checkpoint={simulation:this.callbacks.getCheckpoint?.(),chat:{sequence:this.chatRoom.sequence,enabled:this.chatEnabled,muted:this.chatMuted,members:[...this.chatRoom.members],reports:[...this.chatRoom.reports]},kicked:[...this.kicked]};}
-    for (const conn of this.connections.values()) {
+    const recipients=[...this.connections.values()];
+    const offset=(this.broadcastCursor||0)%Math.max(1,recipients.length);
+    this.broadcastCursor=offset+1;
+    // Shared-socket backpressure must not repeatedly favor the first seats.
+    for (let i=0;i<recipients.length;i++) {
+      const conn=recipients[(i+offset)%recipients.length];
       if (!conn.open || (conn.dataChannel?.bufferedAmount || 0) >= 131072) continue;
       let outgoing=state;
       if(state.royale){
@@ -500,10 +509,11 @@ export class Network {
     if(this.closed||!this.isHost)return;
     if(this.peer.id===PREFIX+this.code)return;
     const config=window.YOLK_NETWORK||{};
-    const alias=new Peer(PREFIX+this.code,{debug:0,...config.peer,config:{iceServers:config.iceServers||[{urls:'stun:stun.l.google.com:19302'}]}});this.aliasPeer=alias;
+    const alias=relayURL()?new RelayPeer(PREFIX+this.code):new Peer(PREFIX+this.code,{debug:0,...config.peer,config:{iceServers:config.iceServers||[{urls:'stun:stun.l.google.com:19302'}]}});this.aliasPeer=alias;
+    alias.on('open',()=>this.publishRoom());
     alias.on('connection',conn=>this.accept(conn));
     alias.on('error',()=>{alias.destroy();this.later(()=>this.claimRoomAddress(),2500);});
-    alias.on('disconnected',()=>{if(!alias.destroyed&&!this.closed)alias.reconnect();});
+    alias.on('disconnected',()=>{if(!alias.destroyed&&!this.closed){if(relayURL()){alias.destroy();this.later(()=>this.claimRoomAddress(),2500);}else alias.reconnect();}});
   }
   kick(id) {
     const conn = this.connections.get(id);
@@ -518,7 +528,7 @@ export class Network {
     this.closed = true;
     this.rejectOpen?.(new Error("Connection cancelled."));
     this.rejectOpen = null;
-    if (this.isHost) directory.publish(null);
+    if (this.isHost && !relayURL()) directory.publish(null);
     for (const timer of this.timers) clearTimeout(timer);
     clearInterval(this.heartbeat);
     if (this.isHost)

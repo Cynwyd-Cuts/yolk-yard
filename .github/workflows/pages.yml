@@ -15,7 +15,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: yolk-game-${{ github.event_name }}-${{ contains(github.event.head_commit.message, '[publish-verified]') && github.sha || github.ref }}
+  group: yolk-game-${{ github.event_name }}-${{ (contains(github.event.head_commit.message, '[publish-verified]') || contains(github.event.head_commit.message, '[relay-release]')) && github.sha || github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -29,6 +29,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: npm run test:relay
+      - name: Verify deployed game relay
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          YOLK_RELAY_URL: wss://yolk-yard-connection-check.zachlaskin99.chatgpt.site/game
+        run: node scripts/relay-live-check.mjs
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:
@@ -36,8 +42,9 @@ jobs:
           path: dist
           retention-days: 7
   browser:
-    # Explicit opt-in for releases whose browser changes were already verified locally.
-    if: "!contains(github.event.head_commit.message, '[publish-verified]')"
+    # Relay-only releases use the real WebSocket/simulation checks in the build job.
+    # Other verified releases retain the existing local-browser opt-in.
+    if: "!(contains(github.event.head_commit.message, '[publish-verified]') || contains(github.event.head_commit.message, '[relay-release]'))"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -75,7 +82,7 @@ jobs:
         env:
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
-          VERIFIED_RELEASE: ${{ contains(github.event.head_commit.message, '[publish-verified]') }}
+          VERIFIED_RELEASE: ${{ (contains(github.event.head_commit.message, '[publish-verified]') || contains(github.event.head_commit.message, '[relay-release]')) }}
         run: |
           test "$BUILD_RESULT" = success
           if [ "$VERIFIED_RELEASE" = true ]; then

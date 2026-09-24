@@ -1,5 +1,6 @@
 import { connectionReport } from './connection-report.js';
 import Peer from 'peerjs';
+import {RelayPeer,relayURL} from './relay-peer.js';
 import { safeName } from './moderation.js';
 import { VERSION } from './data.js';
 // A live browser coordinates the directory. Other browsers re-elect it on disconnect.
@@ -102,6 +103,18 @@ class Directory {
     if(this.connection?.open)this.connection.send({type:'publish',room:this.room});
   }
   async list() {
+    if(relayURL()){
+      connectionReport.set("directory","Checking","Requesting server listings.");
+      const peer=new RelayPeer();
+      try{
+        await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error("Room service timed out.")),12000);peer.on("open",()=>{clearTimeout(timer);resolve();});peer.on("error",()=>{clearTimeout(timer);reject(Error("Room service unavailable."));});});
+        const rows=await peer.list();
+        const rooms=rows.filter(r=>r.version===VERSION).map(cleanListing).filter(Boolean);
+        connectionReport.set("directory","Passed",rooms.length+" rooms returned by the game server.");
+        return {rooms};
+      }catch(error){connectionReport.set("directory","Failed","No server directory response. Try again shortly.");throw error;}
+      finally{peer.destroy();}
+    }
     connectionReport.set("directory","Checking","Requesting public listings.");
     this.start();
     const deadline=Date.now()+18000;

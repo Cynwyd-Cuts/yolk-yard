@@ -105,30 +105,39 @@ A failure identifies the observed stage, not the cause of a network policy.
 ## Multiplayer architecture and limits
 
 GitHub Pages hosts static game files. **It does not run the match server.**
-The host's browser runs a fixed 60 Hz simulation, and peers exchange real
-WebRTC data messages. PeerJS's public cloud service handles room discovery and
-connection signaling. Snapshots are sent at 20 Hz in arenas and 10 Hz in Royale; unchanged island loot is not resent. Joining clients predict
-local movement and reconcile against the host's acknowledged input sequence.
+The host's browser runs the authoritative 60 Hz simulation. Production players
+connect to the shared game service over secure WebSockets. The server relays
+ordered inputs, snapshots, checkpoints, and approved chat between browsers;
+it also owns the public directory. No direct WebRTC connection is required.
+Snapshots originate at 20 Hz in arenas and 10 Hz in Royale. Client prediction
+and interpolation remain enabled. Private rooms never publish directory entries.
 
-The host owns movement speed, collision, damage, ammo, reloads, respawns,
-pickups, round scores, and objectives. Incoming inputs are clamped, sequence
-checked, limited in rate and size, and expire if a client stops sending them.
-This is suitable for friend rooms; the hosting player controls the authority,
-so it is not a competitive, cheat-proof dedicated-server service.
+The host controls movement, collision, damage, ammo, respawns and scoring.
+This is suitable for friend rooms, not a cheat-proof dedicated simulation server.
+The oldest remaining player can restore the checkpoint and reclaim the same code
+when the host leaves. A lost connection to the relay itself asks the affected
+player to rejoin; remaining connected players can continue through host transfer.
 
-Public signaling, STUN, and direct WebRTC connections must be reachable. Opening
-a GitHub Pages site alone does **not** prove a school or other managed network
-allows multiplayer. Symmetric NAT, client isolation, service outages, or blocked
-WebRTC can prevent peers connecting. The app gives connection errors and offers
-practice. No policy bypass, hidden transport, VPN, or proxy is included.
+The current service uses short-lived D1 mailboxes so players connected to separate
+Worker instances still receive each other's messages. Messages are consumed after
+forwarding; undelivered records expire after 30 seconds and are cleaned up during
+active sessions. Server sessions renew their WebSocket invocation while retaining
+channel identity and ordered queued traffic. This avoids invocation query-budget
+exhaustion during longer matches. Room heartbeats expire after 25 seconds.
 
-`public/network-config.js` lets a deployment operator configure their own
-approved PeerServer and ICE/TURN servers. No paid relay is provisioned or
-included. A TURN deployment is required for networks that need a relay; it
-still needs to be permitted by the network. TURN credentials in static files
-are public, so use short-lived credentials from your own service.
+**Performance limit:** this compatibility transport adds database polling and
+network latency. Automated local checks prove ordering, discovery, admission,
+checkpoint transfer and connection renewal, not school-network match speed or
+service capacity. Busy full rooms need real-network evaluation. A dedicated
+in-memory room service is the next step if latency is excessive. The game server
+must be reachable and permitted by the network; no VPN or concealed transport is
+included.
 
-The oldest connected human takes over after the host leaves or stops responding. Heartbeat replies keep a healthy room connected when rendering delays snapshots; silent connections get a short probe grace period, while closed connections transfer immediately. Half-second checkpoints preserve simulation state, inventory, storm progress and chat controls. The original invite code is reclaimed through signaling; recovery can briefly pause the game. All remaining browsers must still be able to reach one another. Rooms and public listings are ephemeral. No central accounts, cross-device progression, ranked service, or voice chat. Text chat is moderated and scoped to the current room.
+`public/network-config.js` selects the deployed relay. Removing `relay` and setting
+`peer`/`iceServers` explicitly retains the WebRTC path for local development or an
+operator's own deployment. Refresh all players after updating protocol versions.
+The game remains statically hosted on GitHub Pages; the relay is deployed separately.
+See `server/README.md` for the deployed service source and focused checks.
 
 ## Chat and safety
 
@@ -136,7 +145,7 @@ Messages stay on screen; press **Enter** or **T**, or tap **Enter to chat**, to 
 
 All messages are checked before leaving the sender, at the host, and at the recipient. Names are filtered on save, profile admission, public listings, snapshots, events and result displays. Blocked input is not echoed into shared chat or saved to an abuse log. Common contact details, links, addresses, numeric identifiers, personal-information disclosures, common real names/locations, profanity, slurs, harassment and obfuscated variants are filtered. Typed chat supports English with normalized Latin characters; unsupported scripts fail closed and can use quick messages.
 
-Players can mute or report others. A report uses a fixed reason, mutes that player locally, and notifies the room host. Hosts can silence/remove players and pause room chat. Spam throttles, duplicate rejection, a temporary cooldown after repeated prohibited submissions, verified sender identity, team routing and replay checks apply independently of the sender UI. Chat history is capped at 60 messages in memory and cleared on leaving; no late-join history or direct messages are sent.
+Players can mute or report others. A report uses a fixed reason, mutes that player locally, and notifies the room host. Hosts can silence/remove players and pause room chat. Spam throttles, duplicate rejection, a temporary cooldown after repeated prohibited submissions, verified sender identity, team routing and replay checks apply independently of the sender UI. Displayed chat history is capped at 60 messages in memory and cleared on leaving; no late-join history or direct messages are sent. The relay briefly buffers delivered game messages, including approved chat, as described above.
 
 **Limits:** this is a local rules/English NLP filter, not Roblox’s proprietary moderation service, and it cannot guarantee detection of every personal detail or prohibited expression. A name or place may be ambiguous, and entirely unknown information cannot always be recognized. The game has no central accounts, moderation staff, persistent global bans or trusted dedicated match server. Reports go to the current host; muting and leaving remain available if the host is the problem. A modified client/host can inspect or alter its own software; standard recipients independently reject unsafe text. Quick-message-only mode provides the most restrictive communication option. Do not claim Roblox equivalence or complete prevention.
 
@@ -186,8 +195,7 @@ their source code, models, textures, or branding.
 
 Your chosen name, appearance, settings, and cumulative results are stored in
 localStorage on your browser. Gameplay and chosen display names are shared
-with the host and room participants. The signaling provider sees connection
-metadata, and peers can learn each other's network addresses through WebRTC.
+with the host and room participants. The relay service sees connection metadata and forwards game messages. The default WebSocket mode does not reveal player network addresses to other players. Explicit WebRTC deployments can reveal peer addresses.
 No analytics, advertisements, camera, microphone, or payment systems are used.
 
 See `THIRD_PARTY.md` for open-source notices. Original code is MIT licensed.
