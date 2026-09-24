@@ -1256,8 +1256,10 @@ function aimSensitivity() {
   const aiming = (actionDown("aim") || touch.aim)&&(!p?.inventory||!!p.inventory[p.slot]?.weapon);
   return aiming ? settings.scopeSensitivity : 1;
 }
+let menuMousePoint=null;
 document.addEventListener("mousemove", (e) => {
-  if(screen==='menu'&&!dialog.open&&(e.movementX||e.movementY))view.aimMenu(e.clientX,e.clientY);
+  if(screen==='menu'&&!dialog.open&&(!menuMousePoint||menuMousePoint.x!==e.clientX||menuMousePoint.y!==e.clientY))view.aimMenu(e.clientX,e.clientY);
+  menuMousePoint={x:e.clientX,y:e.clientY};
   if (
     screen !== "game" ||
     paused ||

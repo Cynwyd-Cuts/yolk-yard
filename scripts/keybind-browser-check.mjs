@@ -8,7 +8,7 @@ const page=await browser.newPage({viewport:{width:1100,height:900}}),errors=[];p
 try{
  await page.addInitScript(()=>localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:0})));
  await page.goto('http://127.0.0.1:5188/?qa=1');
- await page.waitForFunction(()=>window.__yolkTest?.read().presentation?.menuPose);
+ await page.waitForFunction(()=>window.__yolkTest?.read().presentation?.menuPose?.time>.2);
  await page.mouse.move(800,130);await page.waitForFunction(()=>window.__yolkTest.read().presentation.menuPose.aimPitch>.1);
  await page.mouse.move(800,780);await page.waitForFunction(()=>window.__yolkTest.read().presentation.menuPose.aimPitch<-.1);
  await page.evaluate(()=>{const canvas=document.querySelector('#world');const send=(type,x)=>{const touches=[new Touch({identifier:1,target:canvas,clientX:x,clientY:300}),new Touch({identifier:2,target:canvas,clientX:x+70,clientY:350})];canvas.dispatchEvent(new TouchEvent(type,{touches,targetTouches:touches,bubbles:true,cancelable:true}));};send('touchstart',400);send('touchmove',500);canvas.dispatchEvent(new TouchEvent('touchend',{touches:[],bubbles:true}));});
@@ -35,4 +35,4 @@ try{
  await page.setViewportSize({width:390,height:844});await page.locator('[data-bind-search]').scrollIntoViewIfNeeded();await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/keybind-mobile.png'});
  assert.equal(await page.locator('.keybind-list').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);assert.deepEqual(errors,[]);
  console.log('PASS keybind conflicts, draft, cancel, clear, mouse, scroll, reset, persistence and mobile layout');
-}finally{await browser.close();await server.close();}
+}catch(error){console.log('BROWSER ERRORS',errors);console.log('MENU',await page.evaluate(()=>window.__yolkTest?.read().presentation?.menuPose));await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/menu-failure.png'});throw error;}finally{await browser.close();await server.close();}
