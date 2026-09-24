@@ -1,12 +1,20 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {MenuPose,touchPair,touchRotation} from '../src/menu-pose.js';
-test('idle holds switch every ten seconds and all transitions remain continuous',()=>{
- const p=new MenuPose();let last=p.update(1/60),switches=[];
- for(let i=0;i<1300;i++){const next=p.update(1/60);assert.ok(Math.abs(next.pitch-last.pitch)<.15);if(next.pose!==last.pose)switches.push(p.time);last=next;}
- assert.equal(switches.length,2);assert.ok(Math.abs(switches[1]-switches[0]-10)<.04);
+import {MenuPose,touchPair,touchRotation,MENU_FRONT,IDLE_CLIPS,idleClip} from '../src/menu-pose.js';
+test('idle begins without a delay, returns to camera center and transitions continuously',()=>{
+ const p=new MenuPose(()=>.3);let last=p.update(1/60);
+ for(let i=0;i<2600;i++){const next=p.update(1/60);assert.ok(Math.abs(next.pitch-last.pitch)<.2);assert.equal(next.yaw,MENU_FRONT);last=next;}
  p.aim(2,.6);const next=p.update(1/60);assert.ok(Math.abs(next.pitch-last.pitch)<.2);assert.equal(next.idle,false);
  for(let i=0;i<30;i++){p.aim(2,.6);p.update(1/60);}assert.ok(p.pitch>.5);
- for(let i=0;i<200;i++)p.update(1/60);assert.ok(p.idle>.9);
+ assert.equal(p.update(1/60).idle,true);
+ for(let i=0;i<200;i++)p.update(1/60);assert.ok(p.idle>.9);assert.equal(p.yaw,MENU_FRONT);
+});
+test('shuffle bags use every idle clip once and never repeat at bag boundaries',()=>{
+ for(const rng of [()=>0,()=>.3,()=>.9999]){const p=new MenuPose(rng),seen=[];for(let i=0;i<32;i++){seen.push(p.clip);p.nextClip();}for(let i=1;i<seen.length;i++)assert.notEqual(seen[i],seen[i-1]);for(let i=0;i<32;i+=8)assert.equal(new Set(seen.slice(i,i+8)).size,IDLE_CLIPS.length);}
+});
+test('reload and cartoon toss have bounded complete timelines and safe interruptions',()=>{
+ assert.ok(idleClip('reload',.5).reload>.4);assert.equal(idleClip('reload',1).reload,-1);
+ assert.ok(idleClip('toss-catch',.45).flight>1);assert.equal(idleClip('toss-catch',1).release,0);assert.ok(Math.abs(idleClip('toss-catch',1).flight)<1e-9);
+ for(const name of IDLE_CLIPS)for(const phase of [.1,.3,.5,.7,.9]){const p=new MenuPose();p.clip=name;p.clipTime=phase*5;p.update(1/60);p.aim(MENU_FRONT,.2);const a=p.update(1/60);assert.equal(a.reload,-1);assert.equal(a.flight,0);for(const value of Object.values(a))if(typeof value==='number')assert.ok(Number.isFinite(value));}
 });
 test('two-finger pan and twist rotate; a single finger never starts a spin',()=>{
  assert.equal(touchPair([{clientX:1,clientY:2}]),null);

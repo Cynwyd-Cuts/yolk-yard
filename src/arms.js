@@ -153,7 +153,7 @@ function shapeArm(limb) {
   }
   positions.needsUpdate=true;normals.needsUpdate=true;
 }
-export function updateArms(rig,progress,blaster=null,recoil=0,draw=1) {
+export function updateArms(rig,progress,blaster=null,recoil=0,draw=1,menu=null) {
   const pose=armPose(rig.userData.id,progress);
   rig.userData.progress=progress;
   for(const limb of rig.userData.limbs) {
@@ -163,15 +163,16 @@ export function updateArms(rig,progress,blaster=null,recoil=0,draw=1) {
       const reach=1-smooth(clamp(draw/.8,0,1));
       target.y-=reach*.13;target.z+=reach*.18;
     }
-    limb.hand.position.copy(target);
+    if(menu){target.x+=limb.side*menu.release*.18;target.y+=menu.release*.12;limb.hand.position.lerp(target,menu.blend);}else limb.hand.position.copy(target);
     limb.hand.rotation.set(-.15,limb.side<0?-.25:.15,limb.side<0?-.12:.12);
     shapeArm(limb);
   }
   const part=blaster?.userData.reloadPart;
   if(part) {
     part.userData.restPosition ||= part.position.clone();
-    part.position.copy(part.userData.restPosition);
-    if(progress>=.16&&progress<=.72) part.position.add(new THREE.Vector3(...pose.partOffset));
+    const target=part.userData.restPosition.clone();
+    if(progress>=.16&&progress<=.72)target.add(new THREE.Vector3(...pose.partOffset));
+    if(menu)part.position.lerp(target,menu.blend);else part.position.copy(target);
   }
   const token=blaster?.userData.reloadToken;
   if(token) {

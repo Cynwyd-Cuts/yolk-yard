@@ -737,7 +737,10 @@ export class View {
       held.position.set(pose.x,pose.y,pose.z);held.rotation.set(pose.pitch,0,pose.roll,'YXZ');held.updateMatrix();
       const inverse=held.matrix.clone().invert();
       this.menuEgg.userData.arms.userData.limbs.forEach((l,i)=>{l.shoulder.copy(this.menuShoulders[i]).applyMatrix4(inverse);l.lastWrist.set(Infinity,Infinity,Infinity);});
-      updateArms(this.menuEgg.userData.arms,-1,this.menuEgg.userData.blaster);
+      const blaster=this.menuEgg.userData.blaster,blend=1-Math.exp(-Math.min(dt,.05)*14);
+      blaster.position.lerp(new THREE.Vector3(0,pose.flight,0),blend);
+      blaster.quaternion.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler(pose.spin,0,0)),blend);
+      updateArms(this.menuEgg.userData.arms,pose.reload,blaster,0,1,{release:pose.release,blend});
       this.camera.position.set(7.5, 5.2, 12.5);
       this.camera.lookAt(0, 1.7, 0);
       this.camera.fov = 51;
