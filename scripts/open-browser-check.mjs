@@ -17,11 +17,11 @@ async function make(name,mobile=false){
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
  page.on('console',m=>{if(m.type()==='error'||m.text().includes('Directory'))console.log('BROWSER',m.text().slice(0,240));});
  await page.goto('http://127.0.0.1:5173/?qa=1');
- await page.locator('[data-action="setup"]').first().waitFor();
+ await page.locator('[data-action="play"]').first().waitFor();
  return page;
 }
 async function listing(page,code,visible){
- await page.locator('[data-action="public-rooms"]').click();
+ await page.locator('[data-action="play"]').click();await page.locator('[data-action="public-rooms"]').last().click();
  const deadline=Date.now()+35000;
  let count;
  do {
@@ -49,7 +49,7 @@ try{
  assert.doesNotMatch(report,/127\.0\.0\.1|Host egg/);
  await host.screenshot({path:'test-results/connection-report.png'});
  await closeModal(host);
- await host.locator('#menu [data-action="join"]').click();
+ await host.locator('[data-action="play"]').click();await host.locator('[data-action="join"]').click();
  await host.locator('#join-code').fill('ZZZZZZZZ');
  await host.locator('[data-action="join-room"]').click();
  await host.getByRole('heading',{name:'Could not join',exact:true}).waitFor();
@@ -80,7 +80,7 @@ try{
  console.log('PASS plain cosmetic choices save and category previews render');
 
  assert.equal(await host.getByRole('button',{name:/practice with bots/i}).count(),0);
- await host.locator('[data-action="setup"]').click();assert.equal(await host.locator('#setup-bots').inputValue(),'0');
+ await host.locator('[data-action="play"]').click();await host.locator('[data-action="play-ffa"]').click();await host.locator('[data-action="play-custom"]').click();await host.locator('#setup-fill').selectOption('off');assert.equal(await host.locator('#setup-bots').inputValue(),'0');
  await host.locator('#setup-visibility').selectOption('public');await host.locator('#setup-minutes').fill('9');await host.locator('#setup-scoreLimit').fill('12');await host.locator('[data-action="create-room"]').click();
  await host.locator('.room-code').waitFor();
  const code=(await host.locator('.room-code').innerText()).replace('-','').trim();
@@ -173,7 +173,7 @@ try{
  await guest.waitForFunction(()=>window.__yolkTest.read().host);
  await guest.keyboard.press('Escape');await guest.locator('[data-action="leave-confirm"]').click();
  // A remaining browser must take over discovery after its coordinator closes.
- await guest.locator('[data-action="setup"]').click();await guest.locator('#setup-visibility').selectOption('public');await guest.locator('[data-action="create-room"]').click();
+ await guest.locator('[data-action="play"]').click();await guest.locator('[data-action="play-ffa"]').click();await guest.locator('[data-action="play-custom"]').click();await guest.locator('#setup-visibility').selectOption('public');await guest.locator('[data-action="create-room"]').click();
  await guest.locator('.room-code').waitFor();
  const nextCode=(await guest.locator('.room-code').innerText()).replace('-','').trim();
  await guest.waitForTimeout(7000);

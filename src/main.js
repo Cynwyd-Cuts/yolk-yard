@@ -80,7 +80,7 @@ settings.scopeSensitivity = clamp(Number(settings.scopeSensitivity) || 0.65, 0.1
 settings.fov = clamp(Number(settings.fov) || 85, 65, 110);
 settings.volume = clamp(Number(settings.volume) || 0, 0, 1);
 let stats = read("yolk-stats", { matches: 0, kills: 0, wins: 0 }),
-  options = matchOptions({map:"yard", mode:"ffa"});
+  options = matchOptions({map:"yard", mode:"ffa", fill:true});
 let view,
   sim = null,
   net = null,
@@ -171,7 +171,7 @@ function titleBar() {
 function renderMenu() {
   const w = weapon(profile.weapon);
   $("#menu").innerHTML =
-    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="name-safety"><p class="name-safety" id="name-safety" role="status"></p><button class="primary royale-home" data-action="royale-home">YOLK ROYALE <span>↗</span><small>DROP IN · LOOT UP · LAST EGG STANDING</small></button><button class="secondary" data-action="setup">CREATE MATCH <span>↗</span></button><button class="secondary" data-action="public-rooms">BROWSE PUBLIC MATCHES</button><div class="split-actions"><button class="plain" data-action="join">Join a room</button><button class="plain" data-action="loadout">Loadout</button></div>${connectionButton}</section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
+    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="name-safety"><p class="name-safety" id="name-safety" role="status"></p><button class="primary play-home" data-action="play">PLAY <span>▶</span></button>${connectionButton}</section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
       (w) => !w.secondary,
     )
       .map(
@@ -935,6 +935,12 @@ async function copy(text) {
     );
   }
 }
+let playMode = 'royale';
+function playMenu(selected = playMode) {
+ playMode = selected;
+ const selectedMode = mode(selected), royale = selected === 'royale';
+ modal('Play', `<div class="play-discover"><div class="eyebrow">CHOOSE YOUR EXPERIENCE</div><div class="play-mode-grid">${MODES.map(m=>`<button class="play-mode-card play-${m.id} ${m.id===selected?'selected':''}" data-action="play-${m.id}" aria-pressed="${m.id===selected}"><span class="mode-art" aria-hidden="true">${m.id==='royale'?'◈':m.id==='ffa'?'◎':'◆ ◆'}</span><span class="eyebrow">${m.id==='royale'?'16 CONTESTANTS · ONE LIFE':'8 PLAYERS · RESPAWNS'}</span><strong>${m.name}</strong><span>${m.description}</span></button>`).join('')}</div><section class="play-selection"><div><div class="eyebrow">SELECTED MODE</div><h3>${selectedMode.name}</h3><p>${royale?'Harvest. Build. Survive the storm.':'Choose your loadout and jump into the arena.'}</p><span class="play-fill">BOT FILL ON · Empty seats fill automatically</span></div><div class="play-options"><button class="primary" data-action="${royale?'royale-queue':'public-rooms'}">${royale?'FIND PUBLIC MATCH':'BROWSE PUBLIC MATCHES'}</button><button class="secondary" data-action="play-custom">CUSTOM MATCH</button><button class="plain" data-action="play-local">PLAY WITH BOTS</button></div></section><div class="play-footer"><button class="plain" data-action="public-rooms">Browse all matches</button><button class="plain" data-action="join">Join with room code</button></div></div>`, 'play');
+}
 function royaleHome(){modal('Yolk Royale',`<div class="royale-brief"><div class="eyebrow">SUNNYBREAK ISLAND</div><h3>One island. One surviving egg.</h3><p>Board the Eggspress, choose your drop, and carry five items plus your permanent pickaxe. Harvest wood, brick and metal, then build and edit walls, floors, stairs and roofs. Find shields, healing, impulse eggs and launch nests. Keep moving as the storm closes.</p><p class="hint">Solo · 16 contestants · Nine districts · One life</p></div><button class="primary" data-action="royale-queue">FIND PUBLIC MATCH</button><button class="secondary" data-action="royale-custom">CREATE PUBLIC / PRIVATE MATCH</button><button class="plain" data-action="royale-local">PLAY LOCAL WITH BOTS</button><p class="hint">Public matchmaking fills empty seats with bots after a 30-second lobby. Private hosts choose their rules. New players replace available bots. Hosting transfers automatically if the host leaves.</p>`,'royale-home');}
 async function quickRoyale(){
  if(state)leave(false);
@@ -966,12 +972,18 @@ function inventoryAction(action,index,from){
  if(dialogType==='royale-inventory')royaleUI.updateInventory(state.players.find(p=>p.id===localId));
 }
 const actions = {
+ 'play':()=>playMenu(),
+ 'play-royale':()=>playMenu('royale'),
+ 'play-ffa':()=>playMenu('ffa'),
+ 'play-teams':()=>playMenu('teams'),
+ 'play-custom':()=>{options=matchOptions({mode:playMode,fill:true});setupMenu();},
+ 'play-local':()=>{options=matchOptions({mode:playMode,bots:playMode==='royale'?15:7,fill:true});startLocalMatch();},
   'connection-report': showConnectionReport,
   'run-connection-check': runConnectionCheck,
   'copy-connection-report': copyConnectionReport,
  'royale-home':royaleHome,
  'royale-queue':quickRoyale,
- 'royale-custom':()=>{options=matchOptions({mode:'royale'});setupMenu();},
+ 'royale-custom':()=>{options=matchOptions({mode:'royale',fill:true});setupMenu();},
  'royale-local':()=>{options=matchOptions({mode:'royale',bots:15,fill:true});startLocalMatch();},
  'royale-map':royaleMap,
  'royale-inventory':royaleInventory,
@@ -1586,4 +1598,3 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) void updates.check();
 });
 void updates.check();
-

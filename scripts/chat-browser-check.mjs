@@ -15,7 +15,7 @@ async function make(name,mobile=false){
   await ctx.addInitScript(name=>{localStorage.setItem('yolk-profile',JSON.stringify({name}));localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:0}));},name);
   await ctx.route('**/network-config.js',r=>r.fulfill({contentType:'application/javascript',body:"window.YOLK_NETWORK={peer:{host:'127.0.0.1',port:9000,path:'/peer',secure:false},iceServers:[]};"}));
   const page=await ctx.newPage();page.setDefaultTimeout(60000);page.on('pageerror',e=>{errors.push(e.message);console.error('Browser exception:',e.message);});
-  await page.goto('http://127.0.0.1:5173/?qa=1');await page.locator('[data-action="setup"]').waitFor();return page;
+  await page.goto('http://127.0.0.1:5173/?qa=1');await page.locator('[data-action="play"]').waitFor();return page;
 }
 const rows=page=>page.evaluate(()=>window.__yolkTest.chatRead().rows);
 async function open(page){if(!await page.locator('.chat-hud.typing').isVisible())await page.locator('#chat-toggle').click();}
@@ -29,10 +29,10 @@ try{
   assert.equal(await host.locator('#player-name').inputValue(),'Egg');
   assert.match(await host.locator('#name-safety').innerText(),/filtered/);
   await host.locator('#player-name').fill('Host egg');await host.locator('#player-name').press('Tab');
-  await host.locator('[data-action="setup"]').click();await host.locator('#setup-mode').selectOption('teams');await host.locator('[data-action="create-room"]').click();
+  await host.locator('[data-action="play"]').click();await host.locator('[data-action="play-ffa"]').click();await host.locator('[data-action="play-custom"]').click();await host.locator('#setup-fill').selectOption('off');await host.locator('#setup-mode').selectOption('teams');await host.locator('[data-action="create-room"]').click();
   await host.locator('.room-code').waitFor();console.log('CHECK host room ready');const code=(await host.locator('.room-code').innerText()).replace('-','').trim();
   const guest=await make('Guest egg');console.log('CHECK guest menu ready');
-  await guest.locator('[data-action="join"]').click();await guest.locator('#join-code').fill(code);await guest.locator('[data-action="join-room"]').click();
+  await guest.locator('[data-action="play"]').click();await guest.locator('[data-action="join"]').click();await guest.locator('#join-code').fill(code);await guest.locator('[data-action="join-room"]').click();
   await guest.locator('.room-code').waitFor();await host.waitForFunction(()=>window.__yolkTest.read().state.players.length===2);
   await send(guest,'Hello, eggs!');await has(host,'Hello, eggs!');await has(guest,'Hello, eggs!');
   await send(host,'Ready for the round');await has(guest,'Ready for the round');
@@ -47,7 +47,7 @@ try{
   // Rejoining must start a fresh chat history and restore normal delivery.
   await close(guest);await guest.locator('[data-action="leave"]').click();
   await host.waitForFunction(()=>window.__yolkTest.read().state.players.length===1);
-  await guest.locator('[data-action="join"]').click();await guest.locator('#join-code').fill(code);await guest.locator('[data-action="join-room"]').click();await guest.locator('.room-code').waitFor();
+  await guest.locator('[data-action="play"]').click();await guest.locator('[data-action="join"]').click();await guest.locator('#join-code').fill(code);await guest.locator('[data-action="join-room"]').click();await guest.locator('.room-code').waitFor();
   await host.waitForFunction(()=>window.__yolkTest.read().state.players.length===2);
   console.log('PASS sender, host and recipient privacy filters');
   await open(guest);await guest.locator('#chat-channel').selectOption('team');
@@ -90,7 +90,7 @@ try{
   await host.waitForTimeout(500);assert.equal((await rows(host)).length,preSpectate);
   console.log('PASS typing isolates gameplay input, closing returns control, and spectator chat stays private');
   const mobile=await make('Mobile egg',true);
-  await mobile.locator('[data-action="join"]').click();await mobile.locator('#join-code').fill(code);await mobile.locator('[data-action="join-room"]').click();await mobile.locator('#spawn-button').waitFor();
+  await mobile.locator('[data-action="play"]').click();await mobile.locator('[data-action="join"]').click();await mobile.locator('#join-code').fill(code);await mobile.locator('[data-action="join-room"]').click();await mobile.locator('#spawn-button').waitFor();
   await controls(mobile);await mobile.locator('.chat-quick summary').click();await mobile.locator('[data-quick="hello"]').click();await has(host,'Hello, eggs!');
   await mobile.screenshot({path:'test-results/chat/mobile.png'});
   const bounds=await mobile.locator('#chat-panel').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=391&&bounds.y>=0&&bounds.y+bounds.height<=845);
@@ -98,7 +98,7 @@ try{
   await host.waitForFunction(()=>document.querySelector('#toast').textContent.includes('reported'));
   assert.equal(await mobile.getByRole('button',{name:'Reported',exact:true}).count(),1);
   await close(mobile);if(!await mobile.locator('#dialog').isVisible())await mobile.locator('[data-action="pause"]').click();await mobile.locator('[data-action="leave-confirm"]').click();
-  await mobile.locator('[data-action="setup"]').waitFor();assert.equal((await rows(mobile)).length,0);
+  await mobile.locator('[data-action="play"]').waitFor();assert.equal((await rows(mobile)).length,0);
   console.log('PASS phone layout, quick messages, host reports, and leaving clears history');
   assert.deepEqual(errors,[]);console.log('PASS no browser exceptions');
 }catch(error){
