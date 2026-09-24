@@ -12,13 +12,16 @@
     "test:relay": "node scripts/relay-check.mjs",
     "test:quality": "node scripts/quality-check.mjs",
     "test:chat": "node --test tests/chat.test.js",
-    "test:royale": "node scripts/building-browser-check.mjs && node scripts/royale-browser-check.mjs"
+    "test:royale": "node scripts/building-browser-check.mjs && node scripts/royale-browser-check.mjs",
+    "start:relay": "node server/realtime/index.js",
+    "test:realtime": "node scripts/realtime-check.mjs"
   },
   "dependencies": {
     "compromise": "14.17.0",
     "obscenity": "0.4.6",
     "peerjs": "1.5.5",
-    "three": "0.186.0"
+    "three": "0.186.0",
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "peer": "1.0.2",

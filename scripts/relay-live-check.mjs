@@ -18,7 +18,7 @@ try{
  const conn=guest.connect(host.id);conn.on('data',m=>received.push(m));await wait(()=>conn.open||errors.length);assert.deepEqual(errors,[]);
  const started=performance.now();for(let i=0;i<5;i++)conn.send({sequence:i,padding:i===4?'x'.repeat(160000):''});
  await wait(()=>received.length===5||errors.length);assert.deepEqual(errors,[]);assert.deepEqual(received.map(m=>m.sequence),[0,1,2,3,4]);assert.equal(received[4].padding.length,160000);
- const old=guest.socket;guest.message({type:'rotate-request'});await wait(()=>guest.socket!==old&&!guest.rotating);conn.send({sequence:5});await wait(()=>received.length===6);assert.equal(received[5].sequence,5);
+ const old=guest.socket;if(guest.protocol===2)guest.socket.terminate();else guest.message({type:'rotate-request'});await wait(()=>guest.socket!==old&&!guest.rotating);conn.send({sequence:5});await wait(()=>received.length===6);assert.equal(received[5].sequence,5);
  assert.ok(!(await guest.list()).some(r=>r.code===code));
  console.log(JSON.stringify({passed:true,orderedMessages:received.length,largePayload:160000,renewal:true,elapsedMs:Math.round(performance.now()-started)}));
 }finally{host.destroy();guest.destroy();}

@@ -30,6 +30,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run test:relay
+      - run: npm run test:realtime
       - name: Verify deployed game relay
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:

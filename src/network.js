@@ -79,6 +79,8 @@ export class Network {
       else if (!this.migrating && err.type === "peer-unavailable")
         this.callbacks.onError?.(message);
     });
+    this.peer.on('reconnecting',()=>this.callbacks.onStatus?.('Reconnecting to the room…'));
+    this.peer.on('reconnected',()=>{this.hostHeartbeat.contact(performance.now());this.callbacks.onStatus?.('Room connection restored.');});
     this.peer.on("connection", conn => { if(this.isHost)this.accept(conn); else conn.close(); });
     this.peer.on("disconnected", () => {
       if (!this.closed && !this.peer.destroyed)
@@ -344,7 +346,7 @@ export class Network {
     clearInterval(this.heartbeat);
     this.hostHeartbeat = new HostHeartbeat(performance.now());
     this.heartbeat = setInterval(() => {
-      if (this.closed || this.isHost || this.migrating) return;
+      if (this.closed || this.isHost || this.migrating || this.peer?.reconnecting) return;
       const now=performance.now();this.send({ type: "ping", time: now });
       if (this.ready && this.hostHeartbeat.expired(now))this.beginMigration();
     }, 2000);
@@ -420,7 +422,7 @@ export class Network {
     this.snapshot = state;
     if (performance.now() - (this.lastPublish || 0) > 2000) { this.lastPublish = performance.now(); this.publishRoom(); }
     state = {...state, visibility:this.visibility,chatEnabled:this.chatEnabled,chatMuted:this.chatMuted,network:{hostId:this.id,members:this.members,chatSequence:this.chatRoom.sequence}};
-    const checkpointDue=performance.now()-(this.lastCheckpointSent||0)>500;
+    const checkpointDue=performance.now()-(this.lastCheckpointSent||0)>3000;
     let checkpoint;
     if(checkpointDue){this.lastCheckpointSent=performance.now();checkpoint={simulation:this.callbacks.getCheckpoint?.(),chat:{sequence:this.chatRoom.sequence,enabled:this.chatEnabled,muted:this.chatMuted,members:[...this.chatRoom.members],reports:[...this.chatRoom.reports]},kicked:[...this.kicked]};}
     const recipients=[...this.connections.values()];
