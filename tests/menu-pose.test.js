@@ -1,12 +1,25 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {MenuPose,touchPair,touchRotation,MENU_FRONT,IDLE_CLIPS,idleClip} from '../src/menu-pose.js';
-test('idle begins without a delay, returns to camera center and transitions continuously',()=>{
+test('idle waits one second, returns to camera center and transitions continuously',()=>{
  const p=new MenuPose(()=>.3);let last=p.update(1/60);
  for(let i=0;i<2600;i++){const next=p.update(1/60);assert.ok(Math.abs(next.pitch-last.pitch)<.2);assert.equal(next.yaw,MENU_FRONT);last=next;}
  p.aim(2,.6);const next=p.update(1/60);assert.ok(Math.abs(next.pitch-last.pitch)<.2);assert.equal(next.idle,false);
  for(let i=0;i<30;i++){p.aim(2,.6);p.update(1/60);}assert.ok(p.pitch>.5);
- assert.equal(p.update(1/60).idle,true);
+ const paused=p.clipTime;
+ for(let i=0;i<19;i++)assert.equal(p.update(.05).idle,false);
+ assert.equal(p.clipTime,paused);
+ assert.equal(p.update(.05).idle,true);
  for(let i=0;i<200;i++)p.update(1/60);assert.ok(p.idle>.9);assert.equal(p.yaw,MENU_FRONT);
+});
+test('cursor movement and rotation restart the full idle delay',()=>{
+ const p=new MenuPose();
+ for(const input of [()=>p.aim(2,.3),()=>p.rotate(.2)]){
+  input();assert.equal(p.update(.05).idle,false);
+  for(let i=0;i<15;i++)assert.equal(p.update(.05).idle,false);
+  input();assert.equal(p.update(.05).idle,false);
+  for(let i=0;i<19;i++)assert.equal(p.update(.05).idle,false);
+  assert.equal(p.update(.05).idle,true);
+ }
 });
 test('shuffle bags use every idle clip once and never repeat at bag boundaries',()=>{
  for(const rng of [()=>0,()=>.3,()=>.9999]){const p=new MenuPose(rng),seen=[];for(let i=0;i<32;i++){seen.push(p.clip);p.nextClip();}for(let i=1;i<seen.length;i++)assert.notEqual(seen[i],seen[i-1]);for(let i=0;i<32;i+=8)assert.equal(new Set(seen.slice(i,i+8)).size,IDLE_CLIPS.length);}

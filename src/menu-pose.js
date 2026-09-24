@@ -31,8 +31,9 @@ export class MenuPose {
  rotate(delta){this.spin+=delta;this.pending=true;}
  update(dt){
   dt=Math.max(0,Math.min(dt,.05));this.time+=dt;
-  // Idle starts on the first rendered frame without input, not after a timer.
-  const idle=!this.pending;this.pending=false;
+  // Hold the last aim for one second; any new pointer input restarts the delay.
+  this.quietTime=this.pending?0:Math.min(1,(this.quietTime??1)+dt);
+  const idle=this.quietTime>=1;this.pending=false;
   if(idle){this.clipTime+=dt;if(this.clipTime>=5)this.nextClip();}
   const clip=idleClip(this.clip,this.clipTime/5),blend=1-Math.exp(-dt*(idle?5:9));
   const approach=(key,value)=>this[key]+=(value-this[key])*blend;
