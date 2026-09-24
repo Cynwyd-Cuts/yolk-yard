@@ -1,0 +1,30 @@
+import {createServer} from 'vite';
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+const server=await createServer({server:{host:'127.0.0.1',port:5188,strictPort:true,watch:null}});await server.listen();
+const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHROME?{executablePath:process.env.YOLK_TEST_CHROME}:{}),args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const page=await browser.newPage({viewport:{width:1100,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(30000);
+try{
+ await page.addInitScript(()=>localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:0})));
+ await page.goto('http://127.0.0.1:5188');await page.locator('[data-action="settings"]').click();
+ const slot=(action,index=0)=>page.locator(`[data-bind="${action}"][data-bind-slot="${index}"]`);
+ await slot('jump',1).click();await page.keyboard.press('KeyW');
+ assert.equal(await slot('forward').innerText(),'Unbound');assert.equal(await slot('jump',1).innerText(),'W');
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('yolk-settings')).keybinds?.jump?.[1]??null),null);
+ await page.locator('dialog .close-btn').click();assert.equal(await page.locator('dialog').isVisible(),true);
+ await page.locator('[data-bind-command="discard"]').click();assert.equal(await slot('forward').innerText(),'W');
+ await slot('jump',1).click();await page.keyboard.press('Escape');assert.equal(await slot('jump',1).innerText(),'Unbound');assert.equal(await page.locator('dialog').isVisible(),true);
+ await slot('reload',1).click();await page.mouse.wheel(0,100);assert.equal(await slot('reload',1).innerText(),'Wheel down');assert.equal(await slot('nextSlot').innerText(),'Unbound');
+ await page.locator('[data-bind-command="apply"]').click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('yolk-settings')).keybinds.reload[1]),'WheelDown');
+ await slot('jump',1).click();await page.mouse.click(500,600,{button:'right'});assert.equal(await slot('aim').innerText(),'Unbound');
+ await page.locator('[data-bind-command="discard"]').click();assert.equal(await slot('aim').innerText(),'Right click');
+ await page.locator('[data-bind-search]').fill('reload');assert.equal(await page.locator('[data-bind-row]:visible').count(),1);
+ await slot('reload',1).click();await page.keyboard.press('Delete');assert.equal(await slot('reload',1).innerText(),'Unbound');
+ await page.locator('[data-bind-command="discard"]').click();await page.locator('[data-bind-search]').fill('');
+ await page.locator('[data-bind-command="reset"]').click();assert.equal(await slot('reload',1).innerText(),'Wheel down');await page.locator('[data-bind-command="reset"]').click();assert.equal(await slot('reload',1).innerText(),'Unbound');
+ await page.locator('[data-bind-command="apply"]').click();await page.reload();await page.locator('[data-action="settings"]').click();assert.equal(await slot('nextSlot').innerText(),'Wheel down');
+ await page.setViewportSize({width:390,height:844});await page.locator('[data-bind-search]').scrollIntoViewIfNeeded();await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/keybind-mobile.png'});
+ assert.equal(await page.locator('.keybind-list').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);assert.deepEqual(errors,[]);
+ console.log('PASS keybind conflicts, draft, cancel, clear, mouse, scroll, reset, persistence and mobile layout');
+}finally{await browser.close();await server.close();}

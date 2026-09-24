@@ -98,6 +98,11 @@ function pushAxis(p,map,axis,delta) {
  p[axis]=target;
 }
 export function movePlayer(p, input, map, dt) {
+  // Bound displacement through narrow risers, including low-frame-rate clients.
+  const steps=Math.max(1,Math.ceil(Math.min(dt,.1)/(1/60)));
+  for(let i=0;i<steps;i++)movePlayerStep(p,input,map,Math.min(dt,.1)/steps);
+}
+function movePlayerStep(p, input, map, dt) {
   if (p.health <= 0) return;
   if ((input.jumpPress || 0) > (p.lastJumpPress || 0)) {
     p.lastJumpPress = input.jumpPress;
@@ -153,19 +158,26 @@ export function movePlayer(p, input, map, dt) {
     p.grounded = false;
   }
   p.jumpLatch = !!input.jump;
-  const oldSurfaceY=p.y, followedGround=!!map.terrain&&p.grounded&&p.vy<=0&&Math.abs(p.y-groundAt(map,p.x,p.z))<.1;
+  const wasGrounded=p.grounded&&p.vy<=0;
+  const oldSurfaceY=p.y, followedGround=!!map.terrain&&wasGrounded&&Math.abs(p.y-groundAt(map,p.x,p.z))<.1;
   pushAxis(p, map, "x", dx);
   pushAxis(p, map, "z", dz);
   const ground=groundAt(map,p.x,p.z);
   if(followedGround&&Math.abs(p.y-oldSurfaceY)<.05)p.y=ground;
+  // Follow short descents without falling and landing on every individual tread.
+  if(wasGrounded){
+    let support=ground;
+    for(const b of candidates(map,p))if(b.y+b.h<=p.y+.001&&Math.abs(p.x-b.x)<b.w/2+RADIUS&&Math.abs(p.z-b.z)<b.d/2+RADIUS)support=Math.max(support,b.y+b.h);
+    if(p.y-support<=.43&&canStand(map,{...p,y:support})){p.y=support;p.vy=0;}
+  }
   const oldY = p.y;
   p.vy -= 24 * dt;
   p.y += p.vy * dt;
   p.grounded = false;
   for (const b of candidates(map,p)) {
     if (
-      Math.abs(p.x - b.x) >= b.w / 2 + RADIUS - 0.015 ||
-      Math.abs(p.z - b.z) >= b.d / 2 + RADIUS - 0.015
+      Math.abs(p.x - b.x) >= b.w / 2 + RADIUS ||
+      Math.abs(p.z - b.z) >= b.d / 2 + RADIUS
     )
       continue;
     if (p.vy <= 0 && oldY >= b.y + b.h - 0.045 && p.y <= b.y + b.h) {

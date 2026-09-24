@@ -1,4 +1,5 @@
 import {buildIsland,RoyaleView} from './royale-view.js';
+import {stairCamera} from './stair-camera.js';
 import * as THREE from "three";
 import {equipPose} from "./equip.js";
 import { makeArms, updateArms, reloadProgress, utilityArms, throwArms, armAppearance } from "./arms.js";
@@ -728,9 +729,10 @@ export class View {
     } else if (local) {
       const killer = local.health <= 0 && state.players.find(p => p.id === (local.spectating ? this.spectateTarget : local.killerId) && p.health > 0);
       const p = killer || (local.health <= 0 ? local : predicted || local);
+      this.stairEye=stairCamera(this.stairEye,p,dt,`${state.round}:${p.id}:${local.health>0}`);
       this.camera.position.set(
         p.x,
-        p.y + EYE * (p.bodyScale || 1) + (local.health <= 0 ? 0.8 : 0),
+        this.stairEye.y + EYE * (p.bodyScale || 1) + (local.health <= 0 ? 0.8 : 0),
         p.z,
       );
       this.camera.rotation.set(p.pitch, p.yaw, 0, "YXZ");

@@ -10,7 +10,8 @@ import { ChatPanel } from "./chat-ui.js";
 import { moderateText, safeName } from "./moderation.js";
 import {matchOptions, targetLabel} from "./match-options.js";
 import "./style.css";
-import { CONTROLS, normalizeBindings, validBinding, bindingDown, bindingLabel } from "./keybinds.js";
+import {KeybindEditor} from "./keybind-editor.js";
+import { CONTROLS, normalizeBindings, bindingDown, bindingLabel } from "./keybinds.js";
 import { RELEASES, RELEASE } from "./releases.js";
 import { UpdateWatcher } from "./updates.js";
 import {
@@ -107,7 +108,7 @@ sound.setVolumes(settings);
 const keys = new Set();
 const actionDown = action => bindingDown(settings.keybinds, keys, action);
 const controlLabel = action => settings.keybinds[action].filter(Boolean).map(bindingLabel).join(' / ') || 'Unbound';
-let bindingCapture = null;
+let bindingEditor = null;
 // Preserve brief actions until a simulation tick consumes them, even after a slow frame.
 const queuedActions = new Set();
 const input = {
@@ -201,7 +202,7 @@ function renderMenu() {
 }
 function modal(title, body, type = "generic") {
   if(type==="error")sound.cue("ui-error");
-  bindingCapture = null;
+  bindingEditor = null;
   dialogType = type;
   dialog.dataset.kind=type;
   keys.clear();
@@ -215,10 +216,11 @@ function modal(title, body, type = "generic") {
   if (!dialog.open) dialog.showModal();
 }
 function closeDialog() {
+  if(dialogType==='settings'&&bindingEditor?.dirty){bindingEditor.message='Apply or Discard your keybind changes before closing.';bindingEditor.render();dialog.querySelector('.binding-footer')?.scrollIntoView({block:'nearest'});return;}
   if(dialogType==='rename'){toast('Choose an available name to continue, or leave the match.');return;}
   if(['royale-inventory','royale-map'].includes(dialogType)){void resume();return;}
   sound.cue('ui-back');
-  bindingCapture = null;
+  bindingEditor = null;
   dialog.close();
   dialogType = "";
   if (screen === "game") {
@@ -244,9 +246,10 @@ function settingsMenu() {
       )
       .join(
         "",
-      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Chat & privacy</h3><div class="setting-row"><label for="chatMode" class="setting-label">Chat messages</label><select id="chatMode" data-setting="chatMode"><option value="all" ${settings.chatMode === "all" ? "selected" : ""}>Filtered messages</option><option value="quick" ${settings.chatMode === "quick" ? "selected" : ""}>Quick messages only</option><option value="off" ${settings.chatMode === "off" ? "selected" : ""}>Off</option></select></div><p class="small">The safety filter stays on in every room. Use Pause → Player controls to mute or report a player.</p><h3>Keybinds</h3><p class="small" id="binding-help" role="status">Choose a binding, then press a key or mouse button. Esc cancels; Delete clears. Esc always opens the menu.</p><div class="keybind-list">${CONTROLS.map(([id,label]) => `<div class="keybind-row"><span>${label}</span>${settings.keybinds[id].map((code, slot) => `<button data-bind="${id}" data-bind-slot="${slot}" aria-label="Bind ${label} ${slot ? 'alternate' : 'primary'}">${bindingLabel(code)}</button>`).join('')}</div>`).join('')}</div><button data-reset-bindings style="margin-top:16px">Reset default keybinds</button><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
+      )}<div class="setting-row"><label for="quality" class="setting-label">Graphics</label><select id="quality" data-setting="quality"><option value="high" ${settings.quality === "high" ? "selected" : ""}>High · shadows</option><option value="low" ${settings.quality === "low" ? "selected" : ""}>Low · faster</option></select></div><div class="setting-row"><label for="invert" class="setting-label">Invert vertical look</label><input id="invert" data-setting="invert" type="checkbox" ${settings.invert ? "checked" : ""}></div><h3 style="margin-top:22px">Crosshair</h3>${[["centerDot", "Center Dot"], ["hitMarkers", "Hit Markers"]].map(([id, label]) => `<div class="setting-row"><label for="${id}" class="setting-label">${label}</label><input id="${id}" data-setting="${id}" type="checkbox" ${settings[id] ? "checked" : ""}></div>`).join("")}<h3>Chat & privacy</h3><div class="setting-row"><label for="chatMode" class="setting-label">Chat messages</label><select id="chatMode" data-setting="chatMode"><option value="all" ${settings.chatMode === "all" ? "selected" : ""}>Filtered messages</option><option value="quick" ${settings.chatMode === "quick" ? "selected" : ""}>Quick messages only</option><option value="off" ${settings.chatMode === "off" ? "selected" : ""}>Off</option></select></div><p class="small">The safety filter stays on in every room. Use Pause → Player controls to mute or report a player.</p><h3>Keybinds</h3><div class="keybind-list"></div><button class="primary" data-action="close" style="margin-top:22px">Done</button>`,
     "settings",
   );
+  bindingEditor=new KeybindEditor(dialog.querySelector(".keybind-list"),settings.keybinds,bindings=>{settings.keybinds=bindings;keys.clear();queuedActions.clear();input.fire=input.aim=false;save("yolk-settings",settings);});
 }
 function loadoutMenu() {
   modal(
@@ -1139,6 +1142,7 @@ document.addEventListener("pointerlockchange", () => {
     pauseMenu();
 });
 function pressControl(code) {
+  if(settings.keybinds.chat.includes(code)&&net?.ready&&screen!=="menu"){chat.open();return;}
   keys.add(code);
   for (const action of ['jump', 'fire', 'reload', 'popper', 'interact']) {
     if (settings.keybinds[action].includes(code)) queuedActions.add(action);
@@ -1146,6 +1150,7 @@ function pressControl(code) {
   if (settings.keybinds.primary.includes(code)) input.slot = 0;
   if (settings.keybinds.sidearm.includes(code)) input.slot = 1;
   if (settings.keybinds.swap.includes(code)) {input.slot = state?.royale ? (input.slot+1)%6 : 1-input.slot;buildControls.buildMode=false;}
+  for(const [action,step] of [['nextSlot',1],['previousSlot',-1]])if(settings.keybinds[action].includes(code)){const count=state?.royale?6:2;input.slot=(input.slot+step+count)%count;buildControls.buildMode=false;}
   if(state?.royale){
     if(settings.keybinds.pickaxe.includes(code)){input.slot=5;buildControls.buildMode=false;buildUI.cancel();}
     for(const [key,piece] of [['buildWall','wall'],['buildFloor','floor'],['buildStairs','stairs'],['buildRoof','roof']])if(settings.keybinds[key].includes(code)){buildControls.buildType=piece;buildControls.buildMode=true;buildUI.cancel();}
@@ -1167,40 +1172,31 @@ dialog.addEventListener('click', e => {
     for (const [id] of SLIDERS) { $('#'+id).value=settings[id]; $('#out-'+id).value=settings[id]; }
     save('yolk-settings', settings); sound.setVolumes(settings); view.setQuality();
   }
-  const button = e.target.closest('[data-bind]');
-  if (button) {
-    bindingCapture = { action: button.dataset.bind, slot: Number(button.dataset.bindSlot) };
-    dialog.querySelectorAll('[data-bind]').forEach(b => b.classList.toggle('listening', b === button));
-    $('#binding-help').textContent = 'Press a key or mouse button. Esc cancels; Delete clears.';
-  } else if (e.target.closest('[data-reset-bindings]')) {
-    settings.keybinds = normalizeBindings();
-    save('yolk-settings', settings);
-    settingsMenu();
-  }
+  if(dialogType==='settings')bindingEditor?.click(e.target);
 });
+dialog.addEventListener('input',e=>{if(e.target.matches('[data-bind-search]'))bindingEditor?.filter(e.target.value);});
+let suppressBindingClick=false;
 function captureBinding(e) {
-  if (!bindingCapture || !dialog.open) return;
+  if (!bindingEditor?.capture || !dialog.open || dialogType!=='settings') return;
   e.preventDefault(); e.stopImmediatePropagation();
-  if (e.repeat) return;
-  const code = e.type === 'mousedown' ? `Mouse${e.button}` : e.code;
-  if (code === 'Escape') { settingsMenu(); return; }
-  const clear = code === 'Delete' || code === 'Backspace';
-  if (!clear && !validBinding(code)) {
-    $('#binding-help').textContent = 'Choose a letter, number, navigation key, modifier, or mouse button.';
-    return;
-  }
-  const { action, slot } = bindingCapture;
-  const conflict = CONTROLS.find(([id]) => settings.keybinds[id].some((key, i) => key === code && (id !== action || i !== slot)));
-  if (!clear && conflict) {
-    $('#binding-help').textContent = `${bindingLabel(code)} is already assigned to ${conflict[1]}. Clear that binding first, or choose another.`;
-    return;
-  }
-  settings.keybinds[action][slot] = clear ? null : code;
-  save('yolk-settings', settings);
-  settingsMenu();
+  if(e.repeat)return;
+  if(e.type==='mousedown'&&e.button===0)suppressBindingClick=true;
+  const code=e.type==='mousedown'?`Mouse${e.button}`:e.type==='wheel'?(e.deltaY>0?'WheelDown':'WheelUp'):e.code;
+  bindingEditor.input(code);
 }
-document.addEventListener('keydown', captureBinding, true);
-document.addEventListener('mousedown', captureBinding, true);
+document.addEventListener('click',e=>{if(suppressBindingClick){suppressBindingClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
+document.addEventListener('keydown',captureBinding,true);
+document.addEventListener('mousedown',captureBinding,true);
+document.addEventListener('wheel',captureBinding,{capture:true,passive:false});
+// Panel toggles also work when assigned to mouse buttons or the wheel.
+function pointerPanelToggle(e){
+ if(screen!=='game'||!state?.royale||!['royale-map','royale-inventory'].includes(dialogType)||e.target.closest('button,input,select,textarea'))return;
+ const code=e.type==='wheel'?(e.deltaY>0?'WheelDown':'WheelUp'):`Mouse${e.button}`;
+ const panel=royalePanelAction(code,settings.keybinds,dialogType);
+ if(panel){e.preventDefault();e.stopImmediatePropagation();if(panel==='close')resume();else if(panel==='royale-map')royaleMap();else royaleInventory();}
+}
+document.addEventListener('mousedown',pointerPanelToggle,true);
+document.addEventListener('wheel',pointerPanelToggle,{capture:true,passive:false});
 document.addEventListener("keydown", (e) => {
   if (chat.opened || e.target.matches("input,select,textarea,[contenteditable=true]")) return;
   const panel = screen==='game' && state?.royale && (!paused || ['royale-map','royale-inventory'].includes(dialogType))
@@ -1301,7 +1297,7 @@ dialog.addEventListener('pointermove',e=>{if(touchDrag&&Math.hypot(e.clientX-tou
 dialog.addEventListener('pointerup',e=>{if(!touchDrag)return;const slot=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-royale-slot]'),from=touchDrag.from;touchDrag=null;const dragged=royaleUI.dragging;royaleUI.dragging=false;if(dragged&&slot&&Number(slot.dataset.royaleSlot)!==from)inventoryAction('swap',Number(slot.dataset.royaleSlot),from);});
 dialog.addEventListener('pointercancel',()=>{touchDrag=null;royaleUI.dragging=false;});
 dialog.addEventListener('keydown',e=>{if(dialogType!=='royale-inventory')return;const slot=e.target.closest('[data-royale-slot]');if(slot&&e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const from=Number(slot.dataset.royaleSlot),to=(from+(e.key==='ArrowRight'?1:4))%5;inventoryAction('swap',to,from);dialog.querySelector(`[data-royale-slot="${to}"]`)?.focus();}});
-document.addEventListener('wheel',e=>{if(screen==='game'&&state?.royale&&!paused&&!dialog.open&&!chat.opened){e.preventDefault();input.slot=(input.slot+(e.deltaY>0?1:5))%6;buildControls.buildMode=false;}},{passive:false});
+document.addEventListener('wheel',e=>{if(screen==='game'&&!paused&&!dialog.open&&!chat.opened&&e.deltaY){e.preventDefault();const code=e.deltaY>0?'WheelDown':'WheelUp';pressControl(code);keys.delete(code);}},{passive:false});
 document.addEventListener("contextmenu", (e) => {
   if (screen === "game") e.preventDefault();
 });
