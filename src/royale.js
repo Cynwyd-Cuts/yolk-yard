@@ -346,7 +346,7 @@ export class RoyaleSimulation extends Simulation {
   return input;
  }
  damageWorld(box,amount){damageObject(this,box,amount);}
- explode(b){super.explode(b);const radius=b.popper?3:weapon(b.weapon).splashRadius;const seen=new Set();for(const box of [...this.map.boxes]){const id=box.buildId||box.objectId;if(seen.has(id))continue;const d=Math.hypot(Math.max(0,Math.abs(b.x-box.x)-box.w/2),Math.max(0,box.y-b.y,b.y-box.y-box.h),Math.max(0,Math.abs(b.z-box.z)-box.d/2));if(d<radius){seen.add(id);damageObject(this,box,150*(1-d/(radius*1.2)));}}}
+ explode(b){if(!b.popper&&(b.travelled||0)<weapon(b.weapon).minRange)return;super.explode(b);const radius=b.popper?3:weapon(b.weapon).splashRadius;const seen=new Set();for(const box of [...this.map.boxes]){const id=box.buildId||box.objectId;if(seen.has(id))continue;const d=Math.hypot(Math.max(0,Math.abs(b.x-box.x)-box.w/2),Math.max(0,box.y-b.y,b.y-box.y-box.h),Math.max(0,Math.abs(b.z-box.z)-box.d/2));if(d<radius){seen.add(id);damageObject(this,box,150*(1-d/(radius*1.2)));}}}
  checkpoint(){const data=super.checkpoint();delete data.worldBoxes;return data;}
  restore(checkpoint){super.restore(checkpoint);this.worldBoxes=(ROYALE_MAP.authored||ROYALE_MAP.boxes).filter(b=>!b.buildId).map(b=>({...b}));this.map={...ROYALE_MAP,boxes:[]};rebuildMap(this);return this;}
  snapshot(){

@@ -1576,3 +1576,6 @@ button:disabled { opacity: 0.55; cursor: default; }
 .in-royale .royale-hotbar{grid-template-columns:repeat(6,minmax(0,1fr))}.build-hud [data-build-control="edit"]{font-size:10px}.in-royale .royale-hotbar .royale-slot{width:64px}.in-royale .royale-hotbar .slot-name{font-size:9px}
 @media(pointer:coarse){.build-hud{bottom:335px}.in-royale .royale-hotbar{grid-template-columns:repeat(6,minmax(0,1fr))}.in-royale .royale-hotbar .royale-slot{width:auto}}
 .resource-count svg{width:30px;height:30px;stroke:#edf8ff;stroke-width:1.5;fill:#6396bd55}.build-hud>div:last-child{display:flex;gap:3px}.build-hud>div:last-child button{font-size:9px;min-width:0;padding:3px 5px}
+@media(pointer:coarse) and (max-width:600px){.build-hud{bottom:420px}.build-help{top:36%;width:60%;left:32%}}
+@media(pointer:coarse) and (max-width:600px) and (max-height:740px){.build-hud{left:15px;right:auto;bottom:390px;align-items:flex-start}}
+@media(pointer:coarse) and (min-width:601px){.build-hud{left:170px;right:auto;bottom:130px;align-items:flex-start}.build-help{top:40%;max-width:45%;white-space:normal;text-align:center}}

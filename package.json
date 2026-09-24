@@ -11,7 +11,7 @@
     "test:browser": "node scripts/chat-browser-check.mjs && node scripts/arms-browser-check.mjs && node scripts/open-browser-check.mjs",
     "test:quality": "node scripts/quality-check.mjs",
     "test:chat": "node --test tests/chat.test.js",
-    "test:royale": "node scripts/royale-browser-check.mjs"
+    "test:royale": "node scripts/building-browser-check.mjs && node scripts/royale-browser-check.mjs"
   },
   "dependencies": {
     "compromise": "14.17.0",

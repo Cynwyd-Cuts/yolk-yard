@@ -43,7 +43,7 @@ export class RoyaleUI{
   document.querySelector('#inventory-selected-name').textContent=itemInfo(p.inventory[p.slot]).name;
   const item=p.inventory[p.slot];document.querySelector('[data-action="royale-split"]').disabled=!item||item.weapon||item.count<2||p.inventory.every(Boolean);
   document.querySelector('[data-action="royale-drop-one"]').disabled=!item||item.pickaxe;
-  document.querySelector('[data-action="royale-drop"]').disabled=!item||item.pickaxe;
+  document.querySelector('#dialog [data-action="royale-drop"]').disabled=!item||item.pickaxe;
   document.querySelector('[data-action="royale-inspect"]').setAttribute('aria-pressed',String(!!this.inspect));
  }
  drawMap(canvas,state,p,full=false){
