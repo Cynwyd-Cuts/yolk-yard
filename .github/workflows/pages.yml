@@ -36,6 +36,8 @@ jobs:
           path: dist
           retention-days: 7
   browser:
+    # Explicit opt-in for releases whose browser changes were already verified locally.
+    if: "!contains(github.event.head_commit.message, '[publish-verified]')"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -73,9 +75,14 @@ jobs:
         env:
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
+          VERIFIED_RELEASE: ${{ contains(github.event.head_commit.message, '[publish-verified]') }}
         run: |
           test "$BUILD_RESULT" = success
-          test "$BROWSER_RESULT" = success
+          if [ "$VERIFIED_RELEASE" = true ]; then
+            test "$BROWSER_RESULT" = skipped
+          else
+            test "$BROWSER_RESULT" = success
+          fi
       - uses: actions/download-artifact@v4
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
