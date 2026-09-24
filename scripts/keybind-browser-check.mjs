@@ -12,9 +12,9 @@ try{
  await slot('jump',1).click();await page.keyboard.press('KeyW');
  assert.equal(await slot('forward').innerText(),'Unbound');assert.equal(await slot('jump',1).innerText(),'W');
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('yolk-settings')).keybinds?.jump?.[1]??null),null);
- await page.locator('dialog .close-btn').click();assert.equal(await page.locator('dialog').isVisible(),true);
+ await page.locator('#dialog .close-btn').click();assert.equal(await page.locator('#dialog').isVisible(),true);
  await page.locator('[data-bind-command="discard"]').click();assert.equal(await slot('forward').innerText(),'W');
- await slot('jump',1).click();await page.keyboard.press('Escape');assert.equal(await slot('jump',1).innerText(),'Unbound');assert.equal(await page.locator('dialog').isVisible(),true);
+ await slot('jump',1).click();await page.keyboard.press('Escape');assert.equal(await slot('jump',1).innerText(),'Unbound');assert.equal(await page.locator('#dialog').isVisible(),true);
  await slot('reload',1).click();await page.mouse.wheel(0,100);assert.equal(await slot('reload',1).innerText(),'Wheel down');assert.equal(await slot('nextSlot').innerText(),'Unbound');
  await page.locator('[data-bind-command="apply"]').click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('yolk-settings')).keybinds.reload[1]),'WheelDown');
  await slot('jump',1).click();await page.mouse.click(500,600,{button:'right'});assert.equal(await slot('aim').innerText(),'Unbound');

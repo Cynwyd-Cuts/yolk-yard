@@ -1299,7 +1299,7 @@ dialog.addEventListener('pointercancel',()=>{touchDrag=null;royaleUI.dragging=fa
 dialog.addEventListener('keydown',e=>{if(dialogType!=='royale-inventory')return;const slot=e.target.closest('[data-royale-slot]');if(slot&&e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const from=Number(slot.dataset.royaleSlot),to=(from+(e.key==='ArrowRight'?1:4))%5;inventoryAction('swap',to,from);dialog.querySelector(`[data-royale-slot="${to}"]`)?.focus();}});
 document.addEventListener('wheel',e=>{if(screen==='game'&&!paused&&!dialog.open&&!chat.opened&&e.deltaY){e.preventDefault();const code=e.deltaY>0?'WheelDown':'WheelUp';pressControl(code);keys.delete(code);}},{passive:false});
 document.addEventListener("contextmenu", (e) => {
-  if (screen === "game") e.preventDefault();
+  if (screen === "game" || (dialog.open&&dialogType==='settings'&&!e.target.matches('input,textarea'))) e.preventDefault();
 });
 const stick = $("#touch-stick");
 stick.addEventListener("pointerdown", (e) => {
