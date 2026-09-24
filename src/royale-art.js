@@ -191,7 +191,10 @@ export function launchpadModel(raw){
 export function lootModel(item,raw,{ground=true}={}){
  const k=artKit(raw),{block:box,rounded,cylinder,cone,torus,rock,beam}=k,g=new THREE.Group();g.name=(item.id||'item')+' collectible';
  const c=Number('0x'+(item.weapon?RARITIES[item.rarity||0].color:ITEMS[item.id]?.color||'#d9b967').slice(1));
- if(item.weapon){const blaster=makeBlaster(item.id);blaster.rotation.z=Math.PI/2;blaster.scale.setScalar(.85);g.add(blaster);}
+ if(item.id==='blueprint'){rounded(g,0,.3,0,1.2,.85,.035,0x247bad,.02);for(let i=0;i<7;i++)box(g,-.55+i*.18,.3,.025,.012,.8,.015,0x80d7ed);for(let i=0;i<5;i++)box(g,0,-.05+i*.18,.025,1.1,.012,.015,0x80d7ed);const pencil=cylinder(g,.7,.2,.03,.024,.7,0xf2d261,8);pencil.rotation.z=-.2;}
+ else if(item.id==='pickaxe'){cylinder(g,0,0,0,.075,1.65,0x956944,12);for(let i=0;i<8;i++)torus(g,0,-.65+i*.07,0,.081,.018,0x263e57).rotation.x=Math.PI/2;rounded(g,0,.68,0,1.15,.25,.19,0x7cb7cc,.07);const tip=cone(g,.72,.52,0,.13,.55,0xb5e4ec);tip.rotation.z=-1.05;rounded(g,-.63,.68,0,.28,.38,.23,0xd9b365,.03);}
+ else if(item.resource){for(let i=0;i<3;i++)rounded(g,(i-1)*.23,.05+i*.08,0,.55,.18,.4,item.resource==='wood'?0xba8852:item.resource==='brick'?0xbc705c:0x799ba8,.03);}
+ else if(item.weapon){const blaster=makeBlaster(item.id);blaster.rotation.z=Math.PI/2;blaster.scale.setScalar(.85);g.add(blaster);}
  else if(item.ammoType){
   rounded(g,0,.12,0,.65,.42,.46,0x778b68,.06);box(g,0,.35,0,.7,.06,.5,0xc3a26b);
   for(let j=0;j<4;j++){cylinder(g,(j-1.5)*.14,.44,0,.045,.19,0xefc96f,8);cone(g,(j-1.5)*.14,.56,0,.046,.08,0xf9e9b6);}

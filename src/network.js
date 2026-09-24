@@ -426,6 +426,9 @@ export class Network {
         const version=state.round+':'+state.royale.lootVersion;
         if(conn.royaleVersion===version){const {loot,chests,...royale}=state.royale;outgoing={...state,royale};}
         conn.royaleVersion=version;
+        const buildVersion=state.round+':'+state.royale.buildVersion;
+        if(conn.buildVersion===buildVersion){const {builds,worldDamage,...royale}=outgoing.royale;outgoing={...outgoing,royale};}
+        conn.buildVersion=buildVersion;
       }
       conn.send({type:'state',state:outgoing,...(checkpoint?{checkpoint}:{})});
     }
