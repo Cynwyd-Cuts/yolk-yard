@@ -1462,7 +1462,9 @@ button:disabled { opacity: 0.55; cursor: default; }
 .cosmetic-check { display: none; position: absolute; right: 4px; bottom: 4px; border-radius: 50%; background: var(--ink); color: white; width: 20px; height: 20px; font-size: 13px; line-height: 20px; }
 .cosmetic-tile.active .cosmetic-check { display: block; }
 @media(max-width:650px) { .cosmetic-grid { gap: 8px; } }
-.keybind-row { display:grid; grid-template-columns: minmax(95px,1.3fr) 1fr 1fr 36px; gap:8px; align-items:center; margin:8px 0; }
+.keybind-row { display:grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 32px; gap:8px; align-items:center; margin:8px 0; }
+.keybind-row>* { min-width:0; overflow-wrap:anywhere; }
+.binding-search input { min-width:0; width:100%; box-sizing:border-box; }
 .keybind-row[hidden] { display:none; }
 .binding-search { display:grid; gap:8px; margin:16px 0; }
 .binding-columns { font-size:.75rem; font-weight:800; text-transform:uppercase; }
