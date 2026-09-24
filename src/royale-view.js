@@ -1,3 +1,4 @@
+import {updateBuildingView} from './building-view.js';
 import {makeArms,actionArms} from './arms.js';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
@@ -8,13 +9,13 @@ const bakedMaterial=new THREE.MeshLambertMaterial({vertexColors:true,flatShading
 export function bake(group,chunked=false,colored=chunked){
  group.updateMatrixWorld(true);const batches=new Map();
  for(const o of [...group.children])if(o.isMesh&&!o.userData.ownedMaterial&&!o.userData.keepDynamic){
-  const key=(colored?'color':o.material.uuid)+(chunked?':'+Math.floor(o.position.x/64)+':'+Math.floor(o.position.z/64):'');if(!batches.has(key))batches.set(key,{mat:colored?bakedMaterial:o.material,parts:[]});
+  const key=(colored?'color':o.material.uuid)+(chunked?':'+Math.floor(o.position.x/64)+':'+Math.floor(o.position.z/64):'');if(!batches.has(key))batches.set(key,{mat:colored?bakedMaterial:o.material,parts:[],ranges:[],vertices:0});
   const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrix);
   if(colored){g.deleteAttribute('uv');const colors=new Float32Array(g.attributes.position.count*3),c=o.material.color;for(let i=0;i<colors.length;i+=3){colors[i]=c.r;colors[i+1]=c.g;colors[i+2]=c.b;}g.setAttribute('color',new THREE.BufferAttribute(colors,3));}
-  batches.get(key).parts.push(g);group.remove(o);
+  const batch=batches.get(key);if(o.userData.objectId)batch.ranges.push({id:o.userData.objectId,start:batch.vertices,count:g.attributes.position.count});batch.vertices+=g.attributes.position.count;batch.parts.push(g);group.remove(o);
   if(o.geometry.type==='CylinderGeometry'&&!o.geometry.userData.shared)o.geometry.dispose();
  }
- for(const b of batches.values()){const geometry=mergeGeometries(b.parts);geometry.computeBoundingSphere();const mesh=new THREE.Mesh(geometry,b.mat);b.parts.forEach(g=>g.dispose());mesh.receiveShadow=true;mesh.castShadow=true;group.add(mesh);}
+ for(const b of batches.values()){const geometry=mergeGeometries(b.parts);geometry.computeBoundingSphere();const mesh=new THREE.Mesh(geometry,b.mat);b.parts.forEach(g=>g.dispose());mesh.receiveShadow=true;mesh.castShadow=true;if(b.ranges.length)mesh.userData.objectRanges=b.ranges;group.add(mesh);}
 }
 function buildTerrain(world,map){
  const t=map.terrain,material=new THREE.MeshLambertMaterial({vertexColors:true,flatShading:true});
@@ -48,11 +49,11 @@ export function buildIsland(world,map,kit){
  for(const b of map.boxes){
   if(['landmark','tree','prop'].includes(b.kind))continue;
   const style=b.building===undefined?null:buildingStyle(map.buildings[b.building]);
-  block(world,b.x,b.y+b.h/2,b.z,b.w,b.h,b.d,style?(b.color==='stone'?style.roof:style.wall):palette[b.color]||0x79aead);
+  const mesh=block(world,b.x,b.y+b.h/2,b.z,b.w,b.h,b.d,style?(b.color==='stone'?style.roof:style.wall):palette[b.color]||0x79aead);mesh.userData.objectId=b.objectId;
  }
- for(const b of map.buildings)dressBuilding(world,b,kit);
- for(const t of map.trees)treeModel(world,t,kit);
- for(const p of map.props)propModel(world,p,kit);
+ for(const b of map.buildings){const start=world.children.length;dressBuilding(world,b,kit);const boxes=map.boxes.filter(o=>o.building===map.buildings.indexOf(b));for(const mesh of world.children.slice(start)){const nearest=[...boxes].sort((a,b)=>Math.hypot(a.x-mesh.position.x,a.y+a.h/2-mesh.position.y,a.z-mesh.position.z)-Math.hypot(b.x-mesh.position.x,b.y+b.h/2-mesh.position.y,b.z-mesh.position.z))[0];if(nearest)mesh.userData.objectId=nearest.objectId;}}
+ for(const t of map.trees){const start=world.children.length;treeModel(world,t,kit);const b=map.boxes.find(b=>b.kind==='tree'&&b.x===t.x&&b.z===t.z);for(const m of world.children.slice(start))m.userData.objectId=b?.objectId;}
+ for(const p of map.props){const start=world.children.length;propModel(world,p,kit);const b=map.boxes.find(b=>b.kind==='prop'&&b.x===p.x&&b.z===p.z);for(const m of world.children.slice(start))m.userData.objectId=b?.objectId;}
  for(const s of map.shelters){
   for(let j=0;j<7;j++)block(world,s.x-3.6+j*1.2,3.62,s.z,.96,.13,9.6,j%2?0xefca80:0xf5e6bc);
   for(const sign of [-1,1])beam(world,[s.x+sign*3.8,2.5,s.z+4],[s.x+sign*2.4,3.35,s.z+4],.1,0x816a51);
@@ -82,6 +83,8 @@ export function buildIsland(world,map,kit){
   const a=i*Math.PI*2/48,x=Math.cos(a)*390,z=Math.sin(a)*390;
   block(world,x,-.45,z,20,.02,1.5,0x7ec5d4);
  }
+ // Remaining architectural trim and landmark meshes belong to their nearest collision object.
+ for(const mesh of world.children)if(mesh.isMesh&&!mesh.userData.objectId&&!mesh.userData.ownedMaterial&&mesh.position.y>.2){let b=null,nearest=Infinity;for(const candidate of map.boxes){const d=(candidate.x-mesh.position.x)**2+(candidate.y+candidate.h/2-mesh.position.y)**2+(candidate.z-mesh.position.z)**2;if(d<nearest){nearest=d;b=candidate;}}if(b&&Math.hypot(b.x-mesh.position.x,b.z-mesh.position.z)<15)mesh.userData.objectId=b.objectId;}
  bake(world,true);
  for(const p of map.districts){const text=islandLabel(p.name);text.position.set(p.x,15,p.z);world.add(text);}
 }
@@ -125,6 +128,7 @@ export class RoyaleView{
  update(state,local,dt,playing){
   this.root.visible=playing&&!!state?.royale;if(!this.root.visible)return;
   const r=state.royale,t=this.view.clock,kit=this.kit;
+  this.view.lastStateTime=state.time;updateBuildingView(this,state,local);
   const roundKey=r.matchId+':'+state.round;
   if(this.round!==roundKey){for(const group of [this.chests,this.loot,this.gliders,this.pads]){for(const mesh of group.values()){this.root.remove(mesh);this.view.disposeGroup(mesh);}group.clear();}this.round=roundKey;}
   this.transport.visible=r.elapsed<=r.route.duration+5;
@@ -165,15 +169,15 @@ export class RoyaleView{
  }
  animateActor(model,p,t){
   const flying=p.flight==='dive'||p.flight==='glide'||p.flight==='launch';
-  if(model.userData.held)model.userData.held.visible=!flying&&!!p.inventory?.[p.slot]?.weapon;
-  if(model.userData.blaster)model.userData.blaster.visible=!flying&&!!p.inventory?.[p.slot]?.weapon;
+  if(model.userData.held)model.userData.held.visible=!p.building&&!flying&&!!p.inventory?.[p.slot]?.weapon;
+  if(model.userData.blaster)model.userData.blaster.visible=!p.building&&!flying&&!!p.inventory?.[p.slot]?.weapon;
   if(!model.userData.flightArms){const arms=makeArms('pip',p,false);arms.position.y=1.1;arms.scale.setScalar(.85);for(const limb of arms.userData.limbs)limb.shoulder.set(limb.side*.5,0,.04);model.add(arms);model.userData.flightArms=arms;}
-  const arms=model.userData.flightArms,item=p.inventory?.[p.slot];arms.visible=flying||!item?.weapon;
+  const arms=model.userData.flightArms,item=p.building?{id:'blueprint'}:p.inventory?.[p.slot];arms.visible=flying||!item?.weapon;
   const reach=p.flight==='glide'?[[ -.9,1.25,-.2],[.9,1.25,-.2]]:flying?[[-1.25,-.12,-.25],[1.25,-.12,-.25]]:p.use?[[-.3,.12,-.65],[.3,.16+Math.sin(t*7)*.035,-.65]]:[[-.56,-.45,-.15],[.56,-.45,-.15]];
   if(arms.visible)actionArms(arms,reach,p.flight==='glide'?-1.3:-.2);
   const itemKey=!flying&&item&&!item.weapon?item.id:null;
   if(model.userData.utilityKey!==itemKey){if(model.userData.utility){model.userData.utility.removeFromParent();this.view.disposeGroup(model.userData.utility);}model.userData.utility=null;model.userData.utilityKey=itemKey;if(itemKey){const prop=this.itemModel(item,false);prop.scale.setScalar(.6);prop.position.set(.36,.7,-.35);model.add(prop);model.userData.utility=prop;}}
-  if(model.userData.utility){model.userData.utility.position.y=p.use?1.15+Math.sin(t*7)*.02:.7;}
+  if(model.userData.utility){model.userData.utility.position.y=p.use?1.15+Math.sin(t*7)*.02:.7;if(item?.pickaxe){const swing=Math.max(0,1-(this.view.lastStateTime-(p.swingAt??-100))/.45);model.userData.utility.rotation.x=-Math.sin(swing*Math.PI)*1.5;}}
 
   if(flying){model.rotation.x=p.flight==='dive'?.85:.1;model.rotation.z=Math.sin(t*3)*.05;}
   else if(p.sprinting){model.rotation.x=.17;model.rotation.z=Math.sin(t*9)*.16;}

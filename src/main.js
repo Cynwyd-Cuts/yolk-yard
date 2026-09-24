@@ -1,3 +1,5 @@
+import {applyBuildState} from './building.js';
+import {BuildingUI} from './building-ui.js';
 import {arenaBonuses,BONUS_NAMES,bonusStatus} from './streaks.js';
 import { connectionReport } from './connection-report.js';
 import {RoyaleSimulation} from './royale.js';
@@ -133,6 +135,9 @@ $("#app").innerHTML =
   `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"><i class="crosshair-arm left"></i><i class="crosshair-arm right"></i><i class="crosshair-arm top"></i><i class="crosshair-arm bottom"></i><span class="center-dot" id="center-dot"></span></div><div id="hit-marker" class="hit-marker" hidden></div><div class="hit-flash" id="damage"></div><div id="damage-directions" aria-hidden="true"></div><div id="round-banner" role="status" hidden></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow" id="spawn-heading">SHELL HEALTH DEPLETED</div><h2 id="spawn-status">Ready when you are</h2><button class="primary" id="spawn-button" data-action="enter-yard">Respawn</button><p class="small" id="respawn-by"></p><p class="small" id="spectator-stats"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="vital-row shield-row"><span class="vital-icon" aria-hidden="true">◆</span><span class="vital-value" id="shield">0</span><div class="vital-bar shield-bar"><span id="shield-fill"></span></div></div><div class="vital-row health-row"><span class="vital-icon" aria-hidden="true">＋</span><span class="vital-value" id="health">100</span><div class="vital-bar health-bar"><span id="health-fill"></span></div></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div id="spectate-panel" hidden><div class="eyebrow">SPECTATING</div><p id="spectate-info"></p><div class="split-actions"><button data-action="spectate-prev">← Previous</button><button data-action="spectate-next">Next →</button><button data-action="rejoin">Join game</button></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
 const dialog = $("#dialog");
 const royaleUI = new RoyaleUI(item=>view.itemPreview(item));
+const buildControls={buildMode:false,buildType:'wall',buildMaterial:'wood',buildRotation:0,editing:false};
+document.addEventListener('build-edit-close',()=>{if(screen==='game'&&!paused&&!matchMedia('(pointer:coarse)').matches)view.renderer.domElement.requestPointerLock?.();});
+const buildUI=new BuildingUI(royaleUI.root,buildControls,action=>{if(sim)sim.playerAction(localId,action);else net?.send({type:'player-action',action});});
 let resultAt=0;const damageSources=[];
 let matchRequest=0, autoQueue=false, swapSlot=-1;
 const chat = new ChatPanel($("#app"), {
@@ -438,6 +443,8 @@ function callbacks() {
     onInput: (id, i) => sim?.setInput(id, i),
     onProfile: (id, p) => sim?.setProfile(id, p),
     onState: (s) => {
+      if(s.royale&&!s.royale.builds&&state?.royale)s.royale={...s.royale,builds:state.royale.builds,worldDamage:state.royale.worldDamage};
+      if(s.royale)applyBuildState(view.buildMap,s.royale);
       if(s.royale&&!s.royale.loot&&state?.royale)s.royale={...s.royale,loot:state.royale.loot,chests:state.royale.chests};
       state = s;
       const me = s.players.find((p) => p.id === localId);
@@ -449,7 +456,7 @@ function callbacks() {
       if (me.health > 0 && lastHealth <= 0) {
         input.yaw = me.yaw;
         input.pitch = me.pitch;
-        input.slot = 0;
+        input.slot = s.royale?me.slot:0;
         pendingInputs = [];
       }
       lastHealth = me.health;
@@ -592,6 +599,7 @@ function renderLobby() {
   $("#lobby .lobby-panel").scrollTop = scrollTop;
 }
 function launchRound(){
+  buildControls.buildMode=false;buildUI.cancel();
   if(sim.startRound()===false){toast('Invite another egg or add a bot before launching.');return false;}
   state=sim.snapshot();net?.broadcast(state);enterGame(true);return true;
 }
@@ -666,6 +674,7 @@ function pauseMenu() {
   );
 }
 function leave(confirm = false) {
+  buildControls.buildMode=false;buildUI.cancel();
   resultAt=0;$("#round-banner").hidden=true;damageSources.length=0;
   matchRequest++;autoQueue=false;sound.stopWorld();royaleUI.waypoint=null;royaleUI.root.hidden=true;document.body.classList.remove('in-royale');
   net?.destroy();
@@ -823,6 +832,7 @@ function hud() {
   if (!p) return;
   const m = mode(state.options.mode);
   const watched=p.spectating?state.players.find(k=>k.id===spectateTarget):null;
+  if(state?.royale){const me=state.players.find(p=>p.id===localId);if(me)buildUI.update(state,me,view.buildMap,controlLabel);}
   royaleUI.update(state,p,watched,controlLabel,paused);
   view.waypoint=royaleUI.waypoint;
   $("#hud-mode").textContent = m.name.toUpperCase();
@@ -925,7 +935,7 @@ async function copy(text) {
     );
   }
 }
-function royaleHome(){modal('Yolk Royale',`<div class="royale-brief"><div class="eyebrow">SUNNYBREAK ISLAND</div><h3>One island. One surviving egg.</h3><p>Board the Eggspress, choose your drop, and build a five-slot loadout. Find shields, healing, impulse eggs and launch nests. Keep moving as the storm closes.</p><p class="hint">Solo · 16 contestants · Nine districts · One life</p></div><button class="primary" data-action="royale-queue">FIND PUBLIC MATCH</button><button class="secondary" data-action="royale-custom">CREATE PUBLIC / PRIVATE MATCH</button><button class="plain" data-action="royale-local">PLAY LOCAL WITH BOTS</button><p class="hint">Public matchmaking fills empty seats with bots after a 30-second lobby. Private hosts choose their rules. New players replace available bots. Hosting transfers automatically if the host leaves.</p>`,'royale-home');}
+function royaleHome(){modal('Yolk Royale',`<div class="royale-brief"><div class="eyebrow">SUNNYBREAK ISLAND</div><h3>One island. One surviving egg.</h3><p>Board the Eggspress, choose your drop, and carry five items plus your permanent pickaxe. Harvest wood, brick and metal, then build and edit walls, floors, stairs and roofs. Find shields, healing, impulse eggs and launch nests. Keep moving as the storm closes.</p><p class="hint">Solo · 16 contestants · Nine districts · One life</p></div><button class="primary" data-action="royale-queue">FIND PUBLIC MATCH</button><button class="secondary" data-action="royale-custom">CREATE PUBLIC / PRIVATE MATCH</button><button class="plain" data-action="royale-local">PLAY LOCAL WITH BOTS</button><p class="hint">Public matchmaking fills empty seats with bots after a 30-second lobby. Private hosts choose their rules. New players replace available bots. Hosting transfers automatically if the host leaves.</p>`,'royale-home');}
 async function quickRoyale(){
  if(state)leave(false);
  const request=++matchRequest;modal('Finding your flight','<div class="spinner"></div><p>Finding a waiting Yolk Royale match…</p><button data-action="cancel-connect">Cancel</button>','matchmaking');
@@ -948,7 +958,8 @@ function royaleInventory(){if(!state?.royale)return;const p=state.players.find(p
 function inventoryAction(action,index,from){
  const p=state?.players.find(p=>p.id===localId);if(!state?.royale||!p||p.health<=0)return;
  const selected=Number.isInteger(from)?from:input.slot;
- if(action==='slot')input.slot=index;
+ if(action==='slot'){input.slot=index;buildControls.buildMode=false;buildUI.cancel();}
+ if(action!=='slot'&&(selected===5||index===5))return;
  if(action==='swap'){if(input.slot===selected)input.slot=index;else if(input.slot===index)input.slot=selected;}
  const command=action==='slot'?`inventory-select-${index}`:action==='swap'?`inventory-swap-${selected}-${index}`:`inventory-${action}-${selected}`;
  if(sim){sim.playerAction(localId,command);state=sim.snapshot();}else net?.send({type:'player-action',action:command});
@@ -1108,6 +1119,7 @@ document.addEventListener("pointerlockchange", () => {
     !document.pointerLockElement &&
     screen === "game" &&
     !paused &&
+    !buildControls.editing &&
     !chat.opened &&
     state?.players.find(p => p.id === localId)?.health > 0 &&
     !matchMedia("(pointer:coarse)").matches
@@ -1121,8 +1133,14 @@ function pressControl(code) {
   }
   if (settings.keybinds.primary.includes(code)) input.slot = 0;
   if (settings.keybinds.sidearm.includes(code)) input.slot = 1;
-  if (settings.keybinds.swap.includes(code)) input.slot = state?.royale ? (input.slot+1)%5 : 1-input.slot;
+  if (settings.keybinds.swap.includes(code)) {input.slot = state?.royale ? (input.slot+1)%6 : 1-input.slot;buildControls.buildMode=false;}
   if(state?.royale){
+    if(settings.keybinds.pickaxe.includes(code)){input.slot=5;buildControls.buildMode=false;buildUI.cancel();}
+    for(const [key,piece] of [['buildWall','wall'],['buildFloor','floor'],['buildStairs','stairs'],['buildRoof','roof']])if(settings.keybinds[key].includes(code)){buildControls.buildType=piece;buildControls.buildMode=true;buildUI.cancel();}
+    for(const [key,action] of [['buildToggle','toggle'],['buildRotate','rotate'],['buildMaterial','material']])if(settings.keybinds[key].includes(code))buildUI.action(action);
+    if(settings.keybinds.buildEdit.includes(code)){if(buildUI.edit)buildUI.action('confirm');else{const p=state.players.find(p=>p.id===localId);if(buildUI.beginEdit(state,p,view.buildMap)){document.exitPointerLock?.();}}}
+    if(settings.keybinds.buildRepair.includes(code)){if(sim)sim.playerAction(localId,'build-repair');else net?.send({type:'player-action',action:'build-repair'});}
+    if(['primary','sidearm','slot3','slot4','slot5'].some(k=>settings.keybinds[k].includes(code))){buildControls.buildMode=false;buildUI.cancel();}
     for(let i=3;i<=5;i++)if(settings.keybinds['slot'+i].includes(code))input.slot=i-1;
     if(settings.keybinds.map.includes(code))royaleMap();
     if(settings.keybinds.inventory.includes(code))royaleInventory();
@@ -1256,6 +1274,8 @@ document.addEventListener('click',e=>{
  if(e.target.id==='royale-fullmap'){
   const rect=e.target.getBoundingClientRect();royaleUI.waypoint={x:(e.clientX-rect.left)/rect.width*512-256,z:(e.clientY-rect.top)/rect.height*512-256};sound.cue('ui-select');
  }
+ if(e.target.closest('[data-build-control="repair"]')){if(sim)sim.playerAction(localId,'build-repair');else net?.send({type:'player-action',action:'build-repair'});}
+ if(e.target.closest('[data-build-control="edit"]')){const p=state?.players.find(p=>p.id===localId);if(p)buildUI.beginEdit(state,p,view.buildMap);}
  if(e.target.closest('button')){sound.unlock();sound.cue('ui-select',null,.45);}
 });
 // Native desktop dragging, touch dragging, and keyboard reordering share one action.
@@ -1269,7 +1289,7 @@ dialog.addEventListener('pointermove',e=>{if(touchDrag&&Math.hypot(e.clientX-tou
 dialog.addEventListener('pointerup',e=>{if(!touchDrag)return;const slot=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-royale-slot]'),from=touchDrag.from;touchDrag=null;const dragged=royaleUI.dragging;royaleUI.dragging=false;if(dragged&&slot&&Number(slot.dataset.royaleSlot)!==from)inventoryAction('swap',Number(slot.dataset.royaleSlot),from);});
 dialog.addEventListener('pointercancel',()=>{touchDrag=null;royaleUI.dragging=false;});
 dialog.addEventListener('keydown',e=>{if(dialogType!=='royale-inventory')return;const slot=e.target.closest('[data-royale-slot]');if(slot&&e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const from=Number(slot.dataset.royaleSlot),to=(from+(e.key==='ArrowRight'?1:4))%5;inventoryAction('swap',to,from);dialog.querySelector(`[data-royale-slot="${to}"]`)?.focus();}});
-document.addEventListener('wheel',e=>{if(screen==='game'&&state?.royale&&!paused&&!dialog.open&&!chat.opened){e.preventDefault();input.slot=(input.slot+(e.deltaY>0?1:4))%5;}},{passive:false});
+document.addEventListener('wheel',e=>{if(screen==='game'&&state?.royale&&!paused&&!dialog.open&&!chat.opened){e.preventDefault();input.slot=(input.slot+(e.deltaY>0?1:5))%6;buildControls.buildMode=false;}},{passive:false});
 document.addEventListener("contextmenu", (e) => {
   if (screen === "game") e.preventDefault();
 });
@@ -1330,6 +1350,7 @@ document.addEventListener("graphics-lost", () => {
 });
 function frameInput() {
   const active = !net?.migrating && screen === "game" && !paused && !dialog.open && !chat.opened && state?.players.find(p => p.id === localId)?.health > 0;
+  buildControls.yaw=input.yaw;buildControls.pitch=input.pitch;
   const nextInput = {
     seq: ++seq,
     yaw: input.yaw,
@@ -1346,7 +1367,7 @@ function frameInput() {
       : 0,
     jump:
       active && (actionDown("jump") || touch.jump || queuedActions.has("jump")),
-    fire: active && (actionDown("fire") || touch.fire || queuedActions.has("fire")),
+    fire: active && !buildControls.editing && (actionDown("fire") || touch.fire || queuedActions.has("fire")),
     aim: active && (actionDown("aim") || touch.aim),
     reload:
       active &&
@@ -1356,6 +1377,7 @@ function frameInput() {
       (actionDown("popper") ||
         touch.popper ||
         queuedActions.has("popper")),
+    ...buildControls,
     slot: input.slot,
     sprint:active&&(actionDown('sprint')||touch.sprint),
     interact:active&&(actionDown('interact')||touch.interact||queuedActions.has('interact')),
@@ -1371,6 +1393,7 @@ let lastTime = performance.now(),
   hudClock = 0,
   lobbyClock = 0;
 function loop(now) {
+  if(state?.royale)applyBuildState(view.buildMap,state.royale);
   const dt = Math.min(0.1, (now - lastTime) / 1000);
   lastTime = now;
   accumulator += dt;
@@ -1467,6 +1490,7 @@ function loop(now) {
 }
 try {
   view = new View($("#world"), settings);
+  view.buildControls=buildControls;view.buildMap=getMap('sunnybreak');
   renderMenu();
   requestAnimationFrame(loop);
   const invite = new URL(location.href).searchParams.get("room");

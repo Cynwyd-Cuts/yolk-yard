@@ -473,6 +473,7 @@ export class Simulation {
       origin = path.origin;
       if (path.blocked) {
         blocked = true;
+        if(path.blocked.box)this.damageWorld?.(path.blocked.box,w.damage);
         if (i === 0)
           this.emit("impact", {
             ...path.blocked.point,
@@ -619,6 +620,7 @@ export class Simulation {
               precision, b.shotId,
             );
           }
+          if(!victim&&hit?.box)this.damageWorld?.(hit.box,b.damage);
           this.emit("impact", {
             x: b.x,
             y: b.y,

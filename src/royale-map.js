@@ -1,3 +1,4 @@
+import {materialFor} from './building.js';
 import {createTerrain,groundAt} from './terrain.js';
 // Authored scenery, collision and loot share the same coordinates and heightfield.
 export const DISTRICTS = [
@@ -118,3 +119,7 @@ for(const points of [chests,floorLoot])for(let i=points.length-1;i>=0;i--){
  if(boxes.some(b=>Math.abs(p.x-b.x)<b.w/2+.35&&Math.abs(p.z-b.z)<b.d/2+.35&&p.y+.2>b.y&&p.y+.2<b.y+b.h))points.splice(i,1);
 }
 export const ROYALE_MAP={id:'sunnybreak',name:'Sunnybreak Island',tag:'BATTLE ROYALE • 512 × 512',description:'Nine districts. One surviving egg.',size:256,navCell:2.5,sky:0xafdfe8,ground:0x86b87c,accent:0xf6cc66,theme:'royale',zone:[0,0,0],bases:[[-230,0],[230,0]],spawns:[[0,0],[-75,-75],[75,-75],[-75,75],[75,75]],lanes:[],boxes,props,pickups:[],districts:DISTRICTS,buildings,trees,chests,floorLoot,shelters,terrain};
+
+for(const [i,b] of boxes.entries()){b.objectId="world-"+i;b.material=materialFor(b,ROYALE_MAP);}
+for(const collection of [trees,props,buildings,shelters,chests,floorLoot])for(const o of collection)o.material=materialFor({...o,kind:collection===trees?"tree":o.kind,color:collection===chests?"steel":o.color},ROYALE_MAP);
+ROYALE_MAP.material="brick";

@@ -36,6 +36,7 @@ export function rayBox(o, d, b, max = Infinity) {
 }
 // Spatial buckets keep large-island collision proportional to nearby cover.
 const collisionIndex = new WeakMap();
+export function invalidateCollision(map){collisionIndex.delete(map);}
 function candidates(map,o,d=null,max=0,radius=0){
  if(map.theme!=='royale')return map.boxes;
  let grid=collisionIndex.get(map);
@@ -197,7 +198,8 @@ export function sanitizeInput(i = {}) {
     aim: !!i.aim,
     reload: !!i.reload,
     popper: !!i.popper,
-    slot: Number.isInteger(i.slot) && i.slot>=0 && i.slot<5 ? i.slot : 0,
+    slot: Number.isInteger(i.slot) && i.slot>=0 && i.slot<6 ? i.slot : 0,
+    buildMode: !!i.buildMode, buildType: ["wall","floor","stairs","roof"].includes(i.buildType)?i.buildType:"wall", buildMaterial:["wood","brick","metal"].includes(i.buildMaterial)?i.buildMaterial:"wood", buildRotation:Number.isInteger(i.buildRotation)?((i.buildRotation%4)+4)%4:0,
     sprint: !!i.sprint, interact: !!i.interact, drop: !!i.drop,
     swapSlot: Number.isInteger(i.swapSlot) && i.swapSlot>=0 && i.swapSlot<5 ? i.swapSlot : -1,
   };
@@ -252,7 +254,7 @@ export function worldHit(map, o, d, max = 200, radius = 0) {
     const normal = { x: 0, y: 0, z: 0 };
     normal[faces[0][0]] = faces[0][2];
     best = t;
-    result = { distance: t, point: hit, normal };
+    result = { distance: t, point: hit, normal, box: source };
   }
   const ground=terrainHit(map,o,d,best,radius);if(ground)result=ground;
   return result;

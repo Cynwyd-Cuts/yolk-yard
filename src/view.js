@@ -797,7 +797,7 @@ export class View {
       }
       this.scopeActive = !!aiming && scoped && this.aimBlend > 0.1 && (!local.inventory||!!local.inventory[local.slot]?.weapon);
       if(local.inventory){
-        const heldItem=local.inventory[local.slot];
+        const heldItem=local.building?{id:'blueprint'}:local.inventory[local.slot];
         this.localModel.visible=!!heldItem?.weapon;
         const itemKey=heldItem&&!heldItem.weapon?heldItem.id:null;
         if(this.heldItemKey!==itemKey){
@@ -806,6 +806,7 @@ export class View {
           if(itemKey){this.heldItem=this.royaleView.itemModel(heldItem,false);this.heldItem.scale.setScalar(.4);this.heldItem.position.set(-.05,-.08,-.28);this.gunGroup.add(this.heldItem);}
         }
         if(!heldItem?.weapon&&this.localArms)utilityArms(this.localArms,heldItem?.id,local.use?(state.time-local.use.start)/(local.use.end-local.use.start):-1,this.clock);
+        if(this.heldItem&&heldItem?.pickaxe){const swing=Math.max(0,1-(state.time-(local.swingAt??-100))/.45);this.heldItem.rotation.x=-Math.sin(swing*Math.PI)*1.6;this.gunGroup.position.y-=Math.sin(swing*Math.PI)*.17;this.gunGroup.rotation.z-=Math.sin(swing*Math.PI)*.55;}
         if(this.heldItem)this.heldItem.rotation.z=local.use?Math.sin(this.clock*8)*.15:0;
         if(this.localArms){this.localArms.rotation.x=local.use ? -.35+Math.sin(this.clock*6)*.06 : 0;}
         this.gunGroup.rotation.z+=local.sprinting?.35:0;

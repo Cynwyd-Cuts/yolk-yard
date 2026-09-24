@@ -16,7 +16,7 @@ export const ITEMS={
  impulse:{name:'Impulse Egg',kind:'impulse',duration:.35,stack:3,color:'#ec9fff',icon:'◎'},
  launchpad:{name:'Launch Nest',kind:'launchpad',duration:.6,stack:2,color:'#f9ca65',icon:'↟'},
 };
-export const itemInfo=item=>!item?{name:'Empty slot',color:'#7c8a98',icon:''}:item.weapon?{...weapon(item.id),color:RARITIES[item.rarity||0].color,icon:'',name:weapon(item.id).name}:ITEMS[item.id]||{name:item.id,color:'#d6caa5',icon:'▥'};
+export const itemInfo=item=>!item?{name:'Empty slot',color:'#7c8a98',icon:''}:item.pickaxe?{name:'Pickaxe',color:'#7aaddb',icon:''}:item.weapon?{...weapon(item.id),color:RARITIES[item.rarity||0].color,icon:'',name:weapon(item.id).name}:ITEMS[item.id]||{name:item.id,color:'#d6caa5',icon:'▥'};
 export const STORM_STEPS=[
  {radius:205,wait:65,close:55,dps:1},{radius:150,wait:40,close:45,dps:2},
  {radius:102,wait:30,close:40,dps:3},{radius:65,wait:25,close:35,dps:5},
