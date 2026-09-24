@@ -14,7 +14,7 @@ export class RoyaleUI{
    <div class="royale-storm-warning" id="royale-storm-warning" role="status"></div>
    <div class="royale-flight" id="royale-flight"><span class="eyebrow">EGGSPRESS AIRLINES</span><strong id="royale-flight-title"></strong><p id="royale-flight-help"></p><button data-action="royale-jump" class="primary" id="royale-flight-button">JUMP</button></div>
    <div class="royale-prompt" id="royale-prompt" role="status"></div>
-   <div class="royale-vitals"><div class="royale-meter shield"><span>◈ SHIELD</span><b id="royale-shield">0</b><i id="royale-shield-fill"></i></div><div class="royale-meter stamina"><span>↟ STAMINA</span><b id="royale-stamina">100</b><i id="royale-stamina-fill"></i></div></div>
+   <div class="royale-vitals"><div class="royale-meter stamina"><span>↟ STAMINA</span><b id="royale-stamina">100</b><i id="royale-stamina-fill"></i></div></div>
    <div class="royale-hotbar" id="royale-hotbar" role="group" aria-label="Inventory slots"></div>
    <div class="royale-tools"><button data-action="royale-inventory">Inventory</button><button data-action="royale-map">Map</button><button data-action="royale-drop">Drop</button></div>
    <div class="royale-use" id="royale-use"><span id="royale-use-label"></span><div><i id="royale-use-fill"></i></div></div>
@@ -77,7 +77,7 @@ export class RoyaleUI{
   $('royale-compass').textContent=`${['N','NE','E','SE','S','SW','W','NW'][Math.round(heading/45)%8]}  ${Math.round(heading)}°${this.waypoint?'   ◆ '+Math.round(Math.hypot(p.x-this.waypoint.x,p.z-this.waypoint.z))+' m':''}`;
   $('royale-alive').textContent=r.alive;$('royale-phase').textContent=r.elapsed<35?'DROP ZONE':`STORM ${r.storm.index+1}`;
   this.drawMap($('royale-mini'),state,p);this.drawMap($('royale-fullmap'),state,p,true);
-  $('royale-shield').textContent=Math.ceil(p.shield||0);$('royale-shield-fill').style.width=(p.shield||0)+'%';$('royale-stamina').textContent=Math.ceil(p.stamina||0);$('royale-stamina-fill').style.width=(p.stamina||0)+'%';
+  $('#shield').textContent=Math.ceil(p.shield||0);$('#shield-fill').style.width=Math.max(0,Math.min(100,p.shield||0))+'%';$('royale-stamina').textContent=Math.ceil(p.stamina||0);$('royale-stamina-fill').style.width=(p.stamina||0)+'%';
   const key=JSON.stringify([p.inventory,p.slot]);if(key!==this.lastKey){$('royale-hotbar').innerHTML=this.slotMarkup(p);this.lastKey=key;}
   this.updateInventory(local);
   const flight=['transport','dive','glide','launch'].includes(local.flight)&&local.health>0;

@@ -71,7 +71,7 @@ button:active {
   pointer-events: auto;
 }
 
-.name-safety { font-size: .73rem; line-height: 1.4; color: #47606a; margin: -5px 0 16px; }
+.name-safety { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .chat-toggle { position: fixed; left: 22px; bottom: 24px; z-index: 15; padding: 12px 19px; border-radius: 14px; color: #fff8df; background: #183c40; box-shadow: 0 5px 20px #102a332b; font-weight: 800; font-size: .88rem; }
 .in-game .chat-toggle { bottom: 142px; }
 .chat-peek { position: fixed; left: 22px; bottom: 197px; width: 320px; z-index: 12; padding: 12px 16px; border-radius: 14px; background: #102c35d9; color: #fff8df; pointer-events: none; }
@@ -749,11 +749,41 @@ body.in-game #hud {
   gap: 20px;
 }
 .health-card {
-  background: #172b39ed;
-  border-radius: 12px;
-  padding: 15px 18px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   width: 200px;
 }
+.vital-row {
+  display: grid;
+  grid-template-columns: 18px 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  color: #fff;
+  font: 800 11px/1 system-ui, sans-serif;
+  text-shadow: 0 1px 3px #071521;
+  margin-top: 3px;
+}
+.vital-icon { width: 16px; text-align: center; font-size: 14px; }
+.shield-row .vital-icon { color: #6fd4ff; }
+.health-row .vital-icon { color: #b9ff70; }
+.vital-value { text-align: right; }
+.vital-bar {
+  height: 11px;
+  background: #273641dd;
+  border: 1px solid #ecf5ff99;
+  overflow: hidden;
+  box-shadow: 0 1px 3px #07152188;
+}
+.vital-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transition: width .12s ease-out;
+}
+.shield-bar span { background: #54c9f4; }
+.health-bar span { background: #91d746; }
+.health-card .ammo-extra { margin-top: 7px; }
 .health-label {
   display: flex;
   justify-content: space-between;
