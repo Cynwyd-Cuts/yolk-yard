@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ARM_POSES,armPose,makeArms,updateArms,reloadProgress} from '../src/arms.js';
+import {ARM_POSES,armPose,makeArms,updateArms,reloadProgress,throwArms} from '../src/arms.js';
 import {makeBlaster} from '../src/weapons.js';
 import {WEAPONS} from '../src/data.js';
 test('each blaster has a finite animated grip and returns to its idle pose',()=>{
@@ -20,6 +20,17 @@ test('each blaster has a finite animated grip and returns to its idle pose',()=>
   if(model.userData.reloadPart) assert.deepEqual(model.userData.reloadPart.position.toArray(),model.userData.reloadPart.userData.restPosition.toArray());
   if(model.userData.reloadToken) assert.equal(model.userData.reloadToken.visible,false);
  }
+});
+test('grenade throw pose winds up, releases the hand prop, and resets cleanly',()=>{
+ const rig=makeArms('sprinter'),right=rig.userData.limbs.find(l=>l.side>0).hand;
+ assert.ok(rig.userData.throwProp);
+ throwArms(rig,.2);const windup=right.position.toArray();
+ assert.equal(rig.userData.throwProp.visible,true);
+ throwArms(rig,.4);assert.notDeepEqual(right.position.toArray(),windup);
+ assert.equal(rig.userData.throwProp.visible,true);
+ throwArms(rig,.6);assert.equal(rig.userData.throwProp.visible,false);
+ updateArms(rig,-1);assert.equal(rig.userData.throwProp.visible,false);
+ rig.traverse(o=>assert.ok([...o.position.toArray(),...o.scale.toArray()].every(Number.isFinite)));
 });
 test('reload animation follows both empty and partial host reload times and cancels immediately',()=>{
  for(const w of WEAPONS)for(const empty of [true,false]){

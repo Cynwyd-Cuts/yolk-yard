@@ -1,7 +1,7 @@
 import {buildIsland,RoyaleView} from './royale-view.js';
 import * as THREE from "three";
 import {equipPose} from "./equip.js";
-import { makeArms, updateArms, reloadProgress, utilityArms, armAppearance } from "./arms.js";
+import { makeArms, updateArms, reloadProgress, utilityArms, throwArms, armAppearance } from "./arms.js";
 import { patternedShell, addHeadwear, addEyewear, optionProfile } from "./cosmetics.js";
 import { getMap } from "./maps.js";
 import { gun, weapon, TEAM_COLORS, mode, clamp, NO_EYEWEAR } from "./data.js";
@@ -232,6 +232,7 @@ export class View {
     this.fx = [];
     this.recoil = 0;
     this.clock = 0;
+    this.localThrowStart = -Infinity;
     this.mapId = null;
     this.menuEgg = null;
     this.localWeapon = null;
@@ -542,6 +543,10 @@ export class View {
     if (e.type === "shot" || e.type === "launch") {
       if (e.player === localId) this.recoil = Math.min(1.6, this.recoil + 0.85);
       const actor = this.models.get(e.player);
+      if(e.type==='launch'&&e.popper){
+        if(e.player===localId)this.localThrowStart=this.clock;
+        if(actor)actor.userData.throwStart=this.clock;
+      }
       if (actor && !e.popper) actor.userData.armRecoil = 1;
       if (!e.popper)
         this.pendingShots.push({ event: e, local: e.player === localId });
@@ -760,6 +765,8 @@ export class View {
         (1 - this.aimBlend);
       const reload = reloadProgress(local, state.time);
       const hands = updateArms(this.localArms, draw.active?-1:reload, this.localModel, this.recoil,draw.progress);
+      const throwT=(this.clock-this.localThrowStart)/.78;
+      if(state.options.mode!=='royale'&&throwT>=0&&throwT<=1)throwArms(this.localArms,throwT);
       const front = -VIEWMODEL.z + w.muzzle * VIEWMODEL.scale;
       const wall = wallDistance(
         getMap(state.options.map),
@@ -783,6 +790,11 @@ export class View {
         hands.rotation[1] + draw.rotation[1],
         hands.rotation[2] + draw.rotation[2],
       );
+      if(state.options.mode!=='royale'&&throwT>=0&&throwT<=1){
+        const gesture=Math.sin(Math.PI*throwT);
+        this.gunGroup.position.y-=.19*gesture;
+        this.gunGroup.rotation.x+=.2*gesture;
+      }
       this.scopeActive = !!aiming && scoped && this.aimBlend > 0.1 && (!local.inventory||!!local.inventory[local.slot]?.weapon);
       if(local.inventory){
         const heldItem=local.inventory[local.slot];
@@ -870,9 +882,16 @@ export class View {
         if (model.userData.arms) {
           const recoil = model.userData.armRecoil = Math.max(0, (model.userData.armRecoil || 0) - dt * 7);
           const hands = updateArms(model.userData.arms, draw.active?-1:reloadProgress(p, state.time), model.userData.blaster, recoil,draw.progress);
+          const throwT=(this.clock-(model.userData.throwStart??-Infinity))/.78;
+          if(state.options.mode!=='royale'&&throwT>=0&&throwT<=1)throwArms(model.userData.arms,throwT);
           model.userData.held.visible=draw.visible;
           model.userData.held.rotation.set(p.pitch + hands.rotation[0] + recoil * .045 + draw.rotation[0], hands.rotation[1]+draw.rotation[1], hands.rotation[2]+draw.rotation[2]);
           model.userData.held.position.set(VIEWMODEL.x+draw.position[0],EYE+VIEWMODEL.y-hands.dip+draw.position[1]*.5,VIEWMODEL.z+draw.position[2]);
+          if(state.options.mode!=='royale'&&throwT>=0&&throwT<=1){
+            const gesture=Math.sin(Math.PI*throwT);
+            model.userData.held.position.y-=.16*gesture;
+            model.userData.held.rotation.x+=.16*gesture;
+          }
         }
         // Do not let cosmetic smoothing leave a moving shell behind its hitbox.
         const base = model.userData.basePosition ||= new THREE.Vector3(p.x, p.y, p.z);

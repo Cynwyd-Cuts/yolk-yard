@@ -119,6 +119,7 @@ export function makeArms(id, profile={}, firstPerson=true) {
   });
   limbs[0].hand.userData.ownedMaterial=true;
   group.userData={id,limbs,appearance,progress:-1};
+  group.userData.throwProp=makeThrowProp(limbs.find(l=>l.side>0).hand);
   updateArms(group,-1);
   return group;
 }
@@ -178,6 +179,38 @@ export function updateArms(rig,progress,blaster=null,recoil=0,draw=1) {
     token.position.set(...pose.left);token.position.x+=.1;
   }
   return pose;
+}
+
+// Matching overhand throw animation for first-person and remote egg rigs.
+const THROW_RIGHT = [
+  [0,[.09,-.23,.12]], [.16,[.12,-.08,-.08]], [.34,[.20,.035,.17]],
+  [.48,[.23,.01,.30]], [.66,[.18,-.10,-.10]], [1,[.09,-.23,.12]],
+];
+const THROW_LEFT = [
+  [0,[-.10,-.14,-.43]], [.22,[-.14,-.10,-.30]], [.50,[-.16,-.14,-.34]],
+  [.78,[-.11,-.16,-.42]], [1,[-.10,-.14,-.43]],
+];
+export function throwArms(rig, progress) {
+  const t=clamp(progress,0,1),right=path(THROW_RIGHT,t),left=path(THROW_LEFT,t);
+  for(const limb of rig.userData.limbs) {
+    limb.hand.position.fromArray(limb.side<0?left:right);
+    const windup=smooth((t-.12)/.25),release=smooth((t-.36)/.18),follow=smooth((t-.48)/.23);
+    limb.hand.rotation.set(limb.side>0?-.18-windup*.52+follow*.2:-.15,
+      limb.side*(.14+release*.08),limb.side>0?.12-windup*.32-follow*.12:-.12);
+    shapeArm(limb);
+  }
+  if(rig.userData.throwProp)rig.userData.throwProp.visible=t<.46;
+  rig.userData.throwProgress=t;
+}
+function makeThrowProp(hand) {
+  const prop=new THREE.Group();prop.name='Held popper';
+  const shell=new THREE.Mesh(new THREE.SphereGeometry(.082,16,12),new THREE.MeshStandardMaterial({color:0xb9a0ed,roughness:.48,metalness:.08}));
+  shell.scale.set(.82,1.2,.82);shell.castShadow=true;prop.add(shell);
+  const band=new THREE.Mesh(new THREE.TorusGeometry(.071,.014,8,16),new THREE.MeshStandardMaterial({color:0xf5c45d,roughness:.42,metalness:.24}));
+  band.rotation.x=Math.PI/2;band.position.y=-.008;prop.add(band);
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(.027,12,8),new THREE.MeshStandardMaterial({color:0x7859b1,roughness:.4}));
+  cap.position.y=.09;prop.add(cap);prop.position.set(.01,.03,-.105);prop.visible=false;hand.add(prop);
+  return prop;
 }
 
 // Royale actions share the same sculpted, styled limbs as every weapon pose.
