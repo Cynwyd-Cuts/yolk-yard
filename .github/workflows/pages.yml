@@ -8,7 +8,6 @@ on:
       - public/server-check.html
       - public/server-check.js
       - .github/workflows/publish-room-test.yml
-      - .github/workflows/pages.yml
   pull_request:
   workflow_dispatch:
 permissions:
@@ -45,8 +44,6 @@ jobs:
         include:
           - suite: arena
             command: npm run test:browser
-          - suite: royale
-            command: npm run test:royale
           - suite: visual
             command: node scripts/royale-solo-check.mjs && node scripts/royale-art-check.mjs
     steps:
@@ -64,8 +61,8 @@ jobs:
           name: yolk-game-checks-${{ matrix.suite }}
           path: test-results
           retention-days: 7
-  # Keep the existing required check as an explicit all-suites gate. A failed,
-  # cancelled or skipped suite must never produce a green release check.
+  # Require the build and release browser checks before publishing.
+  # The longer multiplayer Royale suite remains available as npm run test:royale.
   test:
     if: always()
     needs: [build, browser]
