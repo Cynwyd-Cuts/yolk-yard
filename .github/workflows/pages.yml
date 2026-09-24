@@ -107,3 +107,5 @@ jobs:
     steps:
       - uses: actions/deploy-pages@v4
         id: deployment
+
+# Verified menu release: retain the latest stair and keybind changes.
