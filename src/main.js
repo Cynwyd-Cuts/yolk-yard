@@ -1301,6 +1301,8 @@ dialog.addEventListener('pointercancel',()=>{touchDrag=null;royaleUI.dragging=fa
 dialog.addEventListener('keydown',e=>{if(dialogType!=='royale-inventory')return;const slot=e.target.closest('[data-royale-slot]');if(slot&&e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const from=Number(slot.dataset.royaleSlot),to=(from+(e.key==='ArrowRight'?1:4))%5;inventoryAction('swap',to,from);dialog.querySelector(`[data-royale-slot="${to}"]`)?.focus();}});
 let menuTouch=null;
 const menuCanvas=$('#world');
+// Trackpads report two-finger scrolling as wheel events, unlike touchscreens.
+menuCanvas.addEventListener('wheel',e=>{if(screen!=='menu'||dialog.open||e.ctrlKey)return;e.preventDefault();const delta=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;view.menuPose.rotate(delta*(e.deltaMode===1?.045:.006));},{passive:false});
 menuCanvas.addEventListener('touchstart',e=>{if(screen!=='menu'||dialog.open)return;menuTouch=touchPair([...e.touches]);if(menuTouch){e.preventDefault();view.menuPose.rotate(0);}},{passive:false});
 menuCanvas.addEventListener('touchmove',e=>{if(screen!=='menu'||dialog.open){menuTouch=null;return;}const next=touchPair([...e.touches]);if(next&&menuTouch){e.preventDefault();view.menuPose.rotate(touchRotation(menuTouch,next,menuCanvas.clientWidth));}menuTouch=next;},{passive:false});
 for(const event of ['touchend','touchcancel'])menuCanvas.addEventListener(event,()=>{menuTouch=null;});
