@@ -6,7 +6,7 @@
               iceServers: [{urls:'stun:stun.l.google.com:19302'}] }
    TURN credentials here are PUBLIC. Use short-lived credentials from your own service.
 */
-window.YOLK_NETWORK = {relay:'wss://yolk-yard-connection-check.zachlaskin99.chatgpt.site/game'};
+window.YOLK_NETWORK = {relay:'wss://yolk-yard-relay.onrender.com/game'};
 
 // Discard credentials left by the retired access system; keep game preferences.
 for (const name of ['localStorage', 'sessionStorage']) {

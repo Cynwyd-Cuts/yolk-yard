@@ -34,7 +34,7 @@ jobs:
       - name: Verify deployed game relay
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
-          YOLK_RELAY_URL: wss://yolk-yard-connection-check.zachlaskin99.chatgpt.site/game
+          YOLK_RELAY_URL: wss://yolk-yard-relay.onrender.com/game
         run: node scripts/relay-live-check.mjs
       - run: npm run build
       - uses: actions/upload-artifact@v4
