@@ -188,7 +188,7 @@ function renderMenu() {
   $("#player-name").addEventListener("change", (e) => {
     const checked=moderateText(e.target.value,{kind:"name"});
     profile.name = safeName(e.target.value);
-    $("#name-safety").textContent=checked.ok ? "" : "That name was filtered. Please choose a friendly nickname.";
+    const nameStatus=$("#name-safety");if(nameStatus)nameStatus.textContent=checked.ok ? "" : "That name was filtered. Please choose a friendly nickname.";
     const caption=$(".character-caption strong");if(caption)caption.textContent=profile.name;
     e.target.value = profile.name;
     remember();
