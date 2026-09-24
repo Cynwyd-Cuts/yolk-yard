@@ -108,4 +108,4 @@ jobs:
       - uses: actions/deploy-pages@v4
         id: deployment
 
-# Verified menu release: retain the latest stair and keybind changes.
+# Verified menu release: includes completed keybind capture verification.
