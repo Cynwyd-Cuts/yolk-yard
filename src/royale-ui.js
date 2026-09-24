@@ -77,7 +77,7 @@ export class RoyaleUI{
   $('royale-compass').textContent=`${['N','NE','E','SE','S','SW','W','NW'][Math.round(heading/45)%8]}  ${Math.round(heading)}°${this.waypoint?'   ◆ '+Math.round(Math.hypot(p.x-this.waypoint.x,p.z-this.waypoint.z))+' m':''}`;
   $('royale-alive').textContent=r.alive;$('royale-phase').textContent=r.elapsed<35?'DROP ZONE':`STORM ${r.storm.index+1}`;
   this.drawMap($('royale-mini'),state,p);this.drawMap($('royale-fullmap'),state,p,true);
-  $('shield').textContent=Math.ceil(p.shield||0);$('shield-fill').style.width=Math.max(0,Math.min(100,p.shield||0))+'%';$('royale-stamina').textContent=Math.ceil(p.stamina||0);$('royale-stamina-fill').style.width=(p.stamina||0)+'%';
+  $('#shield').textContent=Math.ceil(p.shield||0);$('#shield-fill').style.width=Math.max(0,Math.min(100,p.shield||0))+'%';$('royale-stamina').textContent=Math.ceil(p.stamina||0);$('royale-stamina-fill').style.width=(p.stamina||0)+'%';
   const key=JSON.stringify([p.inventory,p.slot]);if(key!==this.lastKey){$('royale-hotbar').innerHTML=this.slotMarkup(p);this.lastKey=key;}
   this.updateInventory(local);
   const flight=['transport','dive','glide','launch'].includes(local.flight)&&local.health>0;
