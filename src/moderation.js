@@ -1,12 +1,11 @@
 import { RegExpMatcher, englishDataset, englishRecommendedTransformers } from 'obscenity';
-import nlp from 'compromise/two';
 import { PROFANITY_TERMS } from './profanity-terms.js';
 
 // One policy for outbound input, host admission and recipient display. Never log
 // rejected input. This is a heuristic, not a claim to detect every possible PII.
 export const CHAT_LIMIT = 180;
 export const NAME_LIMIT = 18;
-export const FILTER_VERSION = 2;
+export const FILTER_VERSION = 3;
 const matcher = new RegExpMatcher({ ...englishDataset.build(), ...englishRecommendedTransformers });
 const controls = /[\p{Cc}\p{Cf}\p{Cs}]/gu;
 const lookalikes = Object.fromEntries([...'аеорсхуіјѕһԁԛαορνικτ'].map((c, i) => [c, 'aeopcxyijshdq aopvikt'.replace(/ /g, '')[i]]));
@@ -30,7 +29,7 @@ const privacyRules = [
   /\b[a-z0-9._+-]+\s+(?:at|\[at\]|\(at\))\s+[a-z0-9.-]+\s+(?:dot|\.)/i,
   /\b(?:gmail|yahoo|hotmail|outlook|icloud|protonmail|discord|snapchat|instagram|whatsapp|telegram|tiktok|facebook|facetime|skype|onlyfans)\b/i,
   /\b(?:e[ -]?mail|phone|mobile number|cell number|address|postcode|zip code|social security|ssn|password|passcode|credit card|debit card|bank account|routing number|login|ip address|date of birth|birthday|birthdate|real name|full name|last name|surname|first name|school name|home town|hometown)\b/i,
-  /\b(?:my|your|his|her|our|their)\s+(?:age|name|school|college|university|street|city|town|location|number|snap|insta|handle|account|user\s*name)\b/i,
+  /\b(?:my|your|his|her|our|their)\s+(?:age|school|college|university|street|city|town|location|number|snap|insta|handle|account|user\s*name)\b/i,
   /\b(?:i\s*(?:am|'m)|im)\s+(?:(?:only|just|almost)\s+)?\d{1,3}\b/i,
   /\b(?:i|we|he|she|they)\s+(?:live|lives|reside|resides|study|studies|work|works)\s+(?:in|at|on|near)\b/i,
   /\b(?:i\s*(?:am|'m)|im|we are|he is|she is|they are)\s+from\b/i,
@@ -60,10 +59,9 @@ function reasonFor(text) {
   // Unsupported scripts/symbol encodings fail closed; quick chat is always
   // available. Accented Latin letters and common apostrophes are supported.
   if (/[^\x20-\x7e\u2018\u2019\u201c\u201d\u2013\u2014\u2026]/.test(folded)) return 'format';
-  // Local named-entity recognition adds common real names and locations beyond
-  // contact-detail patterns. Content never goes to an external AI service.
-  const entities=nlp(foldText(text.replace(/([a-z])([A-Z])/g,'$1 $2')).replace(/[_-]/g,' '));
-  if (entities.has('#Person') || entities.has('#Place')) return 'privacy';
+  // A name alone is not a private-detail disclosure. Do not guess identity or
+  // location from named entities: names such as Paris can also be places.
+  // The explicit contact, address and disclosure rules above still apply.
   return null;
 }
 const rejected = reason => ({ ok:false, text:'', reason });

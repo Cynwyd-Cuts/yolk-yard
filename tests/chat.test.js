@@ -38,9 +38,9 @@ test('friendly conversation, quick messages and ordinary substrings remain usabl
   const samples=[...Object.values(QUICK_MESSAGES),'Host egg','Guest egg','Blue team wins','Classical','assassin','grapes','Need 30 ammo','I am at the tower','Push left','Shells are awesome'];
   samples.forEach((s,i)=>assert.equal(moderateText(s).ok,true,`friendly case ${i}`));
 });
-test('privacy policy catches formatted and disguised contact details, disclosures and entities',()=>{
+test('privacy policy catches formatted and disguised contact details and explicit disclosures',()=>{
   const samples=['user@example.com','user at example dot com','user (at) example (dot) com','example.com','https://example.org','@example','(202) 555-0149','２１２５５５０１９９','2 0 2 5 5 5 0 1 4 9','two zero two five five five zero one four nine',
-  '123 Test Street','42 Main Rd','my name is Example','John Smith','john smith','JohnSmith','Philadelphia','my school is Example','I live near the park','I am from a city','I am sixteen','I’m 16','How old are you?','Where do you live?','my discord is example','my password is example','4111 1111 1111 1111','123-45-6789','40.1234, -75.1234'];
+  '123 Test Street','42 Main Rd','my full name is Example','my school is Example','I live near the park','I am from a city','I am sixteen','I’m 16','How old are you?','Where do you live?','my discord is example','my password is example','4111 1111 1111 1111','123-45-6789','40.1234, -75.1234'];
   samples.forEach((s,i)=>assert.equal(moderateText(s).ok,false,`privacy case ${i}`));
 });
 test('language policy rejects disguised prohibited language without echoing the input',()=>{
@@ -48,7 +48,7 @@ test('language policy rejects disguised prohibited language without echoing the 
   samples.forEach((s,i)=>{const r=moderateText(s);assert.equal(r.ok,false,`language case ${i}`);assert.equal(r.text,'');});
 });
 test('names use the same policy at profile and directory boundaries; invalid input fails closed',()=>{
-  for(const value of [null,{},'','<b>egg</b>','x'.repeat(300),profanity,'John Smith','user@example.com']){
+  for(const value of [null,{},'','<b>egg</b>','x'.repeat(300),profanity,'user@example.com']){
     assert.equal(safeName(value),'Egg');assert.equal(safeProfile({name:value}).name,'Egg');
   }
   assert.equal(safeProfile(null).name,'Egg');
@@ -56,6 +56,18 @@ test('names use the same policy at profile and directory boundaries; invalid inp
   const listing=cleanListing({code:'ABCDEFGH',host:profanity,map:'yard',mode:'ffa',players:1,phase:'lobby'});
   assert.equal(listing.host,'Egg');
   for(const value of [null,{},['hello'],'x'.repeat(CHAT_LIMIT+1),'###','<script>','%66%75','漢字'])assert.equal(moderateText(value).ok,false);
+});
+test('ordinary names pass chat, profiles and public listings without a privacy false positive',()=>{
+  for(const name of ['Alex','Sam','John Smith','john smith','JohnSmith','Zach','Jordan','Austin','Paris','London','Mary Jane']){
+    assert.equal(moderateText(name).ok,true,name);
+    assert.equal(moderateText(name,{kind:'name'}).ok,true,name);
+    assert.equal(safeName(name),name);
+    assert.equal(safeProfile({name}).name,name);
+    assert.equal(cleanListing({code:'ABCDEFGH',host:name,map:'yard',mode:'ffa',players:1,phase:'lobby'}).host,name);
+  }
+  for(const text of ['Hi Alex','Nice shot John Smith','my name is Alex','Alex won','Paris won'])assert.equal(moderateText(text).ok,true,text);
+  assert.equal(moderateText('Alex',{previous:['Hi Sam']}).ok,true);
+  for(const text of ['Alex user@example.com','Alex 202 555 0149','Alex lives at 123 Main Street','my full name is Alex Smith','I live in Philadelphia'])assert.equal(moderateText(text).ok,false);
 });
 test('host binds sender identity, routes teams privately, and isolates spectators',()=>{
   const room=new ChatRoom();
@@ -67,6 +79,13 @@ test('host binds sender identity, routes teams privately, and isolates spectator
   assert.equal(room.submit('absent',packet('Hello'),state,1000).ok,false);
   assert.equal(room.submit('bot',packet('Hello'),state,1000).ok,false);
   assert.equal(room.submit('a',packet('Hello','team'),{...state,options:{mode:'ffa'}},1000).ok,false);
+});
+test('ordinary names survive both host moderation and recipient validation',()=>{
+  const named={...state,players:state.players.map(p=>({...p,name:p.id==='a'?'John Smith':p.name}))};
+  const sent=new ChatRoom().submit('a',packet('Hi Alex'),named,1000);
+  assert.equal(sent.ok,true);assert.equal(sent.message.name,'John Smith');
+  const received=new ChatInbox().accept(sent.message,named,'host','all',1000);
+  assert.equal(received.text,'Hi Alex');assert.equal(received.name,'John Smith');
 });
 test('host rejects raw prohibited payloads, fabricated quick IDs and outdated protocol versions',()=>{
   for(const text of [profanity,slur,'pistol','words','user@example.com'])assert.equal(new ChatRoom().submit('a',packet(text),state,1000).ok,false);
