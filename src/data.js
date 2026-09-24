@@ -360,4 +360,4 @@ export function randomAppearance(random = Math.random) {
  const pick = list => list[Math.floor(random() * list.length)];
  return {color:pick(COLORS),accent:pick(COLORS),hat:Math.floor(random()*HATS.length),pattern:Math.floor(random()*PATTERNS.length),finish:Math.floor(random()*FINISHES.length),eyewear:Math.floor(random()*EYEWEAR.length)};
 }
-export const BOT_DIFFICULTIES = ['Easy','Normal','Hard','Impossible'];
+export const BOT_DIFFICULTIES = ['Casual','Intermediate','Advanced','Impossible'];

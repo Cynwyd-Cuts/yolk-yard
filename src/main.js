@@ -945,6 +945,16 @@ function playMenu(selected = playMode) {
  const selectedMode = mode(selected), royale = selected === 'royale';
  modal('Play', `<div class="play-discover"><div class="eyebrow">CHOOSE YOUR EXPERIENCE</div><div class="play-mode-grid">${MODES.map(m=>`<button class="play-mode-card play-${m.id} ${m.id===selected?'selected':''}" data-action="play-${m.id}" aria-pressed="${m.id===selected}"><span class="mode-art" aria-hidden="true">${m.id==='royale'?'◈':m.id==='ffa'?'◎':'◆ ◆'}</span><span class="eyebrow">${m.id==='royale'?'16 CONTESTANTS · ONE LIFE':'8 PLAYERS · RESPAWNS'}</span><strong>${m.name}</strong><span>${m.description}</span></button>`).join('')}</div><section class="play-selection"><div><div class="eyebrow">SELECTED MODE</div><h3>${selectedMode.name}</h3><p>${royale?'Harvest. Build. Survive the storm.':'Choose your loadout and jump into the arena.'}</p><span class="play-fill">BOT FILL ON · Empty seats fill automatically</span></div><div class="play-options"><button class="primary" data-action="${royale?'royale-queue':'public-rooms'}">${royale?'FIND PUBLIC MATCH':'BROWSE PUBLIC MATCHES'}</button><button class="secondary" data-action="play-custom">CUSTOM MATCH</button><button class="plain" data-action="play-local">PLAY WITH BOTS</button></div></section><div class="play-footer"><button class="plain" data-action="public-rooms">Browse all matches</button><button class="plain" data-action="join">Join with room code</button></div></div>`, 'play');
 }
+function botDifficultyMenu(selected = playMode) {
+ playMode = selected;
+ modal('Play with bots', `<p>Choose your bot difficulty for ${esc(mode(selected).name)}.</p><label for="local-difficulty">BOT DIFFICULTY</label><select class="field" id="local-difficulty">${BOT_DIFFICULTIES.map((name,i)=>`<option value="${i+1}">${name}</option>`).join('')}</select><button class="primary" style="margin-top:22px" data-action="confirm-local">START MATCH</button><button class="plain" data-action="back-to-play">BACK</button>`, 'bot-difficulty');
+}
+function startChosenBotMatch() {
+ const difficulty=Number($('#local-difficulty')?.value);
+ if(!Number.isInteger(difficulty)||difficulty<1||difficulty>BOT_DIFFICULTIES.length)return;
+ options=matchOptions({mode:playMode,bots:playMode==='royale'?15:7,fill:true,difficulty});
+ startLocalMatch();
+}
 function royaleHome(){modal('Yolk Royale',`<div class="royale-brief"><div class="eyebrow">SUNNYBREAK ISLAND</div><h3>One island. One surviving egg.</h3><p>Board the Eggspress, choose your drop, and carry five items plus your permanent pickaxe. Harvest wood, brick and metal, then build and edit walls, floors, stairs and roofs. Find shields, healing, impulse eggs and launch nests. Keep moving as the storm closes.</p><p class="hint">Solo · 16 contestants · Nine districts · One life</p></div><button class="primary" data-action="royale-queue">FIND PUBLIC MATCH</button><button class="secondary" data-action="royale-custom">CREATE PUBLIC / PRIVATE MATCH</button><button class="plain" data-action="royale-local">PLAY LOCAL WITH BOTS</button><p class="hint">Public matchmaking fills empty seats with bots after a 30-second lobby. Private hosts choose their rules. New players replace available bots. Hosting transfers automatically if the host leaves.</p>`,'royale-home');}
 async function quickRoyale(){
  if(state)leave(false);
@@ -981,14 +991,16 @@ const actions = {
  'play-ffa':()=>playMenu('ffa'),
  'play-teams':()=>playMenu('teams'),
  'play-custom':()=>{options=matchOptions({mode:playMode,fill:true});setupMenu();},
- 'play-local':()=>{options=matchOptions({mode:playMode,bots:playMode==='royale'?15:7,fill:true});startLocalMatch();},
+ 'play-local':()=>botDifficultyMenu(),
+ 'confirm-local':startChosenBotMatch,
+ 'back-to-play':()=>playMenu(),
   'connection-report': showConnectionReport,
   'run-connection-check': runConnectionCheck,
   'copy-connection-report': copyConnectionReport,
  'royale-home':royaleHome,
  'royale-queue':quickRoyale,
  'royale-custom':()=>{options=matchOptions({mode:'royale',fill:true});setupMenu();},
- 'royale-local':()=>{options=matchOptions({mode:'royale',bots:15,fill:true});startLocalMatch();},
+ 'royale-local':()=>botDifficultyMenu('royale'),
  'royale-map':royaleMap,
  'royale-inventory':royaleInventory,
  'royale-clear-marker':()=>{royaleUI.waypoint=null;},

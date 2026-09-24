@@ -1,8 +1,8 @@
 import {gun,weapon,mode,clamp} from './data.js';
 import {direction,wallDistance,dist,EYE,canStand} from './physics.js';
 
-// Hard/Impossible retain the former Normal/Hard aiming envelopes. Easy and
-// Normal deliberately react later, lead less, and miss more often.
+// Advanced/Impossible retain the original Normal/Hard aiming envelopes.
+// Casual/Intermediate deliberately react later, lead less, and miss more often.
 export const BOT_SKILL = [
  {reaction:.85,error:.10,hit:.30,lead:.08,cover:.12,grenade:.12,turn:2.5,burst:.26,pause:.85},
  {reaction:.52,error:.067,hit:.48,lead:.27,cover:.35,grenade:.3,turn:3.6,burst:.44,pause:.62},

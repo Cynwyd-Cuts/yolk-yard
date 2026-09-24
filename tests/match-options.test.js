@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {Simulation} from '../src/simulation.js';
 import {matchOptions} from '../src/match-options.js';
 import {MAPS} from '../src/maps.js';
+import {BOT_DIFFICULTIES} from '../src/data.js';
+test('bot difficulty labels preserve their numeric skill levels',()=>{
+ assert.deepEqual(BOT_DIFFICULTIES,['Casual','Intermediate','Advanced','Impossible']);
+ for(const gameMode of ['ffa','teams','royale'])for(let difficulty=1;difficulty<=4;difficulty++){
+  assert.equal(BOT_DIFFICULTIES[matchOptions({mode:gameMode,difficulty}).difficulty-1],BOT_DIFFICULTIES[difficulty-1]);
+ }
+});
 test('round rules bound invalid values and use mode-specific defaults',()=>{
  assert.equal(matchOptions({mode:'capture'}).mode,'ffa');
  assert.equal(matchOptions({mode:'control'}).mode,'ffa');
