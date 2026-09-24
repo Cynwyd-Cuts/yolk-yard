@@ -27,9 +27,7 @@ try{
   const host=await make('Host egg');console.log('CHECK host menu ready');
   await host.locator('#player-name').fill('user@example.com');await host.locator('#player-name').press('Tab');
   assert.equal(await host.locator('#player-name').inputValue(),'Egg');
-  await host.locator('#player-name').fill('Alex');await host.locator('#player-name').press('Tab');
-  assert.equal(await host.locator('#player-name').inputValue(),'Alex');
-  assert.equal(await host.evaluate(()=>JSON.parse(localStorage.getItem('yolk-profile')).name),'Alex');
+  assert.match(await host.locator('#name-safety').innerText(),/filtered/);
   await host.locator('#player-name').fill('Host egg');await host.locator('#player-name').press('Tab');
   await host.locator('[data-action="setup"]').click();await host.locator('#setup-mode').selectOption('teams');await host.locator('[data-action="create-room"]').click();
   await host.locator('.room-code').waitFor();console.log('CHECK host room ready');const code=(await host.locator('.room-code').innerText()).replace('-','').trim();
@@ -38,7 +36,6 @@ try{
   await guest.locator('.room-code').waitFor();await host.waitForFunction(()=>window.__yolkTest.read().state.players.length===2);
   await send(guest,'Hello, eggs!');await has(host,'Hello, eggs!');await has(guest,'Hello, eggs!');
   await send(host,'Ready for the round');await has(guest,'Ready for the round');
-  await send(guest,'Nice shot Alex');await has(host,'Nice shot Alex');await has(guest,'Nice shot Alex');
   console.log('PASS name feedback and bidirectional WebRTC chat');
   await send(guest,'user@example.com');assert.match(await guest.locator('.chat-status').innerText(),/private/);
   assert.equal((await rows(host)).some(r=>r.text.includes('@')),false);

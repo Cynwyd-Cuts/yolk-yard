@@ -749,11 +749,41 @@ body.in-game #hud {
   gap: 20px;
 }
 .health-card {
-  background: #172b39ed;
-  border-radius: 12px;
-  padding: 15px 18px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   width: 200px;
 }
+.vital-row {
+  display: grid;
+  grid-template-columns: 18px 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  color: #fff;
+  font: 800 11px/1 system-ui, sans-serif;
+  text-shadow: 0 1px 3px #071521;
+  margin-top: 3px;
+}
+.vital-icon { width: 16px; text-align: center; font-size: 14px; }
+.shield-row .vital-icon { color: #6fd4ff; }
+.health-row .vital-icon { color: #b9ff70; }
+.vital-value { text-align: right; }
+.vital-bar {
+  height: 11px;
+  background: #273641dd;
+  border: 1px solid #ecf5ff99;
+  overflow: hidden;
+  box-shadow: 0 1px 3px #07152188;
+}
+.vital-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transition: width .12s ease-out;
+}
+.shield-bar span { background: #54c9f4; }
+.health-bar span { background: #91d746; }
+.health-card .ammo-extra { margin-top: 7px; }
 .health-label {
   display: flex;
   justify-content: space-between;
