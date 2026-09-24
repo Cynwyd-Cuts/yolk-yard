@@ -1,5 +1,6 @@
 import {buildIsland,RoyaleView} from './royale-view.js';
 import {stairCamera} from './stair-camera.js';
+import {MenuPose} from './menu-pose.js';
 import * as THREE from "three";
 import {equipPose} from "./equip.js";
 import { makeArms, updateArms, reloadProgress, utilityArms, throwArms, armAppearance } from "./arms.js";
@@ -236,6 +237,7 @@ export class View {
     this.localThrowStart = -Infinity;
     this.mapId = null;
     this.menuEgg = null;
+    this.menuPose = new MenuPose();
     this.localWeapon = null;
     this.gunGroup = new THREE.Group();
     this.gunGroup.scale.setScalar(VIEWMODEL.scale);
@@ -395,10 +397,20 @@ export class View {
     this.menuEgg = makeEgg(profile, -1);
     this.menuEgg.scale.setScalar(2.3);
     this.menuEgg.position.set(0, 0.08, 0);
+    const held=this.menuEgg.userData.held;held.updateMatrix();
+    this.menuShoulders=this.menuEgg.userData.arms.userData.limbs.map(l=>l.shoulder.clone().applyMatrix4(held.matrix));
     this.scene.add(this.menuEgg);
+  }
+  aimMenu(clientX,clientY){
+    const r=this.canvas.getBoundingClientRect();
+    const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((clientX-r.left)/r.width*2-1,1-(clientY-r.top)/r.height*2),this.camera);
+    const origin=new THREE.Vector3(0,2.8,0),normal=this.camera.getWorldDirection(new THREE.Vector3());
+    const point=ray.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(normal,origin.clone().lerp(this.camera.position,.5)),new THREE.Vector3());
+    if(point){point.sub(origin);this.menuPose.aim(Math.atan2(-point.x,-point.z),Math.atan2(point.y,Math.hypot(point.x,point.z)));}
   }
   diagnostics() {
     return {
+      menuPose: this.menuPose,
       weapon: this.localWeapon,
       draw: this.drawPresentation,
       outgoing: !!this.outgoing,
@@ -720,8 +732,12 @@ export class View {
     if (!playing) {
       this.clearOutgoing(this);
       this.preview(profile);
-      this.menuEgg.rotation.y =
-        Math.PI + 0.25 + Math.sin(this.clock * 0.25) * 0.2;
+      const pose=this.menuPose.update(dt),held=this.menuEgg.userData.held;
+      this.menuEgg.rotation.y=pose.yaw;
+      held.position.set(pose.x,pose.y,pose.z);held.rotation.set(pose.pitch,0,pose.roll,'YXZ');held.updateMatrix();
+      const inverse=held.matrix.clone().invert();
+      this.menuEgg.userData.arms.userData.limbs.forEach((l,i)=>{l.shoulder.copy(this.menuShoulders[i]).applyMatrix4(inverse);l.lastWrist.set(Infinity,Infinity,Infinity);});
+      updateArms(this.menuEgg.userData.arms,-1,this.menuEgg.userData.blaster);
       this.camera.position.set(7.5, 5.2, 12.5);
       this.camera.lookAt(0, 1.7, 0);
       this.camera.fov = 51;

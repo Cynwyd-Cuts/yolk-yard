@@ -7,7 +7,15 @@ const browser=await chromium.launch({headless:true,...(process.env.YOLK_TEST_CHR
 const page=await browser.newPage({viewport:{width:1100,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(30000);
 try{
  await page.addInitScript(()=>localStorage.setItem('yolk-settings',JSON.stringify({quality:'low',volume:0})));
- await page.goto('http://127.0.0.1:5188');await page.locator('[data-action="settings"]').click();
+ await page.goto('http://127.0.0.1:5188/?qa=1');
+ await page.waitForFunction(()=>window.__yolkTest?.read().presentation?.menuPose);
+ await page.mouse.move(800,130);await page.waitForFunction(()=>window.__yolkTest.read().presentation.menuPose.aimPitch>.1);
+ await page.mouse.move(800,780);await page.waitForFunction(()=>window.__yolkTest.read().presentation.menuPose.aimPitch<-.1);
+ await page.evaluate(()=>{const canvas=document.querySelector('#world');const send=(type,x)=>{const touches=[new Touch({identifier:1,target:canvas,clientX:x,clientY:300}),new Touch({identifier:2,target:canvas,clientX:x+70,clientY:350})];canvas.dispatchEvent(new TouchEvent(type,{touches,targetTouches:touches,bubbles:true,cancelable:true}));};send('touchstart',400);send('touchmove',500);canvas.dispatchEvent(new TouchEvent('touchend',{touches:[],bubbles:true}));});
+ assert.ok(await page.evaluate(()=>window.__yolkTest.read().presentation.menuPose.spin>.4));
+ await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/menu-aim.png'});
+ console.log('PASS home egg mouse pitch and two-finger spin');
+ await page.locator('[data-action="settings"]').click();
  const slot=(action,index=0)=>page.locator(`[data-bind="${action}"][data-bind-slot="${index}"]`);
  await slot('jump',1).click();await page.keyboard.press('KeyW');
  assert.equal(await slot('forward').innerText(),'Unbound');assert.equal(await slot('jump',1).innerText(),'W');

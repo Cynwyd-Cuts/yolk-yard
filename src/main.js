@@ -11,6 +11,7 @@ import { moderateText, safeName } from "./moderation.js";
 import {matchOptions, targetLabel} from "./match-options.js";
 import "./style.css";
 import {KeybindEditor} from "./keybind-editor.js";
+import {touchPair,touchRotation} from './menu-pose.js';
 import { CONTROLS, normalizeBindings, bindingDown, bindingLabel } from "./keybinds.js";
 import { RELEASES, RELEASE } from "./releases.js";
 import { UpdateWatcher } from "./updates.js";
@@ -1256,6 +1257,7 @@ function aimSensitivity() {
   return aiming ? settings.scopeSensitivity : 1;
 }
 document.addEventListener("mousemove", (e) => {
+  if(screen==='menu'&&!dialog.open&&(e.movementX||e.movementY))view.aimMenu(e.clientX,e.clientY);
   if (
     screen !== "game" ||
     paused ||
@@ -1297,6 +1299,12 @@ dialog.addEventListener('pointermove',e=>{if(touchDrag&&Math.hypot(e.clientX-tou
 dialog.addEventListener('pointerup',e=>{if(!touchDrag)return;const slot=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-royale-slot]'),from=touchDrag.from;touchDrag=null;const dragged=royaleUI.dragging;royaleUI.dragging=false;if(dragged&&slot&&Number(slot.dataset.royaleSlot)!==from)inventoryAction('swap',Number(slot.dataset.royaleSlot),from);});
 dialog.addEventListener('pointercancel',()=>{touchDrag=null;royaleUI.dragging=false;});
 dialog.addEventListener('keydown',e=>{if(dialogType!=='royale-inventory')return;const slot=e.target.closest('[data-royale-slot]');if(slot&&e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const from=Number(slot.dataset.royaleSlot),to=(from+(e.key==='ArrowRight'?1:4))%5;inventoryAction('swap',to,from);dialog.querySelector(`[data-royale-slot="${to}"]`)?.focus();}});
+let menuTouch=null;
+const menuCanvas=$('#world');
+menuCanvas.addEventListener('touchstart',e=>{if(screen!=='menu'||dialog.open)return;menuTouch=touchPair([...e.touches]);if(menuTouch){e.preventDefault();view.menuPose.rotate(0);}},{passive:false});
+menuCanvas.addEventListener('touchmove',e=>{if(screen!=='menu'||dialog.open){menuTouch=null;return;}const next=touchPair([...e.touches]);if(next&&menuTouch){e.preventDefault();view.menuPose.rotate(touchRotation(menuTouch,next,menuCanvas.clientWidth));}menuTouch=next;},{passive:false});
+for(const event of ['touchend','touchcancel'])menuCanvas.addEventListener(event,()=>{menuTouch=null;});
+window.addEventListener('blur',()=>{menuTouch=null;});
 document.addEventListener('wheel',e=>{if(screen==='game'&&!paused&&!dialog.open&&!chat.opened&&e.deltaY){e.preventDefault();const code=e.deltaY>0?'WheelDown':'WheelUp';pressControl(code);keys.delete(code);}},{passive:false});
 document.addEventListener("contextmenu", (e) => {
   if (screen === "game" || (dialog.open&&dialogType==='settings'&&!e.target.matches('input,textarea'))) e.preventDefault();
