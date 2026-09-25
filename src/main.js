@@ -1,4 +1,7 @@
 import {GuestPresentation} from './guest-presentation.js';
+import {predictMovement} from './guest-movement.js';
+import {GuestFire} from './guest-fire.js';
+const guestFire=new GuestFire();
 const guestPresentation=new GuestPresentation();
 import {applyBuildState} from './building.js';
 import {BuildingUI} from './building-ui.js';
@@ -462,7 +465,7 @@ function callbacks() {
       pendingInputs = pendingInputs.filter((i) => i.seq > me.ack);
       predicted = { ...me, ammo: [...me.ammo], reserve: [...me.reserve] };
       for (const i of pendingInputs)
-        movePlayer(predicted, i, getMap(s.options.map), 1 / 60);
+        predictMovement(predicted, i, getMap(s.options.map), 1 / 60, s.royale);
       if (me.health > 0 && lastHealth <= 0) {
         input.yaw = me.yaw;
         input.pitch = me.pitch;
@@ -617,6 +620,7 @@ function launchRound(){
 }
 function startLocalMatch() {autoQueue=false;beginSim();launchRound();}
 function enterGame(capture = false) {
+  guestFire.reset();
   resultAt=0;$("#round-banner").hidden=true;
   screen = "game";
   $("#menu").hidden = true;
@@ -768,6 +772,7 @@ function processEvents() {
     if (e.id <= lastEvent) continue;
     lastEvent = e.id;
     if (state.time - e.time > 1.6) continue;
+    if(!sim&&state.royale&&e.player===localId&&guestFire.confirm(e,performance.now()/1000))continue;
     view.event(e, localId);
     const me = state.players.find((p) => p.id === localId);
     sound.event(e,me,state);
@@ -1463,8 +1468,12 @@ function loop(now) {
       const me = state.players.find((p) => p.id === localId);
       if (me?.health > 0) {
         if (!predicted) predicted = { ...me };
-        movePlayer(predicted, i, getMap(state.options.map), 1 / 60);
+        predictMovement(predicted, i, getMap(state.options.map), 1 / 60, state.royale);
         predicted.moving = Math.abs(i.forward) + Math.abs(i.strafe) > 0.1;
+        if(state.royale){
+          const shot=guestFire.step(predicted,i,Math.max(state.time,guestPresentation.time),now/1000,state.round);
+          if(shot){view.event(shot,localId);sound.shot(shot.weapon,0,shot.origin);}
+        }
         pendingInputs.push(i);
         if (pendingInputs.length > 180) pendingInputs.shift();
       }
@@ -1476,7 +1485,7 @@ function loop(now) {
       const humans=[...sim.players.values()].filter(p=>!p.bot).length;
       if(sim.time>=sim.queueEnds||humans>=sim.options.capacity)launchRound();
     }
-    if (net?.isHost && broadcastClock >= (state.royale?.1:.05)) {
+    if (net?.isHost && broadcastClock >= .05) {
       net.broadcast(state); broadcastClock = 0;
     }
 
@@ -1510,7 +1519,7 @@ function loop(now) {
   const presentation=!sim&&state?.royale?guestPresentation.frame(state,renderPlayer,now,dt):{state,player:renderPlayer};
   view.update(
     presentation.state,
-    me,
+    !sim&&state?.royale&&presentation.player?.health>0?presentation.player:me,
     presentation.player,
     dt,
     screen === "game",

@@ -1,9 +1,11 @@
 import {transportAt} from './royale-data.js';
+import {RemotePoses} from './remote-poses.js';
 // Presentation only. Simulation, hit tests and input acknowledgements retain
 // authoritative positions and times; never feed these values back to gameplay.
 export class GuestPresentation {
- constructor(){this.key=null;this.offset={x:0,y:0,z:0};this.received=0;this.time=0;}
+ constructor(){this.key=null;this.offset={x:0,y:0,z:0};this.received=0;this.time=0;this.poses=new RemotePoses();}
  receive(state,before,after,now){
+  this.poses.receive(state);
   const key=`${state.royale?.matchId}:${state.round}:${after?.id}:${after?.health>0}:${after?.flight}`;
   const continuous=this.key===key&&before&&after&&after.health>0;
   const correction=continuous?{x:before.x+this.offset.x-after.x,y:before.y+this.offset.y-after.y,z:before.z+this.offset.z-after.z}:{x:0,y:0,z:0};
@@ -22,6 +24,10 @@ export class GuestPresentation {
   if(player?.health>0){
    player=player.flight==='transport'?{...player,...transportAt(state.royale.route,elapsed)}:{...player,x:player.x+this.offset.x,y:player.y+this.offset.y,z:player.z+this.offset.z};
   }
+  visual.players=this.poses.players(state,player,state.time+advance);
+  // Projectiles already support bounded extrapolation in View. Keep the packet
+  // timestamp separate from the smoothly advancing animation clock.
+  visual.snapshotTime=state.time;
   return {state:visual,player};
  }
 }

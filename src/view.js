@@ -924,7 +924,7 @@ export class View {
         model.position.copy(base);
         let delta = p.yaw - model.rotation.y;
         delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-        model.rotation.y += delta * Math.min(1, dt * 18);
+        model.rotation.y = p.id===local?.id ? p.yaw : model.rotation.y + delta * Math.min(1, dt * 18);
         model.scale.setScalar(
           state.time < p.shieldUntil
             ? 1.03 + Math.sin(this.clock * 10) * 0.02
@@ -959,8 +959,8 @@ export class View {
         }
       this.muzzleEffects();
       const active = new Set();
-      if (this.lastSnapshotTime !== state.time) {
-        this.lastSnapshotTime = state.time;
+      if (this.lastSnapshotTime !== (state.snapshotTime??state.time)) {
+        this.lastSnapshotTime = state.snapshotTime??state.time;
         this.snapshotAge = 0;
       } else this.snapshotAge = Math.min(0.075, (this.snapshotAge || 0) + dt);
       for (const b of state.projectiles) {

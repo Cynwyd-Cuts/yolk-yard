@@ -868,6 +868,7 @@ export class Simulation {
       "pitch",
       "grounded",
       "jumpLatch",
+      "lastJumpPress", "nextShot", "fireLatch",
       "health",
       "kills",
       "deaths",

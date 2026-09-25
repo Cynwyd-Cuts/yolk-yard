@@ -116,7 +116,7 @@ export class RelayPeer extends Events {
   if(this.queueBytes+bytes>1_800_000){this.emit('error',{type:'server-error'});this.destroy();return;}
   this.queue.push(message);this.queueBytes+=bytes;const conn=this.connections.get(message.channel);if(conn)conn.queuedBytes+=bytes;
   if(this.queue.length>=64||this.queueBytes>200000)this.flush();
-  else if(!this.flushTimer)this.flushTimer=setTimeout(()=>this.flush(),30);
+  else if(!this.flushTimer)this.flushTimer=setTimeout(()=>this.flush(),8);
  }
  flush(){
   if(this.destroyed)return;
