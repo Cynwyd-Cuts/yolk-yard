@@ -132,6 +132,7 @@ export class Simulation {
     p.nextProfile = safe;
     p.name=safe.name;
     if (this.phase === "lobby" || p.health <= 0) Object.assign(p, safe);
+    this.teamAppearance(p);
     return true;
   }
   setInput(id, input, remote = false) {
@@ -241,10 +242,22 @@ export class Simulation {
     p.nextPlayerAction = 0;
     this.inputs.delete(p.id);this.remoteInputs.delete(p.id);
   }
+  teamAppearance(p) {
+    if(this.options.mode==='teams') Object.assign(p,{color:p.team===0?'#3d8ce8':'#d94949',accent:p.team===0?'#3d8ce8':'#d94949',pattern:0});
+  }
   playerAction(id, action) {
     const p = this.players.get(id);
     if (!p || p.bot || this.phase !== "playing" ||
         this.time < (p.nextPlayerAction || 0)) return;
+    if(/^team-entry-[01]$/.test(action)) {
+      if(this.options.mode!=='teams'||(!p.awaitingEntry&&!p.spectating))return;
+      const counts=[0,0];
+      for(const other of this.players.values())if(other.id!==id&&!other.spectating)counts[other.team]++;
+      const requested=Number(action.slice(-1));
+      p.team=counts[requested]-counts[1-requested]>=2?1-requested:requested;
+      this.teamAppearance(p);
+      action='rejoin';
+    }
     if (!["respawn", "spectate", "rejoin"].includes(action)) return;
     if (action === "rejoin" && !p.spectating && !p.awaitingEntry) return;
     if (action === "respawn" && p.spectating) return;
@@ -271,6 +284,7 @@ export class Simulation {
       Object.assign(p, p.nextProfile);
       delete p.nextProfile;
     }
+    this.teamAppearance(p);
     const spot=this.safeSpawn(p);
     if(!spot){p.health=0;p.spawnRequested=true;p.respawnAt=this.time+.5;return;}
     Object.assign(p, spot, {
@@ -791,7 +805,7 @@ export class Simulation {
           ? "A perfect tie"
           : this.scores[0] > this.scores[1]
             ? "Blue team wins"
-            : "Coral team wins";
+            : "Red team wins";
     else {
       const sorted = [...this.players.values()].sort(
         (a, b) => b.kills - a.kills,

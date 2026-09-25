@@ -199,7 +199,7 @@ export class Network {
       }
       if (!accepted) return;
       if (msg.type === "input") this.callbacks.onInput?.(conn.peer, msg.input);
-      else if (msg.type === "player-action" && (["respawn", "spectate", "rejoin"].includes(msg.action)||/^inventory-(select-[0-4]|drop-[0-4]|drop-one-[0-4]|split-[0-4]|swap-[0-4]-[0-4])$/.test(msg.action)))
+      else if (msg.type === "player-action" && (["respawn", "spectate", "rejoin", "team-entry-0", "team-entry-1"].includes(msg.action)||/^inventory-(select-[0-4]|drop-[0-4]|drop-one-[0-4]|split-[0-4]|swap-[0-4]-[0-4])$/.test(msg.action)))
         this.callbacks.onPlayerAction?.(conn.peer, msg.action);
       else if (msg.type === "profile") {
         const profile=safeProfile(msg.profile);

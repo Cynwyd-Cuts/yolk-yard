@@ -73,6 +73,7 @@ export function eggGeometry() {
 }
 const eggGeo = eggGeometry();
 export function makeEgg(profile, team = -1, withWeapon = true) {
+  if(team>=0)profile={...profile,color:team===0?"#3d8ce8":"#d94949",accent:team===0?"#3d8ce8":"#d94949",pattern:0};
   const group = new THREE.Group(),
     body = new THREE.Mesh(eggGeo, patternedShell(profile));
   body.userData.ownedMaterial = true;

@@ -317,7 +317,7 @@ export const EYEWEAR = ["Classic visor", "Round goggles", "Sunglasses", "Cyclops
 // Append the plain option so existing saved eyewear IDs keep their meaning.
 export const NO_EYEWEAR = 6;
 const cosmeticIndex = (value, options) => Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) < options.length ? Number(value) : 0;
-export const TEAM_COLORS = [0x47c5e0, 0xfb7f70];
+export const TEAM_COLORS = [0x3d8ce8, 0xd94949];
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const weapon = (id) => WEAPONS.find((w) => w.id === id) || ROYALE_WEAPONS.find(w => w.id === id) || WEAPONS[0];
 export const gun = (p) => {

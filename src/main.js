@@ -286,7 +286,7 @@ function customizeMenu() {
     headwear: () => `<h3>Headwear <small>20 styles</small></h3>${choices("hat", HATS)}`,
     eyewear: () => `<h3>Eyewear</h3>${choices("eyewear", EYEWEAR)}<h3>Accessory color</h3>${colors("accent")}`,
   };
-  modal("Egg studio", `<div class="egg-studio"><div class="egg-studio-preview"><img src="${view.eggPortrait(profile)}" alt="Your customized egg with matching arms and hands"><div class="eyebrow">YOUR SIGNATURE SHELL</div><strong>${HATS[profile.hat]} · ${PATTERNS[profile.pattern]}</strong><p>Shell color, pattern and finish also apply to your arms and hands. Changes save automatically.</p><button class="secondary" data-action="shuffle-egg">Shuffle look</button><button class="plain" data-action="reset-egg">Reset appearance</button></div><div class="egg-studio-options"><div class="studio-tabs" role="group" aria-label="Customization categories">${[["shell","Shell"],["pattern","Patterns"],["headwear","Headwear"],["eyewear","Eyewear"]].map(([id,label])=>`<button aria-pressed="${id===customTab}" data-custom-tab="${id}" class="${id===customTab ? "active" : ""}">${label}</button>`).join("")}</div><div>${sections[customTab]()}</div><p class="hint">Cosmetic only. Team matches keep your team-colored band.</p><button class="primary" data-action="close">Looking good</button></div></div>`, "customize");
+  modal("Egg studio", `<div class="egg-studio"><div class="egg-studio-preview"><img src="${view.eggPortrait(profile)}" alt="Your customized egg with matching arms and hands"><div class="eyebrow">YOUR SIGNATURE SHELL</div><strong>${HATS[profile.hat]} · ${PATTERNS[profile.pattern]}</strong><p>Shell color, pattern and finish also apply to your arms and hands. Changes save automatically.</p><button class="secondary" data-action="shuffle-egg">Shuffle look</button><button class="plain" data-action="reset-egg">Reset appearance</button></div><div class="egg-studio-options"><div class="studio-tabs" role="group" aria-label="Customization categories">${[["shell","Shell"],["pattern","Patterns"],["headwear","Headwear"],["eyewear","Eyewear"]].map(([id,label])=>`<button aria-pressed="${id===customTab}" data-custom-tab="${id}" class="${id===customTab ? "active" : ""}">${label}</button>`).join("")}</div><div>${sections[customTab]()}</div><p class="hint">Cosmetic only. Team matches use your team’s blue or red shell.</p><button class="primary" data-action="close">Looking good</button></div></div>`, "customize");
 }
 function helpMenu() {
   modal(
@@ -640,9 +640,14 @@ function enterGame(capture = false) {
   dialog.close();
   dialogType = "";
   // Join the match as an inactive egg; only the entry button requests a spawn.
-  resume(state.options.mode==='royale' && capture);
+  resume(state.options.mode==='royale');
 
 }
+function mouseCapturePrompt() {
+  if(screen==='game' && !document.pointerLockElement && state?.royale)
+    modal("Enter Battle Royale", `<p>Click to capture your mouse and look around.</p><button class="primary" data-action="resume">ENTER GAME</button>`, "ready");
+}
+document.addEventListener('pointerlockerror',mouseCapturePrompt);
 async function resume(capture = true) {
   dialog.close();
   dialogType = "";
@@ -660,8 +665,8 @@ async function resume(capture = true) {
       const result = $("#world").requestPointerLock();
       if (result?.catch) await result;
     } catch {
-      pauseMenu();
-      toast("Mouse lock was unavailable. Press Resume to try again.");
+      if(state?.royale)mouseCapturePrompt();
+      else pauseMenu();
     }
   }
 }
@@ -673,7 +678,13 @@ function switchSpectator(step) {
   const index = players.findIndex(p => p.id === spectateTarget);
   spectateTarget = players.length ? players[(index + step + players.length) % players.length].id : null;
 }
+function chooseTeam() {
+  const counts=[0,0];
+  for(const p of state?.players||[]) if(p.id!==localId&&!p.spectating) counts[p.team]++;
+  modal('Choose your team', `<p>Pick a team before entering Team Scramble. When a team leads by two players, join the smaller team.</p><div class="split-actions">${['BLUE','RED'].map((name,team)=>`<button class="primary" data-action="team-entry-${team}" ${counts[team]-counts[1-team]>=2?'disabled':''}>${name} · ${counts[team]} players</button>`).join('')}</div>`, 'team-choice');
+}
 function playerAction(action) {
+  if(state?.options.mode==='teams' && action==='rejoin') {chooseTeam();return;}
   spawnIntentUntil = action === "spectate" ? 0 : performance.now() + 5000;
   if (sim) { sim.playerAction(localId, action); state = sim.snapshot(); }
   else net?.send({type: "player-action", action});
@@ -1038,6 +1049,8 @@ const actions = {
   'royale-inspect':()=>{royaleUI.inspect=!royaleUI.inspect;royaleUI.updateInventory(state.players.find(p=>p.id===localId));},
   updates: () => modal("Update history", RELEASES.map(r =>
     `<article class="release-note"><div class="eyebrow">UPDATE ${esc(r.number)}</div><h3>${esc(r.title)}</h3><ul>${r.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul></article>`).join("")),
+  "team-entry-0": () => playerAction("team-entry-0"),
+  "team-entry-1": () => playerAction("team-entry-1"),
   "enter-yard": () => playerAction(state?.players.find(p => p.id === localId)?.awaitingEntry ? "rejoin" : "respawn"),
   setup: () => setupMenu(false),
   "match-settings": () => setupMenu(true),
