@@ -1,8 +1,9 @@
+import {FrameStats} from './frame-stats.js';
 // Only fixed status labels are retained. Never record peer IDs, ICE candidates,
 // addresses, credentials, names, room codes, or raw exception messages.
 const stages = ['service', 'directory', 'host'];
 export class ConnectionReport {
-  constructor() { this.rows = Object.fromEntries(stages.map(key => [key, {status:'Not checked', detail:'No check yet.'}])); }
+  constructor() { this.performance=new FrameStats(); this.rows = Object.fromEntries(stages.map(key => [key, {status:'Not checked', detail:'No check yet.'}])); }
   set(stage, status, detail) {
     if (!stages.includes(stage)) return;
     this.rows[stage] = {status, detail, at:new Date().toISOString()};
@@ -10,6 +11,7 @@ export class ConnectionReport {
   text(build) {
     return ['Yolk Yard connection report', 'Build: ' + build,
       ...stages.map(key => {const r=this.rows[key];return key + ': ' + r.status + ' — ' + r.detail + (r.at ? ' ['+r.at+']' : '');}),
+      this.performance.text(),
       'These results cannot prove a school firewall is the cause.',
       'No room codes, names, IP addresses or credentials are included.'].join('\n');
   }

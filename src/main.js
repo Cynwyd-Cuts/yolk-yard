@@ -1,3 +1,5 @@
+import {GuestPresentation} from './guest-presentation.js';
+const guestPresentation=new GuestPresentation();
 import {applyBuildState} from './building.js';
 import {BuildingUI} from './building-ui.js';
 import {arenaBonuses,BONUS_NAMES,bonusStatus} from './streaks.js';
@@ -450,6 +452,7 @@ function callbacks() {
     onInput: (id, i) => sim?.setInput(id, i, true),
     onProfile: (id, p) => sim?.setProfile(id, p),
     onState: (s) => {
+      const updateStarted=performance.now(),previousPrediction=predicted;
       if(s.royale&&!s.royale.builds&&state?.royale)s.royale={...s.royale,builds:state.royale.builds,worldDamage:state.royale.worldDamage};
       if(s.royale)applyBuildState(view.buildMap,s.royale);
       if(s.royale&&!s.royale.loot&&state?.royale)s.royale={...s.royale,loot:state.royale.loot,chests:state.royale.chests};
@@ -466,8 +469,10 @@ function callbacks() {
         input.slot = s.royale?me.slot:0;
         pendingInputs = [];
       }
+      if(s.royale)guestPresentation.receive(s,previousPrediction,predicted,performance.now());
       lastHealth = me.health;
       handleState();
+      connectionReport.performance.update(performance.now()-updateStarted,pendingInputs.length);
     },
     onError: (message) => {
       leave(false);
@@ -1438,6 +1443,7 @@ let lastTime = performance.now(),
   lobbyClock = 0;
 function loop(now) {
   if(state?.royale)applyBuildState(view.buildMap,state.royale);
+  if(screen==='game'&&!document.hidden)connectionReport.performance.frame(now-lastTime,net?.isHost?'host':net?'guest':'local',state?.options.mode||'unknown');
   const dt = Math.min(0.1, (now - lastTime) / 1000);
   lastTime = now;
   accumulator += dt;
@@ -1501,10 +1507,11 @@ function loop(now) {
     renderPlayer.yaw = input.yaw;
     renderPlayer.pitch = input.pitch;
   }
+  const presentation=!sim&&state?.royale?guestPresentation.frame(state,renderPlayer,now,dt):{state,player:renderPlayer};
   view.update(
-    state,
+    presentation.state,
     me,
-    renderPlayer,
+    presentation.player,
     dt,
     screen === "game",
     !paused && !chat.opened && (actionDown("aim") || touch.aim),
