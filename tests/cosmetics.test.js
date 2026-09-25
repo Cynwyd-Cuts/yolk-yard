@@ -7,7 +7,7 @@ test("all cosmetic choices survive profile validation and multiplayer snapshots"
   sim.addPlayer("styled", {});
   for(let i=0;i<24;i++) {
     const profile = {name:"Styled", weapon:"needle", color:COLORS[i], accent:COLORS[23-i], hat:i%HATS.length, pattern:i%PATTERNS.length, finish:i%FINISHES.length, eyewear:i%EYEWEAR.length};
-    assert.deepEqual(safeProfile(profile), profile);
+    assert.deepEqual(safeProfile(profile), {...profile,outfit:'',wrap:'',pickaxe:'',backbling:'',glider:'',trail:''});
     sim.setProfile("styled", profile);
     const remote = sim.snapshot().players.find(p=>p.id==="styled");
     for(const key of Object.keys(profile)) assert.equal(remote[key], profile[key], key);

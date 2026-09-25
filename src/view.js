@@ -1,4 +1,6 @@
 import {buildIsland,RoyaleView} from './royale-view.js';
+import {shopItem} from './shop-catalog.js';
+import {addShopOutfit,makeShopBack,makeShopPickaxe,makeShopGlider,makeShopTrail} from './shop-models.js';
 import {stairCamera} from './stair-camera.js';
 import {MenuPose} from './menu-pose.js';
 import * as THREE from "three";
@@ -141,8 +143,10 @@ export function makeEgg(profile, team = -1, withWeapon = true) {
     leaf.rotation.z = 0.4;
   }
   addHeadwear(group, profile, {ball, block, cylinder, mat});
+  addShopOutfit(group,profile);
+  if(shopItem(profile.backbling)){const back=makeShopBack(profile.backbling);back.position.set(0,.95,.47);group.add(back);}
   if (withWeapon) {
-    const blaster = makeBlaster(profile.weapon);
+    const blaster = makeBlaster(profile.weapon,profile.wrap);
     const held = new THREE.Group();
     held.position.set(VIEWMODEL.x, EYE + VIEWMODEL.y, VIEWMODEL.z);
     held.scale.setScalar(VIEWMODEL.scale);
@@ -458,6 +462,24 @@ export class View {
       this.portraits.set(id, weaponPortrait(this.renderer, id));
     return this.portraits.get(id);
   }
+  shopPortrait(item,angle=0){
+    this.shopPortraits??=new Map();const key=item.id+':'+angle;if(this.shopPortraits.has(key))return this.shopPortraits.get(key);
+    if(!this.portraitRenderer){this.portraitRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true});this.portraitRenderer.setPixelRatio(1);}
+    this.portraitRenderer.setSize(320,320);
+    const scene=new THREE.Scene();scene.add(new THREE.HemisphereLight(0xffffff,0x768697,3));const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(-3,5,-4);scene.add(light);
+    let model;
+    if(item.slot==='outfit')model=makeEgg({...item.profile,outfit:item.id},-1,false);
+    else if(item.slot==='wrap')model=makeBlaster('sprinter',item.id);
+    else if(item.slot==='pickaxe')model=makeShopPickaxe(item.id);
+    else if(item.slot==='backbling')model=makeShopBack(item.id);
+    else if(item.slot==='glider')model=makeShopGlider(item.id);
+    else if(item.slot==='trail'){model=makeEgg({color:item.color,eyewear:6},-1,false);model.add(makeShopTrail(item.id));}
+    else model=makeEgg({color:'#fff6da',accent:'#3d8ce8',eyewear:6,...item.profile},-1,false);
+    model.rotation.y=angle+(item.slot==='wrap'?1.15:item.slot==='backbling'?Math.PI:-.35);scene.add(model);
+    const bounds=new THREE.Box3().setFromObject(model),center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());model.position.sub(center);
+    const d=Math.max(size.x,size.y,size.z)*.65,camera=new THREE.OrthographicCamera(-d,d,d,-d,.01,30);camera.position.set(-2,1,-6);camera.lookAt(0,0,0);this.portraitRenderer.render(scene,camera);
+    const result=this.portraitRenderer.domElement.toDataURL();this.disposeGroup(model);this.shopPortraits.set(key,result);return result;
+  }
   rocketModel(){
     const g=new THREE.Group(),body=new THREE.MeshStandardMaterial({color:0x587c6d,metalness:.55,roughness:.35}),trim=new THREE.MeshStandardMaterial({color:0xf3c45b,metalness:.45,roughness:.3});
     const cylinder=new THREE.Mesh(new THREE.CylinderGeometry(.10,.10,.5,12),body);g.add(cylinder);
@@ -497,7 +519,7 @@ export class View {
   }
   setWeapon(p,draw) {
     const id = gun(p).id;
-    const appearance=JSON.stringify(armAppearance(p));
+    const appearance=JSON.stringify([armAppearance(p),p.wrap]);
     if (id === this.localWeapon && appearance === this.armStyle) return;
     this.clearOutgoing(this);
     if(this.localModel && this.localWeapon!==id && draw.holster<1 && this.gunGroup.visible){
@@ -512,7 +534,7 @@ export class View {
     this.localWeapon = id;
     this.disposeGroup(this.gunGroup);
     this.heldItem=null;this.heldItemKey=null;
-    const model = makeBlaster(id);
+    const model = makeBlaster(id,p.wrap);
     this.gunGroup.add(model);
     this.localModel = model;
     this.opticLens = model.userData.lens || null;
@@ -821,11 +843,11 @@ export class View {
       if(local.inventory){
         const heldItem=local.building?{id:'blueprint'}:local.inventory[local.slot];
         this.localModel.visible=!!heldItem?.weapon;
-        const itemKey=heldItem&&!heldItem.weapon?heldItem.id:null;
+        const itemKey=heldItem&&!heldItem.weapon?heldItem.id+':'+(heldItem.pickaxe?local.pickaxe:''):null;
         if(this.heldItemKey!==itemKey){
           if(this.heldItem){this.heldItem.removeFromParent();this.disposeGroup(this.heldItem);}
           this.heldItem=null;this.heldItemKey=itemKey;
-          if(itemKey){this.heldItem=this.royaleView.itemModel(heldItem,false);this.heldItem.scale.setScalar(.4);this.heldItem.position.set(-.05,-.08,-.28);this.gunGroup.add(this.heldItem);}
+          if(itemKey){this.heldItem=heldItem.pickaxe&&shopItem(local.pickaxe)?makeShopPickaxe(local.pickaxe):this.royaleView.itemModel(heldItem,false);this.heldItem.scale.setScalar(.4);this.heldItem.position.set(-.05,-.08,-.28);this.gunGroup.add(this.heldItem);}
         }
         if(!heldItem?.weapon&&this.localArms)utilityArms(this.localArms,heldItem?.id,local.use?(state.time-local.use.start)/(local.use.end-local.use.start):-1,this.clock);
         if(this.heldItem&&heldItem?.pickaxe){const swing=Math.max(0,1-(state.time-(local.swingAt??-100))/.45);this.heldItem.rotation.x=-Math.sin(swing*Math.PI)*1.6;this.gunGroup.position.y-=Math.sin(swing*Math.PI)*.17;this.gunGroup.rotation.z-=Math.sin(swing*Math.PI)*.55;}
@@ -847,7 +869,7 @@ export class View {
         seen.add(p.id);
         const sig =
           p.color +
-          p.hat + JSON.stringify([p.pattern,p.finish,p.eyewear,p.accent]) +
+          p.hat + JSON.stringify([p.pattern,p.finish,p.eyewear,p.accent,p.outfit,p.wrap,p.backbling,p.pickaxe]) +
           p.team +
           mode(state.options.mode).teams;
         let model = this.models.get(p.id);
@@ -884,11 +906,16 @@ export class View {
             updateArms(model.userData.arms,-1,model.userData.blaster);
             model.userData.outgoing={group:old,position:old.position.clone(),rotation:old.rotation.clone()};
           }else{old.removeFromParent();this.disposeGroup(old);}
-          const held=new THREE.Group(),blaster=makeBlaster(gun(p).id),arms=makeArms(gun(p).id,p,false);
+          const held=new THREE.Group(),blaster=makeBlaster(gun(p).id,p.wrap),arms=makeArms(gun(p).id,p,false);
           held.scale.setScalar(VIEWMODEL.scale);held.add(blaster,arms);model.add(held);
           Object.assign(model.userData,{held,blaster,arms,armRecoil:0});
+          model.userData.shopTool=null;
         }
         this.lowerOutgoing(model.userData,draw,p.health>0);
+        const harvesting=!!p.inventory?.[p.slot]?.pickaxe;
+        if(harvesting&&!model.userData.shopTool){const tool=shopItem(p.pickaxe)?makeShopPickaxe(p.pickaxe):this.royaleView.itemModel({id:'pickaxe',pickaxe:true},false);tool.scale.setScalar(.5);tool.position.set(-.05,-.12,-.2);model.userData.held.add(tool);model.userData.shopTool=tool;}
+        if(model.userData.shopTool){model.userData.shopTool.visible=harvesting;model.userData.shopTool.rotation.x=-Math.sin(Math.max(0,1-(state.time-(p.swingAt??-100))/.45)*Math.PI)*1.6;}
+        model.userData.blaster.visible=!harvesting;
         model.userData.draw=draw;
         // Continuous time-based gait; network snapshots never jump the phase.
         const walking = p.health > 0 && p.grounded && p.moving;

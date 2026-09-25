@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { weapon } from "./data.js";
+import {applyWrap} from './shop-models.js';
 
 // The same authored model is used in the player's hands, on other eggs, and in previews.
 const materials = new Map();
@@ -213,7 +214,7 @@ function optic(g, kind, frontZ = -0.7) {
     g.userData.optic = "reflex";
   }
 }
-export function makeBlaster(id) {
+export function makeBlaster(id,wrap='') {
   const w = weapon(id),
     g = new THREE.Group(),
     c = w.color;
@@ -479,7 +480,7 @@ export function makeBlaster(id) {
   g.add(muzzle);
   g.userData.muzzle = muzzle;
   g.userData.sightY = w.sightY;
-  return g;
+  return applyWrap(g,wrap);
 }
 export function disposeBlaster(group) {
   group.traverse((o) => {

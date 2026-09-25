@@ -29,6 +29,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Verify Egg Shop purchases, previews and mobile layout
+        if: contains(github.event.head_commit.message, '[egg-shop]')
+        run: |
+          npx playwright install --with-deps chromium
+          node scripts/egg-shop-browser-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always() && contains(github.event.head_commit.message, '[egg-shop]')
+        with:
+          name: egg-shop-previews
+          path: test-results/egg-shop
+          retention-days: 7
       - run: npm run test:relay
       - run: npm run test:realtime
       - name: Verify deployed game relay

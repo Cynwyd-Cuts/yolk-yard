@@ -1,4 +1,5 @@
 import { safeName } from './moderation.js';
+import {cosmeticProfile} from './shop-catalog.js';
 // The rebuilt island and movement model must not mix with older clients.
 export const VERSION = 14;
 export const WEAPONS = [
@@ -340,6 +341,7 @@ export function safeProfile(p = {}) {
     finish: cosmeticIndex(p.finish, FINISHES),
     eyewear: p.eyewear == null ? NO_EYEWEAR : cosmeticIndex(p.eyewear, EYEWEAR),
     accent: COLORS.includes(p.accent) ? p.accent : COLORS[1],
+    ...cosmeticProfile(p),
   };
 }
 export function rng(seed) {

@@ -15,6 +15,9 @@ import { ChatPanel } from "./chat-ui.js";
 import { moderateText, safeName } from "./moderation.js";
 import {matchOptions, targetLabel} from "./match-options.js";
 import "./style.css";
+import './egg-shop.css';
+import {EggShop} from './egg-shop.js';
+import {EggWallet,MatchEarnings,ownedLoadout} from './egg-wallet.js';
 import {KeybindEditor} from "./keybind-editor.js";
 import {touchPair,touchRotation} from './menu-pose.js';
 import {OwnerConsole,startAnonymousVisits} from './owner-console.js';
@@ -89,6 +92,9 @@ settings.fov = clamp(Number(settings.fov) || 85, 65, 110);
 settings.volume = clamp(Number(settings.volume) || 0, 0, 1);
 let stats = read("yolk-stats", { matches: 0, kills: 0, wins: 0 }),
   options = matchOptions({map:"yard", mode:"ffa", fill:true});
+const eggWallet=new EggWallet({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},stats.eggs||0),matchEarnings=new MatchEarnings();
+Object.assign(profile,ownedLoadout(eggWallet.value,profile));
+let eggShop,lastEarnAction=-Infinity,earnMatch=0;
 let view,
   sim = null,
   net = null,
@@ -181,7 +187,7 @@ function titleBar() {
 function renderMenu() {
   const w = weapon(profile.weapon);
   $("#menu").innerHTML =
-    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="name-safety"><p class="name-safety" id="name-safety" role="status"></p><button class="primary play-home" data-action="play">PLAY <span>▶</span></button>${connectionButton}</section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Customize egg</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
+    `<div class="menu-shade"></div>${titleBar()}<main class="menu-layout"><section class="panel play-panel"><div class="eyebrow">GOOD EGGS. GREAT AIM.</div><h1>Time to<br>scramble.</h1><label class="name-label" for="player-name">YOUR NAME</label><input class="field" id="player-name" maxlength="18" value="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="name-safety"><p class="name-safety" id="name-safety" role="status"></p><button class="primary play-home" data-action="play">PLAY <span>▶</span></button>${connectionButton}</section><div class="character-caption"><div class="eyebrow">READY TO HATCH</div><strong>${esc(profile.name)}</strong><button class="icon-btn" data-action="customize">Egg Shop</button></div><section class="panel loadout-panel"><div class="eyebrow weapon-role">YOUR LOADOUT · ${w.role}</div><img class="loadout-portrait" src="${view.weaponPreview(w.id)}" alt="${w.name} weapon model"><h3>${w.name}</h3><p class="weapon-desc">${w.desc}</p><div class="weapon-list">${WEAPONS.filter(
       (w) => !w.secondary,
     )
       .map(
@@ -199,7 +205,7 @@ function renderMenu() {
       )
       .join(
         "",
-      )}<button class="plain" data-action="customize">Egg studio</button><p class="hint">${stats.matches} matches · ${stats.kills} eliminations · ${stats.eggs||0} eggs</p></section></main><div class="footer"><span class="footer-right">WASD + MOUSE &nbsp; / &nbsp; <button data-action="about">About & credits</button></span></div>`;
+      )}<p class="hint">${stats.matches} matches · ${stats.kills} eliminations · ${eggWallet.value.balance} eggs</p></section></main><div class="footer"><span class="footer-right">WASD + MOUSE &nbsp; / &nbsp; <button data-action="about">About & credits</button></span></div>`;
   $("#player-name").addEventListener("change", (e) => {
     const checked=moderateText(e.target.value,{kind:"name"});
     profile.name = safeName(e.target.value);
@@ -225,6 +231,7 @@ function modal(title, body, type = "generic") {
   if (!dialog.open) dialog.showModal();
 }
 function closeDialog() {
+  if(dialogType==='egg-shop'&&screen==='menu')renderMenu();
   if(dialogType==='settings'&&bindingEditor?.dirty){bindingEditor.message='Apply or Discard your keybind changes before closing.';bindingEditor.render();dialog.querySelector('.binding-footer')?.scrollIntoView({block:'nearest'});return;}
   if(dialogType==='rename'){toast('Choose an available name to continue, or leave the match.');return;}
   if(['royale-inventory','royale-map'].includes(dialogType)){void resume();return;}
@@ -278,15 +285,9 @@ function loadoutMenu() {
 }
 let customTab = "shell";
 function customizeMenu() {
-  const choices = (key, items) => `<div class="cosmetic-grid">${items.map((name, i) => ({name, i})).sort((a, b) => key === "eyewear" ? Number(b.i === NO_EYEWEAR) - Number(a.i === NO_EYEWEAR) : a.i - b.i).map(({name, i}) => `<button class="cosmetic-tile ${profile[key] === i ? "active" : ""}" data-cosmetic="${key}" data-value="${i}" aria-label="${name}" title="${name}" aria-pressed="${profile[key] === i}"><img src="${view.eggOptionPortrait(key, i)}" alt="" width="140" height="140"><span class="cosmetic-check" aria-hidden="true">✓</span></button>`).join("")}</div>`;
-  const colors = (key) => `<div class="swatches">${COLORS.map((c, i) => `<button class="swatch ${c === profile[key] ? "active" : ""}" style="background:${c}" data-cosmetic="${key}" data-value="${c}" aria-label="${key === "color" ? "Shell" : "Accent"} color ${i + 1}" aria-pressed="${c === profile[key]}"></button>`).join("")}</div>`;
-  const sections = {
-    shell: () => `<h3>Shell color <small>24 colors</small></h3>${colors("color")}<h3>Finish</h3>${choices("finish", FINISHES)}`,
-    pattern: () => `<h3>Shell pattern</h3>${choices("pattern", PATTERNS)}<h3>Pattern & accessory color</h3>${colors("accent")}`,
-    headwear: () => `<h3>Headwear <small>20 styles</small></h3>${choices("hat", HATS)}`,
-    eyewear: () => `<h3>Eyewear</h3>${choices("eyewear", EYEWEAR)}<h3>Accessory color</h3>${colors("accent")}`,
-  };
-  modal("Egg studio", `<div class="egg-studio"><div class="egg-studio-preview"><img src="${view.eggPortrait(profile)}" alt="Your customized egg with matching arms and hands"><div class="eyebrow">YOUR SIGNATURE SHELL</div><strong>${HATS[profile.hat]} · ${PATTERNS[profile.pattern]}</strong><p>Shell color, pattern and finish also apply to your arms and hands. Changes save automatically.</p><button class="secondary" data-action="shuffle-egg">Shuffle look</button><button class="plain" data-action="reset-egg">Reset appearance</button></div><div class="egg-studio-options"><div class="studio-tabs" role="group" aria-label="Customization categories">${[["shell","Shell"],["pattern","Patterns"],["headwear","Headwear"],["eyewear","Eyewear"]].map(([id,label])=>`<button aria-pressed="${id===customTab}" data-custom-tab="${id}" class="${id===customTab ? "active" : ""}">${label}</button>`).join("")}</div><div>${sections[customTab]()}</div><p class="hint">Cosmetic only. Team matches use your team’s blue or red shell.</p><button class="primary" data-action="close">Looking good</button></div></div>`, "customize");
+  modal('Egg Shop','<div id="egg-shop"></div>','egg-shop');
+  eggShop??=new EggShop({wallet:eggWallet,view,getProfile:()=>profile,setProfile:next=>{profile=next;remember();view.preview(profile);}});
+  eggShop.open($('#egg-shop'));
 }
 function helpMenu() {
   modal(
@@ -703,6 +704,7 @@ function pauseMenu() {
   );
 }
 function leave(confirm = false) {
+  earnMatch++;
   buildControls.buildMode=false;buildUI.cancel();
   resultAt=0;$("#round-banner").hidden=true;damageSources.length=0;
   matchRequest++;autoQueue=false;sound.stopWorld();royaleUI.waypoint=null;royaleUI.root.hidden=true;document.body.classList.remove('in-royale');
@@ -751,7 +753,7 @@ function resultsMenu() {
     roundSaved = state.round;
     stats.matches++;
     stats.kills += p.kills;
-    stats.eggs = (stats.eggs||0)+(p.eggs||0);
+    stats.eggs = eggWallet.value.earned;
     if (
       state.royale ? state.royale.winnerId===p.id : mode(state.options.mode).teams
         ? state.scores[p.team] > state.scores[1 - p.team]
@@ -762,7 +764,7 @@ function resultsMenu() {
   }
   modal(
     state.royale ? state.royale.winnerId===localId ? "VICTORY YOLK!" : "Round complete" : "That’s a wrap.",
-    `<div class="results"><div class="eyebrow">${state.royale?`YOUR PLACEMENT ${p?.place?'#'+p.place:'SPECTATOR'} · ${p?.kills||0} ELIMINATIONS`:`ROUND ${state.round} COMPLETE`}</div><h2 style="margin:12px 0">${esc(state.winner)}</h2>${scoresHTML()}${net ? '<button class="plain" data-action="chat-controls">Player controls & quick chat</button>' : ""}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions">${state.royale?'<button class="plain" data-action="royale-queue">Find public match</button>':'<button class="plain" data-action="loadout">Change loadout</button>'}<button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
+    `<div class="results"><div class="eyebrow">${state.royale?`YOUR PLACEMENT ${p?.place?'#'+p.place:'SPECTATOR'} · ${p?.kills||0} ELIMINATIONS`:`ROUND ${state.round} COMPLETE`}</div><h2 style="margin:12px 0">${esc(state.winner)}</h2><p class="hint">◒ ${matchEarnings.total||0} eggs earned this round · Wallet: ${eggWallet.value.balance} eggs</p>${scoresHTML()}${net ? '<button class="plain" data-action="chat-controls">Player controls & quick chat</button>' : ""}<p class="hint">${ruleSummary(state.options)}</p>${sim || net?.isHost ? '<button class="primary" data-action="rematch">PLAY AGAIN</button>' : "<p>Waiting for the host to start another round.</p>"}<div class="split-actions">${state.royale?'<button class="plain" data-action="royale-queue">Find public match</button>':'<button class="plain" data-action="loadout">Change loadout</button>'}<button class="plain" data-action="leave-confirm">Leave match</button></div></div>`,
     "results",
   );
 }
@@ -894,7 +896,7 @@ function hud() {
   if(!bonusPanel){bonusPanel=document.createElement('div');bonusPanel.id='streak-bonuses';$('#streak').after(bonusPanel);}
   bonusPanel.hidden=!arenaBonuses(state.options.mode)||p.health<=0;
   bonusPanel.textContent=bonusStatus(p,state.time).join(' • ');
-  if(arenaBonuses(state.options.mode)&&p.health>0)$('#streak').textContent+=` · ${5-p.streak%5} to bonus · ${p.eggs||0} eggs`;
+  if(arenaBonuses(state.options.mode)&&p.health>0)$('#streak').textContent+=` · ${5-p.streak%5} to bonus · ${eggWallet.value.balance} eggs`;
   $('#crosshair').classList.toggle('damage-boost',arenaBonuses(state.options.mode)&&p.damageUntil>state.time);
   $('.quick-controls').innerHTML = [['forward','Move'],['reload','Reload'],['popper','Popper'],['swap','Swap']].map(([id,label]) => `<span><kbd>${esc(controlLabel(id))}</kbd> ${label}</span>`).join('') + '<span><kbd>Esc</kbd> Menu</span>';
   $("#gun-name").textContent = gun(p).name;
@@ -1315,6 +1317,7 @@ document.addEventListener("mousemove", (e) => {
     !document.pointerLockElement || chat.opened
   )
     return;
+  if(e.movementX||e.movementY)lastEarnAction=performance.now();
   input.yaw -=
     e.movementX * 0.002 * settings.sensitivity * aimSensitivity();
   input.pitch = clamp(
@@ -1454,6 +1457,7 @@ function frameInput() {
   };
   swapSlot=-1;
   queuedActions.clear();
+  if(active&&(nextInput.forward||nextInput.strafe||nextInput.jump||nextInput.fire||nextInput.interact))lastEarnAction=performance.now();
   return nextInput;
 }
 let lastTime = performance.now(),
@@ -1516,6 +1520,10 @@ function loop(now) {
   }
   processEvents();
   const me = state?.players.find((p) => p.id === localId);
+  if(me&&screen==='game'){
+    const won=state.royale?state.royale.winnerId===localId:mode(state.options.mode).teams?state.scores[me.team]>state.scores[1-me.team]:state.winner===me.name+' wins';
+    matchEarnings.sample({key:earnMatch+':'+(state.royale?.matchId||net?.code||'local')+':'+state.round,dt,active:state.phase==='playing'&&me.health>0&&!me.spectating&&!paused&&!document.hidden&&now-lastEarnAction<10000,kills:me.kills,doubleEggs:me.eggsUntil>state.time,finished:state.phase==='results'||!!state.royale&&me.place>0&&me.health<=0,won,place:state.royale?me.place:0},(id,amount,label)=>{void eggWallet.award(id,amount,label).then(()=>{toast('+'+amount+' eggs · '+label);}).catch(error=>toast(error.message));});
+  }
   if (me?.spectating && !state.players.some(p => p.id === spectateTarget && p.health > 0 && !p.spectating))
     switchSpectator(1);
   view.spectateTarget = me?.spectating ? spectateTarget : null;

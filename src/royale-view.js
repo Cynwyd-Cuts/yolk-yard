@@ -1,4 +1,6 @@
 import {updateBuildingView} from './building-view.js';
+import {shopItem} from './shop-catalog.js';
+import {makeShopGlider,makeShopTrail} from './shop-models.js';
 import {makeArms,actionArms} from './arms.js';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
@@ -152,8 +154,10 @@ export class RoyaleView{
    mesh.visible=!!observer&&(Math.hypot(chest.x-observer.x,chest.z-observer.z)<(this.view.settings.quality==='low'?70:100)||chest.supply);
   }
   for(const p of state.players){
-   let mesh=this.gliders.get(p.id);if(!mesh&&p.flight==='glide'){mesh=canopy(kit);this.gliders.set(p.id,mesh);this.root.add(mesh);}
-   if(mesh){mesh.visible=p.health>0&&p.flight==='glide';mesh.position.set(p.x,p.y,p.z);mesh.rotation.set(Math.sin(t*2)*.02,p.yaw,Math.sin(t*1.6)*.04);}
+   let mesh=this.gliders.get(p.id);const style=(p.glider||'')+':'+(p.trail||'');
+   if(mesh&&mesh.userData.style!==style){this.root.remove(mesh);this.view.disposeGroup(mesh);this.gliders.delete(p.id);mesh=null;}
+   if(!mesh&&['dive','glide'].includes(p.flight)){mesh=new THREE.Group();const sail=shopItem(p.glider)?makeShopGlider(p.glider):canopy(kit),trail=makeShopTrail(p.trail);mesh.add(sail,trail);Object.assign(mesh.userData,{sail,trail,style});this.gliders.set(p.id,mesh);this.root.add(mesh);}
+   if(mesh){mesh.visible=p.health>0&&['dive','glide'].includes(p.flight);mesh.userData.sail.visible=p.flight==='glide';mesh.userData.trail.scale.y=1+Math.sin(t*5)*.08;mesh.position.set(p.x,p.y,p.z);mesh.rotation.set(Math.sin(t*2)*.02,p.yaw,Math.sin(t*1.6)*.04);}
   }
   const padIds=new Set();for(const p of r.pads){padIds.add(p.id);let mesh=this.pads.get(p.id);if(!mesh){mesh=launchpadModel(kit);bake(mesh);this.root.add(mesh);this.pads.set(p.id,mesh);}mesh.position.set(p.x,p.y,p.z);mesh.scale.setScalar(1+Math.sin(t*3)*.035);}
   for(const [id,m]of this.pads)if(!padIds.has(id)){this.root.remove(m);this.view.disposeGroup(m);this.pads.delete(id);}

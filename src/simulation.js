@@ -872,6 +872,7 @@ export class Simulation {
       "finish",
       "eyewear",
       "accent",
+      "outfit", "wrap", "pickaxe", "backbling", "glider", "trail",
       "bot",
       "team",
       "x",
