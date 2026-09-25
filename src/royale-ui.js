@@ -10,7 +10,7 @@ export class RoyaleUI{
   this.preview=preview;this.waypoint=null;this.lastKey='';
   document.querySelector('#hud').insertAdjacentHTML('beforeend',`<div id="royale-hud" hidden>
    <div class="royale-compass" id="royale-compass"></div>
-   <button class="royale-minimap" data-action="royale-map" aria-label="Open island map"><canvas id="royale-mini" width="260" height="260"></canvas><span><b id="royale-alive">16</b> ALIVE <i>·</i> <b id="royale-phase">STORM 1</b></span></button>
+   <div class="royale-map-stack"><button class="royale-minimap" data-action="royale-map" aria-label="Open island map"><canvas id="royale-mini" width="260" height="260"></canvas><span id="royale-phase">STORM 1</span></button><div class="royale-map-stats" aria-label="Battle Royale standings"><span><b id="royale-alive">16</b> ALIVE</span><span><b id="royale-elims">0</b> ELIMS</span></div></div>
    <div class="royale-storm-warning" id="royale-storm-warning" role="status"></div>
    <div class="royale-flight" id="royale-flight"><span class="eyebrow">EGGSPRESS AIRLINES</span><strong id="royale-flight-title"></strong><p id="royale-flight-help"></p><button data-action="royale-jump" class="primary" id="royale-flight-button">JUMP</button></div>
    <div class="royale-prompt" id="royale-prompt" role="status"></div>
@@ -75,7 +75,7 @@ export class RoyaleUI{
   const $=id=>document.getElementById(id),r=state.royale,p=watched||local;
   const heading=(((-p.yaw*180/Math.PI)%360)+360)%360;
   $('royale-compass').textContent=`${['N','NE','E','SE','S','SW','W','NW'][Math.round(heading/45)%8]}  ${Math.round(heading)}°${this.waypoint?'   ◆ '+Math.round(Math.hypot(p.x-this.waypoint.x,p.z-this.waypoint.z))+' m':''}`;
-  $('royale-alive').textContent=r.alive;$('royale-phase').textContent=r.elapsed<35?'DROP ZONE':`STORM ${r.storm.index+1}`;
+  $('royale-alive').textContent=r.alive;$('royale-elims').textContent=local.kills||0;$('royale-phase').textContent=r.elapsed<35?'DROP ZONE':`STORM ${r.storm.index+1}`;
   this.drawMap($('royale-mini'),state,p);this.drawMap($('royale-fullmap'),state,p,true);
   $('shield').textContent=Math.ceil(p.shield||0);$('shield-fill').style.width=Math.max(0,Math.min(100,p.shield||0))+'%';$('royale-stamina').textContent=Math.ceil(p.stamina||0);$('royale-stamina-fill').style.width=(p.stamina||0)+'%';
   const key=JSON.stringify([p.inventory,p.slot]);if(key!==this.lastKey){$('royale-hotbar').innerHTML=this.slotMarkup(p);this.lastKey=key;}
