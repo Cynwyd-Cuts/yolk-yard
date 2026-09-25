@@ -48,7 +48,7 @@ export class OwnerService {
     else{this.active.set(id,{id,started:now,seen:now,mode});this.totals.visits++;}
     this.persist();return true;
   }
-  authorized(req){const token=/^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization||'')?.[1];const expiry=this.tokens.get(token);return Boolean(expiry&&expiry>Date.now());}
+  authorized(req,body){const token=/^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization||'')?.[1]||body?.token;const expiry=typeof token==='string'&&/^[a-f0-9]{64}$/.test(token)&&this.tokens.get(token);return Boolean(expiry&&expiry>Date.now());}
   async handle(req,res,{origins,relay}){
     const origin=req.headers.origin,allowed=origin&&origins.includes(origin);
     if(!allowed){json(res,403,{error:'Origin denied'});return;}
@@ -73,11 +73,13 @@ export class OwnerService {
         json(res,200,{token,expires:now+WINDOW},origin);return;
       }
       if(req.url==='/owner/logout'&&req.method==='POST'){
-        if(!this.authorized(req)){json(res,401,{error:'Unauthorized'},origin);return;}
-        this.tokens.delete(req.headers.authorization.slice(7));json(res,200,{ok:true},origin);return;
+        const body=req.headers.authorization?null:await readBody(req);
+        if(!this.authorized(req,body)){json(res,401,{error:'Unauthorized'},origin);return;}
+        this.tokens.delete(body?.token||req.headers.authorization.slice(7));json(res,200,{ok:true},origin);return;
       }
-      if(req.url==='/owner/summary'&&req.method==='GET'){
-        if(!this.authorized(req)){json(res,401,{error:'Unauthorized'},origin);return;}
+      if(req.url==='/owner/summary'&&['GET','POST'].includes(req.method)){
+        const body=req.method==='POST'?await readBody(req):null;
+        if(!this.authorized(req,body)){json(res,401,{error:'Unauthorized'},origin);return;}
         this.sweep();const peers=[...relay.peers.values()];
         json(res,200,{visits:this.totals.visits,online:this.active.size,relayConnections:peers.filter(p=>p.ws).length,
           activeRooms:peers.filter(p=>p.ws&&p.listing&&Date.now()-p.listedAt<15000).map(p=>({mode:p.listing.mode,map:p.listing.map,players:p.listing.players,capacity:p.listing.capacity,phase:p.listing.phase})),

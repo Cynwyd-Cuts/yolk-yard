@@ -24,11 +24,18 @@ test('owner routes deny unauthorized and cross-origin access; valid code unlocks
  assert.equal((await request(owner,{url:'/owner/activity',method:'POST',body:{id,event:'pulse',mode:'royale'}})).status,200);
  const summary=await request(owner,{token:result.token});
  assert.equal(summary.result.online,1);assert.equal(summary.result.visits,1);
+ const simpleSummary=await request(owner,{method:'POST',body:{token:result.token}});
+ assert.equal(simpleSummary.status,200);
+ assert.equal(simpleSummary.result.online,1);
+ assert.equal((await request(owner,{method:'POST',body:{token:'0'.repeat(64)}})).status,401);
  assert.equal(summary.result.active[0].mode,'royale');
  await request(owner,{url:'/owner/activity',method:'POST',body:{id,event:'end'}});
  assert.equal((await request(owner,{token:result.token})).result.past.length,1);
  assert.equal((await request(owner,{url:'/owner/logout',method:'POST',token:result.token})).status,200);
  assert.equal((await request(owner,{token:result.token})).status,401);
+ const relogin=await request(owner,{url:'/owner/login',method:'POST',body:{code}});
+ assert.equal((await request(owner,{url:'/owner/logout',method:'POST',body:{token:relogin.result.token}})).status,200);
+ assert.equal((await request(owner,{method:'POST',body:{token:relogin.result.token}})).status,401);
  await owner.close();
 });
 test('no configured code fails closed; failed attempts are throttled',async()=>{
