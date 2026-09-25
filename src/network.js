@@ -442,6 +442,11 @@ export class Network {
         if(conn.buildVersion===buildVersion){const {builds,worldDamage,...royale}=outgoing.royale;outgoing={...outgoing,royale};}
         conn.buildVersion=buildVersion;
       }
+      // Ordered delivery and reconnect replay preserve each event once. Do not
+      // retransmit the last 60 events in every movement snapshot.
+      const events=outgoing.events.filter(e=>!Number.isFinite(e.id)||e.id>(conn.lastEventSent??-1));
+      for(const event of events)if(Number.isFinite(event.id))conn.lastEventSent=Math.max(conn.lastEventSent??-1,event.id);
+      outgoing={...outgoing,events};
       conn.send({type:'state',state:outgoing,...(checkpoint?{checkpoint}:{})});
     }
   }

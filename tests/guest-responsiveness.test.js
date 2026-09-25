@@ -46,3 +46,10 @@ test('transport exit begins locally only when permitted',()=>{
  predictMovement(p,i,null,1/60,{elapsed:2,route:{duration:10}});assert.equal(p.flight,'transport');
  predictMovement(p,i,null,1/60,{elapsed:3,route:{duration:10}});assert.equal(p.flight,'dive');assert.equal(p.flightLatch,true);assert.equal(p.yaw,1);
 });
+test('arena guests get predicted pose and immediate firing feedback',()=>{
+ const p={...player(),flight:undefined,inventory:undefined,weapon:'sprinter'},s={time:1,players:[p],phase:'playing',round:1};
+ const view=new GuestPresentation();view.receive(s,null,p,1000);
+ const frame=view.frame(s,{...p,x:2},1016,1/60);
+ assert.equal(frame.player.x,2);assert.equal(frame.state.players[0],frame.player);assert.equal(frame.state.royale,undefined);
+ assert.equal(new GuestFire().step(p,input(),1,1,1).type,'shot');
+});

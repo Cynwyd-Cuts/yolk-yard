@@ -472,7 +472,8 @@ function callbacks() {
         input.slot = s.royale?me.slot:0;
         pendingInputs = [];
       }
-      if(s.royale)guestPresentation.receive(s,previousPrediction,predicted,performance.now());
+      guestPresentation.receive(s,previousPrediction,predicted,performance.now());
+      connectionReport.network.update({now:performance.now(),time:s.time,ack:me.ack,rtt:net?.latency||null,relayRtt:net?.peer?.relayLatency,received:net?.peer?.receivedBytes||0,sent:net?.peer?.sentBytes||0,queued:net?.peer?.bufferedAmount||0,batches:net?.peer?.unacked?.size||0,hostQueue:me.inputQueue,correction:previousPrediction&&previousPrediction.health>0&&me.health>0?Math.hypot(previousPrediction.x-predicted.x,previousPrediction.y-predicted.y,previousPrediction.z-predicted.z):0});
       lastHealth = me.health;
       handleState();
       connectionReport.performance.update(performance.now()-updateStarted,pendingInputs.length);
@@ -621,6 +622,7 @@ function launchRound(){
 function startLocalMatch() {autoQueue=false;beginSim();launchRound();}
 function enterGame(capture = false) {
   guestFire.reset();
+  connectionReport.network.reset();
   resultAt=0;$("#round-banner").hidden=true;
   screen = "game";
   $("#menu").hidden = true;
@@ -772,7 +774,7 @@ function processEvents() {
     if (e.id <= lastEvent) continue;
     lastEvent = e.id;
     if (state.time - e.time > 1.6) continue;
-    if(!sim&&state.royale&&e.player===localId&&guestFire.confirm(e,performance.now()/1000))continue;
+    if(!sim&&e.player===localId&&guestFire.confirm(e,performance.now()/1000))continue;
     view.event(e, localId);
     const me = state.players.find((p) => p.id === localId);
     sound.event(e,me,state);
@@ -1465,12 +1467,13 @@ function loop(now) {
       }
     } else if (net?.ready && !net.migrating && state?.phase === "playing") {
       net.input(i);
+      connectionReport.network.sent(i.seq,now);
       const me = state.players.find((p) => p.id === localId);
       if (me?.health > 0) {
         if (!predicted) predicted = { ...me };
         predictMovement(predicted, i, getMap(state.options.map), 1 / 60, state.royale);
         predicted.moving = Math.abs(i.forward) + Math.abs(i.strafe) > 0.1;
-        if(state.royale){
+        {
           const shot=guestFire.step(predicted,i,Math.max(state.time,guestPresentation.time),now/1000,state.round);
           if(shot){view.event(shot,localId);sound.shot(shot.weapon,0,shot.origin);}
         }
@@ -1516,10 +1519,10 @@ function loop(now) {
     renderPlayer.yaw = input.yaw;
     renderPlayer.pitch = input.pitch;
   }
-  const presentation=!sim&&state?.royale?guestPresentation.frame(state,renderPlayer,now,dt):{state,player:renderPlayer};
+  const presentation=!sim&&state?guestPresentation.frame(state,renderPlayer,now,dt):{state,player:renderPlayer};
   view.update(
     presentation.state,
-    !sim&&state?.royale&&presentation.player?.health>0?presentation.player:me,
+    !sim&&presentation.player?.health>0?presentation.player:me,
     presentation.player,
     dt,
     screen === "game",

@@ -16,7 +16,7 @@ function player(name,mode){const node={states:[],errors:[],chats:[],sim:null};no
  onState:s=>node.states.push(s),onChat:m=>node.chats.push(m),onError:e=>node.errors.push(e),
  onHost:(checkpoint,departed)=>{node.sim=(mode==='royale'?new RoyaleSimulation(checkpoint.options):new Simulation(checkpoint.options)).restore(checkpoint);for(const id of departed)node.sim.leavePlayer(id);},
  });nets.push(node.net);node.profile=safeProfile({name});
- const timer=setInterval(()=>{if(node.sim&&!node.net.closed){node.sim.tick(1/60);if(!node.lastBroadcast||performance.now()-node.lastBroadcast>(mode==='royale'?100:50)){node.lastBroadcast=performance.now();node.net.broadcast(node.sim.snapshot());}}},1000/60);timers.push(timer);return node;}
+ const timer=setInterval(()=>{if(node.sim&&!node.net.closed){node.sim.tick(1/60);if(!node.lastBroadcast||performance.now()-node.lastBroadcast>50){node.lastBroadcast=performance.now();node.net.broadcast(node.sim.snapshot());}}},1000/60);timers.push(timer);return node;}
 try{
  for(const mode of ['ffa','royale']){
   const host=player('Alpha',mode),guest=player('Bravo',mode),third=player('Charlie',mode);
@@ -31,6 +31,8 @@ try{
   // Explicit broadcasts also exercise large Royale snapshots/checkpoints.
 
   await wait(()=>guest.states.some(s=>s.phase==='playing')&&third.states.some(s=>s.phase==='playing'));
+  assert.equal(guest.net.hostConnection.compact,true);
+  assert.ok(guest.net.hostConnection.decoder?.seq>0,'Guest decodes compact state updates');
   guest.net.send({type:'player-action',action:'respawn'});
   await wait(()=>host.sim.players.get(guest.net.id)?.health>0);
   for(let seq=1;seq<=10;seq++)guest.net.input({seq,forward:1,strafe:0,yaw:0,pitch:0,dt:1/60});

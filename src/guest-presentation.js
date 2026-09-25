@@ -16,15 +16,15 @@ export class GuestPresentation {
  frame(state,predicted,now,dt){
   const advance=state.phase==='playing'?Math.min(.15,Math.max(0,(now-this.received)/1000)):0;
   this.time=Math.max(state.time,Math.min(state.time+.15,Math.max(this.time,state.time+advance)));
-  const elapsed=state.royale.elapsed+(this.time-state.time);
-  const visual={...state,time:this.time,royale:{...state.royale,elapsed}};
+  const elapsed=state.royale?state.royale.elapsed+(this.time-state.time):0;
+  const visual={...state,time:this.time,...(state.royale?{royale:{...state.royale,elapsed}}:{})};
   const decay=Math.exp(-18*Math.max(0,dt));
   for(const axis of ['x','y','z'])this.offset[axis]*=decay;
   let player=predicted;
   if(player?.health>0){
-   player=player.flight==='transport'?{...player,...transportAt(state.royale.route,elapsed)}:{...player,x:player.x+this.offset.x,y:player.y+this.offset.y,z:player.z+this.offset.z};
+   player=state.royale&&player.flight==='transport'?{...player,...transportAt(state.royale.route,elapsed)}:{...player,x:player.x+this.offset.x,y:player.y+this.offset.y,z:player.z+this.offset.z};
   }
-  visual.players=this.poses.players(state,player,state.time+advance);
+  visual.players=this.poses.players(state,player,this.time);
   // Projectiles already support bounded extrapolation in View. Keep the packet
   // timestamp separate from the smoothly advancing animation clock.
   visual.snapshotTime=state.time;

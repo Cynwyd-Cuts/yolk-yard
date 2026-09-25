@@ -903,6 +903,7 @@ export class Simulation {
       scores: this.scores.map((v) => Math.floor(v)),
       winner: this.winner,
       players: [...this.players.values()].map((p) => ({
+        inputQueue:this.remoteInputs.get(p.id)?.queue.length||0,
         ...Object.fromEntries(keys.map((k) => [k, Array.isArray(p[k]) ? [...p[k]] : p[k]])),
         shotSpread: p.accuracyState[p.slot]?.spread ?? gun(p).spread * (p.aim ? gun(p).aimSpread : 1),
       })),
