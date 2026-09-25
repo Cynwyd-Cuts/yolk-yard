@@ -74,11 +74,12 @@ export class Network {
     this.peer.on("error", (err) => {
       if (this.closed) return;
       const message = errorText(err);
-      connectionReport.set(err.type === "peer-unavailable" || err.type === "webrtc" ? "host" : "service", "Failed", errorCode(err));
+      connectionReport.set(err.type === "peer-unavailable" || err.type === "webrtc" ? "host" : "service", "Failed", errorCode(err)+(this.lastTransportClose?"; "+this.lastTransportClose:""));
       if (!this.ready) this.rejectOpen?.(new Error(message));
       else if (!this.migrating && err.type === "peer-unavailable")
         this.callbacks.onError?.(message);
     });
+    this.peer.on('transport-close',event=>{this.lastTransportClose=`WebSocket close ${event.code}: ${event.reason}.`;connectionReport.set('service','Interrupted',this.lastTransportClose);});
     this.peer.on('reconnecting',()=>this.callbacks.onStatus?.('Reconnecting to the room…'));
     this.peer.on('reconnected',()=>{this.hostHeartbeat.contact(performance.now());this.callbacks.onStatus?.('Room connection restored.');});
     this.peer.on("connection", conn => { if(this.isHost)this.accept(conn); else conn.close(); });

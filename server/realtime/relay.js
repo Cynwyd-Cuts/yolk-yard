@@ -43,7 +43,7 @@ export class RealtimeRelay {
         if(!Number.isSafeInteger(m.seq)||m.seq<1||m.seq>peer.clientSeq+1)throw Error('Command sequence');
         if(m.seq>peer.clientSeq){this.handle(peer,m);peer.clientSeq=m.seq;}
         if(ws.readyState===1)ws.send(JSON.stringify({type:'command-ack',seq:peer.clientSeq}));
-      }catch{ws.close(1008,'Invalid relay message');}
+      }catch(error){ws.close(1008,['Rate limit','Command sequence','Expired resume','Register first'].includes(error.message)?error.message:'Invalid relay message');}
     });
     ws.on('close',()=>{clearTimeout(registration);if(peer?.ws===ws){peer.ws=null;peer.detachedAt=Date.now();}});
     ws.on('error',()=>{});

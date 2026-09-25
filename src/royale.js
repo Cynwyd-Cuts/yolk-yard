@@ -47,7 +47,7 @@ export class RoyaleSimulation extends Simulation {
   if(Math.min(humans.length,this.options.capacity)+Math.max(0,count)<2){this.emit('notice',{text:'Invite another egg or add a bot to launch.'});return false;}
   this.maxPlayers=this.options.capacity;const savedBots=this.options.bots;this.options.bots=Math.max(0,count);this.addBots();this.options.bots=savedBots;
   this.map={...ROYALE_MAP,boxes:(ROYALE_MAP.authored||ROYALE_MAP.boxes).map(b=>({...b}))};resetBuilding(this);
-  this.phase='playing';this.round++;this.startedAt=this.time;this.elapsed=0;this.winner='';this.winnerId=null;this.placements=[];this.projectiles=[];this.events=[];this.inputs.clear();this.loot=[];this.lootId=0;this.lootVersion++;this.pads=[];this.supplyAt=135;this.queueEnds=0;
+  this.phase='playing';this.round++;this.startedAt=this.time;this.elapsed=0;this.winner='';this.winnerId=null;this.placements=[];this.projectiles=[];this.events=[];this.inputs.clear();this.remoteInputs.clear();this.loot=[];this.lootId=0;this.lootVersion++;this.pads=[];this.supplyAt=135;this.queueEnds=0;
   this.route=makeFlight(this.random);this.stormSteps=makeStorm(this.random,this.options.storm);this.storm=stormAt(this.stormSteps,0);this.remaining=0;
   const landingSpots=this.map.floorLoot.filter((point,index)=>index%3===0&&!point.roof);
   const seats=[...this.players.values()].sort((a,b)=>Number(a.bot)-Number(b.bot));
@@ -241,10 +241,12 @@ export class RoyaleSimulation extends Simulation {
   if(this.elapsed>this.supplyAt){this.supplyAt+=130;const angle=this.random()*Math.PI*2,r=Math.max(0,this.storm.radius-20)*this.random();const x=clamp(this.storm.x+Math.cos(angle)*r,-210,210),z=clamp(this.storm.z+Math.sin(angle)*r,-210,210);this.chests.push({id:'supply-'+this.lootId++,x,z,y:surfaceAt(this.map,x,z),opened:false,supply:true,landAt:this.time+18});this.lootVersion++;this.emit('royale-cue',{cue:'supply-incoming'});}
   for(const p of this.players.values()){
    if(p.health<=0||p.spectating)continue;
-   let input=p.bot?this.botInput(p):this.inputs.get(p.id);
+   const commands=p.bot?null:this.movementInput(p,dt);
+   let input=commands?.input||(p.bot?this.botInput(p):this.inputs.get(p.id));
    if(!input||!p.bot&&this.time-p.lastInput>.4)input={yaw:p.yaw,pitch:p.pitch,slot:p.slot};
-   p.ack=Math.max(p.ack,input.seq||0);
+
    if(p.flight==='transport'){
+    p.ack=Math.max(p.ack,...(commands?commands.steps.map(i=>i.seq):[input.seq||0]));
     Object.assign(p,transportAt(this.route,this.elapsed));
     if(this.elapsed>=3&&(input.jump||this.elapsed>=this.route.duration)){
      p.lastJumpPress=Math.max(p.lastJumpPress||0,input.jumpPress||0);
@@ -258,7 +260,7 @@ export class RoyaleSimulation extends Simulation {
    if(p.slot<5&&input.swapSlot>=0&&input.swapSlot<5&&input.swapSlot!==p.slot&&!p.swapLatch){const j=input.swapSlot;[p.inventory[p.slot],p.inventory[j]]=[p.inventory[j],p.inventory[p.slot]];p.reloadEnd=0;this.cancelUse(p);this.syncInventory(p);}
    p.swapLatch=input.swapSlot>=0;
    if(input.sprint)this.cancelUse(p);
-   movePlayer(p,input,this.map,dt);p.moving=Math.hypot(p.x-previous.x,p.z-previous.z)>.001;p.aim=!!input.aim&&p.flight==='ground'&&!p.use&&!!p.inventory[p.slot]?.weapon;p.vx=(p.x-previous.x)/dt;p.vz=(p.z-previous.z)/dt;
+   this.moveWithCommands(p,input,dt,commands);p.moving=Math.hypot(p.x-previous.x,p.z-previous.z)>.001;p.aim=!!input.aim&&p.flight==='ground'&&!p.use&&!!p.inventory[p.slot]?.weapon;p.vx=(p.x-previous.x)/dt;p.vz=(p.z-previous.z)/dt;
    if(wasFlight!==p.flight)this.emit('royale-cue',{player:p.id,cue:p.flight==='ground'?'land':p.flight==='dive'?'glider-cut':'glider-deploy',x:p.x,y:p.y,z:p.z});
    else if(!oldGrounded&&p.grounded)this.emit('royale-cue',{player:p.id,cue:'land',x:p.x,y:p.y,z:p.z});
    else if(oldGrounded&&!p.grounded&&p.vy>0)this.emit('royale-cue',{player:p.id,cue:'jump',x:p.x,y:p.y,z:p.z});

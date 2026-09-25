@@ -12,7 +12,7 @@ const server=await startRealtimeServer({port:9002,host:'127.0.0.1'}),nets=[],tim
 const wait=async(fn,ms=12000)=>{const end=Date.now()+ms;while(!fn()){assert.ok(Date.now()<end,'Timed out');await new Promise(r=>setTimeout(r,25));}};
 function player(name,mode){const node={states:[],errors:[],chats:[],sim:null};node.net=new Network({
  getCheckpoint:()=>node.sim?.checkpoint(),getChatState:()=>node.sim?.snapshot()||node.states.at(-1),
- onJoin:(id,p)=>!!node.sim.admitPlayer(id,p),onLeave:id=>node.sim?.leavePlayer(id),onInput:(id,input)=>node.sim?.setInput(id,input),onPlayerAction:(id,a)=>node.sim?.playerAction(id,a),
+ onJoin:(id,p)=>!!node.sim.admitPlayer(id,p),onLeave:id=>node.sim?.leavePlayer(id),onInput:(id,input)=>node.sim?.setInput(id,input,true),onPlayerAction:(id,a)=>node.sim?.playerAction(id,a),
  onState:s=>node.states.push(s),onChat:m=>node.chats.push(m),onError:e=>node.errors.push(e),
  onHost:(checkpoint,departed)=>{node.sim=(mode==='royale'?new RoyaleSimulation(checkpoint.options):new Simulation(checkpoint.options)).restore(checkpoint);for(const id of departed)node.sim.leavePlayer(id);},
  });nets.push(node.net);node.profile=safeProfile({name});
@@ -56,7 +56,7 @@ try{
   }
   const end=Date.now()+Number(process.env.RELAY_SOAK_MS||65000);let samples=0,maxLatency=0,maxQueue=0;
   while(Date.now()<end){
-   third.net.input({seq:100+samples,forward:1,strafe:0,yaw:samples/10,pitch:0,dt:1/60});
+   for(let frame=0;frame<6;frame++)third.net.input({seq:100+samples*6+frame,forward:1,strafe:0,yaw:samples/10,pitch:0,dt:1/60});
    await new Promise(r=>setTimeout(r,100));samples++;
    maxLatency=Math.max(maxLatency,third.net.latency);maxQueue=Math.max(maxQueue,...[...server.relay.peers.values()].map(p=>p.pendingBytes+p.historyBytes));
    assert.equal(third.net.peer.destroyed,false);assert.ok(performance.now()-third.net.lastState<3000,'Gameplay stopped');

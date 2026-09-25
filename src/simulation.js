@@ -1,3 +1,4 @@
+import {RemoteInputBuffer} from './remote-input.js';
 import {arenaBonuses,resetBonuses,updateBonuses,awardBonus} from './streaks.js';
 import {botInput as tacticalBotInput} from './bots.js';
 import {beginEquip} from './equip.js';
@@ -43,6 +44,7 @@ export class Simulation {
     this.random = rng(options.seed || Date.now());
     this.players = new Map();
     this.inputs = new Map();
+    this.remoteInputs = new Map();
     this.events = [];
     this.eventId = 0;
     this.time = 0;
@@ -118,7 +120,7 @@ export class Simulation {
     const p = this.players.get(id);
     if (!p) return;
     this.players.delete(id);
-    this.inputs.delete(id);
+    this.inputs.delete(id);this.remoteInputs.delete(id);
     this.emit("leave", { name: p.name });
   }
   setProfile(id, profile) {
@@ -132,7 +134,7 @@ export class Simulation {
     if (this.phase === "lobby" || p.health <= 0) Object.assign(p, safe);
     return true;
   }
-  setInput(id, input) {
+  setInput(id, input, remote = false) {
     const p = this.players.get(id);
     if (!p || !input || typeof input !== "object") return;
     const safe = sanitizeInput(input),
@@ -142,12 +144,35 @@ export class Simulation {
     // can share one host tick; OR-ing the buttons alone would erase that edge.
     safe.jumpHeld = safe.jump;
     safe.jumpPress = safe.jump && !previous?.jumpHeld ? safe.seq : previous?.jumpPress || 0;
+    if(remote) {
+      if(p.health<=0||p.spectating)return;
+      let buffer=this.remoteInputs.get(id);
+      if(!buffer){buffer=new RemoteInputBuffer();this.remoteInputs.set(id,buffer);}
+      if(!buffer.push(safe))return;
+      this.inputs.set(id,safe);p.lastInput=this.time;return;
+    }
     // Preserve brief button presses when several packets arrive before a simulation tick.
     if (previous && previous.seq > p.ack)
       for (const key of ["reload", "popper", "jump", "fire"])
         safe[key] ||= previous[key];
     this.inputs.set(id, safe);
     p.lastInput = this.time;
+  }
+  movementInput(p, dt) {
+    const buffer=this.remoteInputs.get(p.id);
+    if(!buffer)return null;
+    const steps=buffer.take(dt);
+    let input={...(steps.at(-1)||buffer.last||{yaw:p.yaw,pitch:p.pitch,slot:p.slot})};
+    for(const key of ['fire','reload','popper','interact','drop'])
+      if(steps.some(step=>step[key]))input[key]=true;
+    if(this.time-p.lastInput>.4)input={yaw:p.yaw,pitch:p.pitch,slot:p.slot};
+    return {steps,input};
+  }
+  moveWithCommands(p,input,dt,commands) {
+    if(!commands){movePlayer(p,input,this.map,dt);p.ack=Math.max(p.ack,input.seq||0);return;}
+    for(const step of commands.steps){movePlayer(p,step,this.map,1/60);p.ack=Math.max(p.ack,step.seq);}
+    // After an actual interruption, keep gravity running without inventing input acknowledgements.
+    if(!commands.steps.length&&this.time-p.lastInput>.4)movePlayer(p,input,this.map,dt);
   }
   addBots() {
     let i = 0;
@@ -214,7 +239,7 @@ export class Simulation {
     p.respawnAt = 0;
     p.killerId = null;
     p.nextPlayerAction = 0;
-    this.inputs.delete(p.id);
+    this.inputs.delete(p.id);this.remoteInputs.delete(p.id);
   }
   playerAction(id, action) {
     const p = this.players.get(id);
@@ -226,7 +251,7 @@ export class Simulation {
     p.nextPlayerAction = this.time + 1;
     const wasAlive = p.health > 0;
     const wasSpectating = p.spectating;
-    this.inputs.delete(id);
+    this.inputs.delete(id);this.remoteInputs.delete(id);
     this.projectiles = this.projectiles.filter(b => b.owner !== id);
     p.reloadEnd = 0;
     p.burstLeft = 0;
@@ -274,7 +299,7 @@ export class Simulation {
       crown: null,
     });
     beginEquip(p,this.time);
-    this.inputs.delete(p.id);
+    this.inputs.delete(p.id);this.remoteInputs.delete(p.id);
     p.brain = null;
     p.botPath = [];
     p.botThink = 0;
@@ -293,7 +318,8 @@ export class Simulation {
         continue;
       }
       if(arenaBonuses(this.options.mode))updateBonuses(p,this.time,dt);
-      let input = p.bot ? this.botInput(p) : this.inputs.get(p.id);
+      const commands = p.bot ? null : this.movementInput(p,dt);
+      let input = commands?.input || (p.bot ? this.botInput(p) : this.inputs.get(p.id));
       if (!input || (!p.bot && this.time - p.lastInput > 0.4))
         input = { yaw: p.yaw, pitch: p.pitch, slot: p.slot };
       if (input.slot !== undefined && input.slot !== p.slot) {
@@ -303,10 +329,10 @@ export class Simulation {
         beginEquip(p,this.time,true);
       }
       const previousPosition = { x: p.x, y: p.y, z: p.z };
-      movePlayer(p, input, this.map, dt);
+      this.moveWithCommands(p,input,dt,commands);
       p.vx=(p.x-previousPosition.x)/dt;p.vz=(p.z-previousPosition.z)/dt;
       p.moving = Math.hypot(p.x - previousPosition.x, p.z - previousPosition.z) > 0.001;
-      p.ack = Math.max(p.ack, input.seq || 0);
+
       p.aim = !!input.aim;
       this.updateAccuracy(p, previousPosition, dt);
       if (this.time - p.lastDamage > 6 && p.health < 100)
@@ -810,13 +836,13 @@ export class Simulation {
     return best;
   }
   checkpoint() {
-    const skip=new Set(['map','nav','random','players','inputs','events']);
+    const skip=new Set(['map','nav','random','players','inputs','remoteInputs','events']);
     const data=Object.fromEntries(Object.entries(this).filter(([key,value])=>!skip.has(key)&&typeof value!=='function'));
     return structuredClone({...data,players:[...this.players.values()],events:this.events,randomState:this.random.state()});
   }
   restore(checkpoint) {
     const {players,randomState,...fields}=structuredClone(checkpoint);
-    Object.assign(this,fields);this.players=new Map(players.map(p=>[p.id,p]));this.inputs=new Map();
+    Object.assign(this,fields);this.players=new Map(players.map(p=>[p.id,p]));this.inputs=new Map();this.remoteInputs=new Map();
     this.map=getMap(this.options.map);this.nav=navigation(this.map);this.random=rng(1);this.random.restore(randomState);
     for(const p of this.players.values()){p.fireLatch=false;p.popperLatch=false;p.lastInput=this.time;}
     return this;

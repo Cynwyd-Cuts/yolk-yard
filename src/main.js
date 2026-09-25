@@ -447,7 +447,7 @@ function callbacks() {
     onJoin: (id, p) => !!sim?.admitPlayer(id,p),
     onLeave: (id) => sim?.leavePlayer(id),
     onPlayerAction: (id, action) => sim?.playerAction(id, action),
-    onInput: (id, i) => sim?.setInput(id, i),
+    onInput: (id, i) => sim?.setInput(id, i, true),
     onProfile: (id, p) => sim?.setProfile(id, p),
     onState: (s) => {
       if(s.royale&&!s.royale.builds&&state?.royale)s.royale={...s.royale,builds:state.royale.builds,worldDamage:state.royale.worldDamage};

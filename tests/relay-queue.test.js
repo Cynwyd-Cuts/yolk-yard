@@ -8,10 +8,10 @@ test('coalescing retains world deltas, checkpoint and distinct events',()=>{
  const m=mergeRelayMessage(a,b);assert.deepEqual(m.data.state.events,[{id:1},{id:2}]);assert.deepEqual(m.data.state.royale.loot,[1]);assert.deepEqual(m.data.checkpoint,{tick:1});
  assert.equal(mergeRelayMessage(a,entry({type:'state',state:{round:2,phase:'playing'}})),null);
 });
-test('movement can replace movement but never erases button edges or actions',()=>{
+test('input steps and button edges are never coalesced',()=>{
  const a=entry({type:'input',input:{seq:1,forward:1,fire:false}});
  const b=entry({type:'input',input:{seq:2,forward:0,fire:false}});
- assert.equal(mergeRelayMessage(a,b),b);
+ assert.equal(mergeRelayMessage(a,b),null);
  assert.equal(mergeRelayMessage(a,entry({type:'input',input:{seq:3,fire:true}})),null);
  assert.equal(mergeRelayMessage(a,entry({type:'player-action',action:'respawn'})),null);
 });

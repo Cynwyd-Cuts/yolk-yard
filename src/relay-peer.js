@@ -37,8 +37,10 @@ export class RelayPeer extends Events {
    }
   });
   ws.addEventListener('error',()=>{if(!this.destroyed&&ws===this.socket&&this.protocol!==2)this.emit('error',{type:'socket-error'});});
-  ws.addEventListener('close',()=>{
+  ws.addEventListener('close',event=>{
    if(this.destroyed||ws!==this.socket)return;
+   const reasons=['Server stopping','Connection too slow','Rate limit','Command sequence','Invalid relay message','Expired resume','Register first'];
+   this.emit('transport-close',{code:Number.isInteger(event.code)?event.code:0,reason:reasons.includes(event.reason)?event.reason:'unspecified'});
    if(this.protocol===2&&this.resume){
     this.reconnecting=true;this.rotating=true;
     if(!this.reconnectUntil){

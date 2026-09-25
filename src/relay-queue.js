@@ -2,10 +2,7 @@
 export function mergeRelayMessage(previous, next) {
   if (previous?.type !== 'data' || next?.type !== 'data' || previous.channel !== next.channel) return null;
   const a=previous.data, b=next.data;
-  if(a?.type==='input' && b?.type==='input') {
-    const actions = input => Object.fromEntries(Object.entries(input||{}).filter(([k])=>!['seq','dt','forward','strafe','yaw','pitch'].includes(k)));
-    if(JSON.stringify(actions(a.input))===JSON.stringify(actions(b.input)))return next;
-  }
+  // Each input is a simulation step; dropping one corrupts prediction acknowledgements.
   if(a?.type!=='state'||b?.type!=='state'||a.state?.round!==b.state?.round||a.state?.phase!==b.state?.phase)return null;
   const events=new Map();
   for(const event of [...(a.state.events||[]),...(b.state.events||[])])events.set(event.id??JSON.stringify(event),event);
