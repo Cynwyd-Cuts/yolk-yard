@@ -1,3 +1,4 @@
+import {animatePickaxe} from './pickaxe-animation.js';
 import {buildIsland,RoyaleView} from './royale-view.js';
 import {shopItem} from './shop-catalog.js';
 import {addShopOutfit,makeShopBack,makeShopPickaxe,makeShopGlider,makeShopTrail} from './shop-models.js';
@@ -850,8 +851,8 @@ export class View {
           if(itemKey){this.heldItem=heldItem.pickaxe&&shopItem(local.pickaxe)?makeShopPickaxe(local.pickaxe):this.royaleView.itemModel(heldItem,false);this.heldItem.scale.setScalar(.4);this.heldItem.position.set(-.05,-.08,-.28);this.gunGroup.add(this.heldItem);}
         }
         if(!heldItem?.weapon&&this.localArms)utilityArms(this.localArms,heldItem?.id,local.use?(state.time-local.use.start)/(local.use.end-local.use.start):-1,this.clock);
-        if(this.heldItem&&heldItem?.pickaxe){const swing=Math.max(0,1-(state.time-(local.swingAt??-100))/.45);this.heldItem.rotation.x=-Math.sin(swing*Math.PI)*1.6;this.gunGroup.position.y-=Math.sin(swing*Math.PI)*.17;this.gunGroup.rotation.z-=Math.sin(swing*Math.PI)*.55;}
-        if(this.heldItem)this.heldItem.rotation.z=local.use?Math.sin(this.clock*8)*.15:0;
+        if(this.heldItem&&heldItem?.pickaxe)animatePickaxe(this.heldItem,this.localArms,local.pickaxe,state.time-(local.swingAt??-100));
+        else if(this.heldItem)this.heldItem.rotation.z=local.use?Math.sin(this.clock*8)*.15:0;
         if(this.localArms){this.localArms.rotation.x=local.use ? -.35+Math.sin(this.clock*6)*.06 : 0;}
         this.gunGroup.rotation.z+=local.sprinting?.35:0;
         if(local.use){this.gunGroup.position.y+=.08+Math.sin(this.clock*8)*.015;this.gunGroup.rotation.x=-.3;}
@@ -914,7 +915,7 @@ export class View {
         this.lowerOutgoing(model.userData,draw,p.health>0);
         const harvesting=!!p.inventory?.[p.slot]?.pickaxe;
         if(harvesting&&!model.userData.shopTool){const tool=shopItem(p.pickaxe)?makeShopPickaxe(p.pickaxe):this.royaleView.itemModel({id:'pickaxe',pickaxe:true},false);tool.scale.setScalar(.5);tool.position.set(-.05,-.12,-.2);model.userData.held.add(tool);model.userData.shopTool=tool;}
-        if(model.userData.shopTool){model.userData.shopTool.visible=harvesting;model.userData.shopTool.rotation.x=-Math.sin(Math.max(0,1-(state.time-(p.swingAt??-100))/.45)*Math.PI)*1.6;}
+        if(model.userData.shopTool)model.userData.shopTool.visible=harvesting;
         model.userData.blaster.visible=!harvesting;
         model.userData.draw=draw;
         // Continuous time-based gait; network snapshots never jump the phase.
@@ -932,6 +933,7 @@ export class View {
         if (model.userData.arms) {
           const recoil = model.userData.armRecoil = Math.max(0, (model.userData.armRecoil || 0) - dt * 7);
           const hands = updateArms(model.userData.arms, draw.active?-1:reloadProgress(p, state.time), model.userData.blaster, recoil,draw.progress);
+          if(harvesting&&model.userData.shopTool)animatePickaxe(model.userData.shopTool,model.userData.arms,p.pickaxe,state.time-(p.swingAt??-100));
           const throwT=(this.clock-(model.userData.throwStart??-Infinity))/.78;
           if(state.options.mode!=='royale'&&throwT>=0&&throwT<=1)throwArms(model.userData.arms,throwT);
           model.userData.held.visible=draw.visible;

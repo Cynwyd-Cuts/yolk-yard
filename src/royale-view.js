@@ -173,13 +173,13 @@ export class RoyaleView{
  }
  animateActor(model,p,t){
   const flying=p.flight==='dive'||p.flight==='glide'||p.flight==='launch';
-  if(model.userData.held)model.userData.held.visible=!p.building&&!flying&&!!p.inventory?.[p.slot]?.weapon;
+  if(model.userData.held)model.userData.held.visible=!p.building&&!flying&&!!p.inventory?.[p.slot]&&(!!p.inventory[p.slot].weapon||!!p.inventory[p.slot].pickaxe);
   if(model.userData.blaster)model.userData.blaster.visible=!p.building&&!flying&&!!p.inventory?.[p.slot]?.weapon;
   if(!model.userData.flightArms){const arms=makeArms('pip',p,false);arms.position.y=1.1;arms.scale.setScalar(.85);for(const limb of arms.userData.limbs)limb.shoulder.set(limb.side*.5,0,.04);model.add(arms);model.userData.flightArms=arms;}
-  const arms=model.userData.flightArms,item=p.building?{id:'blueprint'}:p.inventory?.[p.slot];arms.visible=flying||!item?.weapon;
+  const arms=model.userData.flightArms,item=p.building?{id:'blueprint'}:p.inventory?.[p.slot];arms.visible=flying||(!item?.weapon&&!item?.pickaxe);
   const reach=p.flight==='glide'?[[ -.9,1.25,-.2],[.9,1.25,-.2]]:flying?[[-1.25,-.12,-.25],[1.25,-.12,-.25]]:p.use?[[-.3,.12,-.65],[.3,.16+Math.sin(t*7)*.035,-.65]]:[[-.56,-.45,-.15],[.56,-.45,-.15]];
   if(arms.visible)actionArms(arms,reach,p.flight==='glide'?-1.3:-.2);
-  const itemKey=!flying&&item&&!item.weapon?item.id:null;
+  const itemKey=!flying&&item&&!item.weapon&&!item.pickaxe?item.id:null;
   if(model.userData.utilityKey!==itemKey){if(model.userData.utility){model.userData.utility.removeFromParent();this.view.disposeGroup(model.userData.utility);}model.userData.utility=null;model.userData.utilityKey=itemKey;if(itemKey){const prop=this.itemModel(item,false);prop.scale.setScalar(.6);prop.position.set(.36,.7,-.35);model.add(prop);model.userData.utility=prop;}}
   if(model.userData.utility){model.userData.utility.position.y=p.use?1.15+Math.sin(t*7)*.02:.7;if(item?.pickaxe){const swing=Math.max(0,1-(this.view.lastStateTime-(p.swingAt??-100))/.45);model.userData.utility.rotation.x=-Math.sin(swing*Math.PI)*1.5;}}
 
