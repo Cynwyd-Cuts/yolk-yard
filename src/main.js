@@ -12,6 +12,7 @@ import {matchOptions, targetLabel} from "./match-options.js";
 import "./style.css";
 import {KeybindEditor} from "./keybind-editor.js";
 import {touchPair,touchRotation} from './menu-pose.js';
+import {OwnerConsole,startAnonymousVisits} from './owner-console.js';
 import { CONTROLS, normalizeBindings, bindingDown, bindingLabel } from "./keybinds.js";
 import { RELEASES, RELEASE } from "./releases.js";
 import { UpdateWatcher } from "./updates.js";
@@ -136,6 +137,8 @@ const touch = {
 $("#app").innerHTML =
   `<div id="menu"></div><div id="lobby" hidden></div><div id="hud"><div class="scope" id="scope"><span id="scope-label"></span></div><div class="hud-top"><div class="match-label"><span id="hud-mode"></span><strong id="hud-map"></strong><span id="hud-network"></span></div><div class="match-center"><div class="score-pair"><b class="blue-score" id="score-blue"></b><b id="timer">5:00</b><b class="coral-score" id="score-coral"></b></div><small id="objective"></small></div><div class="hud-buttons"><button data-action="scores" aria-label="Scoreboard">Scores</button><button data-action="pause" aria-label="Pause menu">Ⅱ</button></div></div><div class="killfeed" id="feed"></div><div class="crosshair" id="crosshair"><i class="crosshair-arm left"></i><i class="crosshair-arm right"></i><i class="crosshair-arm top"></i><i class="crosshair-arm bottom"></i><span class="center-dot" id="center-dot"></span></div><div id="hit-marker" class="hit-marker" hidden></div><div class="hit-flash" id="damage"></div><div id="damage-directions" aria-hidden="true"></div><div id="round-banner" role="status" hidden></div><div class="notice" id="notice"></div><div class="respawn" id="respawn"><div class="eyebrow" id="spawn-heading">SHELL HEALTH DEPLETED</div><h2 id="spawn-status">Ready when you are</h2><button class="primary" id="spawn-button" data-action="enter-yard">Respawn</button><p class="small" id="respawn-by"></p><p class="small" id="spectator-stats"></p><button class="plain" data-action="loadout">Change loadout</button></div><div class="hud-bottom"><div class="health-card"><div class="vital-row shield-row"><span class="vital-icon" aria-hidden="true">◆</span><span class="vital-value" id="shield">0</span><div class="vital-bar shield-bar"><span id="shield-fill"></span></div></div><div class="vital-row health-row"><span class="vital-icon" aria-hidden="true">＋</span><span class="vital-value" id="health">100</span><div class="vital-bar health-bar"><span id="health-fill"></span></div></div><div class="ammo-extra" id="streak">Freshly hatched</div></div><div class="quick-controls"><span><kbd>W A S D</kbd> Move</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Popper</span><span><kbd>1 / 2</kbd> Swap</span><span><kbd>Esc</kbd> Menu</span></div><div class="ammo-card"><div class="eyebrow" id="gun-name"></div><div class="ammo-count"><b id="ammo">30</b> <span>/ <span id="reserve">150</span></span></div><div class="ammo-extra" id="ammo-extra"></div></div></div><div id="spectate-panel" hidden><div class="eyebrow">SPECTATING</div><p id="spectate-info"></p><div class="split-actions"><button data-action="spectate-prev">← Previous</button><button data-action="spectate-next">Next →</button><button data-action="rejoin">Join game</button></div></div><div class="scoreboard" id="scoreboard"></div><div class="mobile-controls"><div class="touch-stick" id="touch-stick" aria-label="Movement joystick"><span></span></div><div class="touch-look" id="touch-look" aria-label="Drag to look"></div><div class="touch-buttons"><button data-touch="jump">JUMP</button><button data-touch="fire">FIRE</button><button data-touch="reload">LOAD</button><button data-touch="aim">AIM</button><button data-touch="popper">POP</button></div></div></div><dialog id="dialog"></dialog><div class="toast" id="toast" role="status"></div>`;
 const dialog = $("#dialog");
+const ownerConsole=new OwnerConsole({modal:(...args)=>modal(...args),screen:()=>screen,dialog});
+startAnonymousVisits(()=>screen==='game'?(state?.royale?'royale':state?.options?.mode==='teams'?'teams':'ffa'):screen==='lobby'?'lobby':'menu');
 const royaleUI = new RoyaleUI(item=>view.itemPreview(item));
 const buildControls={buildMode:false,buildType:'wall',buildMaterial:'wood',buildRotation:0,editing:false};
 document.addEventListener('build-edit-close',()=>{if(screen==='game'&&!paused&&!matchMedia('(pointer:coarse)').matches)view.renderer.domElement.requestPointerLock?.();});
@@ -168,7 +171,7 @@ function remember() {
   else net?.profile(profile);
 }
 function titleBar() {
-  return `<div class="topbar"><div class="brand">YOLK<br><span>YARD</span></div><div class="top-actions"><button class="pill" data-action="updates">QUALITY UPDATE · ${RELEASE}</button><button class="icon-btn" data-action="help">How to play</button><button class="icon-btn" data-action="settings" aria-label="Settings">Settings</button></div></div>`;
+  return `<div class="topbar"><button class="brand" type="button" aria-label="Yolk Yard">YOLK<br><span>YARD</span></button><div class="top-actions"><button class="pill" data-action="updates">QUALITY UPDATE · ${RELEASE}</button><button class="icon-btn" data-action="help">How to play</button><button class="icon-btn" data-action="settings" aria-label="Settings">Settings</button></div></div>`;
 }
 function renderMenu() {
   const w = weapon(profile.weapon);
@@ -986,6 +989,8 @@ function inventoryAction(action,index,from){
  if(dialogType==='royale-inventory')royaleUI.updateInventory(state.players.find(p=>p.id===localId));
 }
 const actions = {
+ 'owner-refresh':()=>ownerConsole.refresh(),
+ 'owner-logout':()=>ownerConsole.logout(),
  'play':()=>playMenu(),
  'play-royale':()=>playMenu('royale'),
  'play-ffa':()=>playMenu('ffa'),
@@ -1078,7 +1083,7 @@ const actions = {
   about: () =>
     modal(
       "Made for a good scramble",
-      `<p>Yolk Yard is an original, independent egg arena shooter. Its maps, characters, blasters, UI, and sounds were created for this game.</p><p style="margin-top:14px">3D rendering: Three.js (MIT). Multiplayer: secure WebSocket relay, with PeerJS (MIT) for optional direct connections. This game is not affiliated with Shell Shockers or Blue Wizard Digital.</p><p style="margin-top:14px">Settings and match totals stay in this browser. Rooms share your chosen name and game state with other players. Public rooms also share their room code and details in the directory. Filtered text chat is shared only within your room or team. Displayed chat clears when you leave. The game server briefly buffers messages for delivery; undelivered messages expire after 30 seconds. Reports notify the room host. No camera or microphone.</p><p class="hint">Version 2.0 · All gameplay code is included in the project.</p>`,
+      `<p>Yolk Yard is an original, independent egg arena shooter. Its maps, characters, blasters, UI, and sounds were created for this game.</p><p style="margin-top:14px">3D rendering: Three.js (MIT). Multiplayer: secure WebSocket relay, with PeerJS (MIT) for optional direct connections. This game is not affiliated with Shell Shockers or Blue Wizard Digital.</p><p style="margin-top:14px">Settings and match totals stay in this browser. Rooms share your chosen name and game state with other players. Public rooms also share their room code and details in the directory. Filtered text chat is shared only within your room or team. Displayed chat clears when you leave. The game server briefly buffers messages for delivery; undelivered messages expire after 30 seconds. Reports notify the room host. Anonymous visit analytics record session start, end, duration and game mode for the owner; they do not record IP addresses or chat. History is retained for at most 30 days when the host provides persistent storage. No camera or microphone.</p><p class="hint">Version 2.0 · All gameplay code is included in the project.</p>`,
       "about",
     ),
 };
@@ -1116,6 +1121,13 @@ document.addEventListener("click", (e) => {
   }
   if (b.dataset.kick) net?.kick(b.dataset.kick);
   if (b.dataset.joinRoom) joinRoom(b.dataset.joinRoom);
+});
+dialog.addEventListener('submit',e=>{
+  if(e.target.id!=='owner-form')return;
+  e.preventDefault();const code=e.target.querySelector('#owner-code').value;
+  e.target.querySelector('button[type="submit"]').disabled=true;
+  void ownerConsole.unlock(code);
+  e.target.querySelector('#owner-code').value='';
 });
 document.addEventListener("input", (e) => {
   const name = e.target.dataset.setting;

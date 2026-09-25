@@ -1760,3 +1760,13 @@ button:disabled { opacity: 0.55; cursor: default; }
   .menu-layout{top:150px}
   .keybind-row{grid-template-columns:minmax(60px,1fr) repeat(2,minmax(54px,1fr)) 32px}
 }
+/* Owner view uses the same dialog language as other Yolk Yard panels. */
+#dialog[data-kind="owner-dashboard"]{width:min(850px,94vw);max-width:850px}
+.owner-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+.owner-metrics>div{border:1px solid #ffffff33;border-radius:8px;background:#1e3e5c;padding:16px;display:flex;flex-direction:column;gap:5px}
+.owner-metrics b{font-size:30px}.owner-metrics span{font-size:11px;font-weight:700}
+.topbar button.brand{padding:0;border:0;background:transparent;text-align:left;cursor:default}
+.owner-toolbar{display:flex;gap:10px;margin:16px 0}.owner-table-scroll{overflow-x:auto;max-height:270px;overflow-y:auto}
+#dialog[data-kind="owner-dashboard"] h3{margin:20px 0 10px}
+#owner-form{display:grid;gap:12px;margin-top:16px}#owner-error{color:#ff9d9d;margin:12px 0}
+@media(max-width:600px){.owner-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-metrics>div{padding:10px}}
