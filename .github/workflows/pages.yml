@@ -15,7 +15,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: yolk-game-${{ github.event_name }}-${{ (contains(github.event.head_commit.message, '[publish-verified]') || contains(github.event.head_commit.message, '[relay-release]')) && github.sha || github.ref }}
+  group: yolk-game-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build:
